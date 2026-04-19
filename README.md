@@ -59,6 +59,7 @@ Python 3.11+ required.
 - [Architecture](docs/architecture.md) — system map, hooks flow, where to look to change X
 - [Code index](docs/codeindex.md) — per-repo symbol indexing, language support matrix, trust boundary
 - [Contributing](docs/contributing.md) — dev setup, adding embedders/platform adapters, test conventions
+- [Roadmap](ROADMAP.md) — what's planned for v0.2 → v0.5+ and how the plugin system will work
 
 ## License
 
