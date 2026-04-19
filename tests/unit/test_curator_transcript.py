@@ -82,7 +82,9 @@ def test_parse_full_transcript_concatenates_turns_with_role_tags(tmp_path: Path)
     assert "<ASSISTANT>\ntwo\n</ASSISTANT>" in out
 
 
-def test_parse_full_transcript_tail_truncates_when_oversized(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_parse_full_transcript_tail_truncates_when_oversized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(curator, "MAX_TRANSCRIPT_CHARS", 100)
     p = tmp_path / "t.jsonl"
     big = "x" * 500
@@ -92,7 +94,9 @@ def test_parse_full_transcript_tail_truncates_when_oversized(tmp_path: Path, mon
     assert out.startswith("...(earlier turns truncated)")
 
 
-def test_read_conversation_tail_prefers_env_var_transcript(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_read_conversation_tail_prefers_env_var_transcript(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     p = tmp_path / "t.jsonl"
     _write_transcript(p, [{"message": {"role": "user", "content": "env path"}}])
     monkeypatch.setenv("CLAUDE_ALMANAC_TRANSCRIPT", str(p))
@@ -100,6 +104,8 @@ def test_read_conversation_tail_prefers_env_var_transcript(tmp_path: Path, monke
     assert "<USER>\nenv path\n</USER>" in out
 
 
-def test_read_conversation_tail_returns_empty_when_no_source(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_read_conversation_tail_returns_empty_when_no_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("CLAUDE_ALMANAC_TRANSCRIPT", raising=False)
     assert curator._read_conversation_tail() == ""

@@ -3,10 +3,24 @@ from __future__ import annotations
 
 import argparse
 import sys
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
+
+
+def _package_version() -> str:
+    try:
+        return _pkg_version("claude-almanac")
+    except PackageNotFoundError:
+        return "0.0.0+unknown"
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="claude-almanac")
+    p.add_argument(
+        "--version",
+        action="version",
+        version=f"claude-almanac {_package_version()}",
+    )
     sub = p.add_subparsers(dest="cmd")
 
     sub.add_parser("status", help="Show install + daemon status")

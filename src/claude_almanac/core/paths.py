@@ -22,12 +22,14 @@ def data_dir() -> Path:
 
 
 def config_dir() -> Path:
-    """Base config dir. Unified on ~/.config/claude-almanac for both OSes.
-    Overridable via CLAUDE_ALMANAC_CONFIG_DIR."""
+    """Base config dir. Unified on ~/.config/claude-almanac for both macOS and Linux.
+    We deliberately diverge from `platformdirs.user_config_dir` on macOS (which returns
+    ~/Library/Application Support) so contributors and users can find/edit config.yaml
+    in the familiar ~/.config location. Overridable via CLAUDE_ALMANAC_CONFIG_DIR."""
     override = os.environ.get("CLAUDE_ALMANAC_CONFIG_DIR")
     if override:
         return Path(override)
-    return Path(platformdirs.user_config_dir(APP_NAME))
+    return Path.home() / ".config" / APP_NAME
 
 
 def global_memory_dir() -> Path:
