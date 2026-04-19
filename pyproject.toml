@@ -42,6 +42,7 @@ packages = ["src/claude_almanac"]
 [tool.hatch.build.targets.wheel.force-include]
 "src/claude_almanac/platform/templates" = "claude_almanac/platform/templates"
 "src/claude_almanac/core/assets" = "claude_almanac/core/assets"
+"src/claude_almanac/codeindex/assets/arch_prompt.md" = "claude_almanac/codeindex/assets/arch_prompt.md"
 
 [tool.ruff]
 line-length = 100
