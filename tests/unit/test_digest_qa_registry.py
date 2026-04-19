@@ -27,7 +27,6 @@ def test_double_register_raises():
         def b() -> str: return "b"
 
 
-@pytest.mark.skip(reason="requires B2 tool modules; un-skipped in Task B2")
 def test_auto_discover_imports_tool_modules(monkeypatch):
     # Fresh registry to avoid polluting the module-level one.
     r = registry.Registry()

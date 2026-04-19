@@ -18,6 +18,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import pkgutil
+import sys
 import types
 import typing
 from dataclasses import dataclass
@@ -125,7 +126,13 @@ def auto_discover(
         try:
             pkg = importlib.import_module(package_name)
             for _finder, modname, _ispkg in pkgutil.iter_modules(pkg.__path__):
-                importlib.import_module(f"{package_name}.{modname}")
+                full = f"{package_name}.{modname}"
+                mod = importlib.import_module(full)
+                # Force re-execution so @tool decorators re-register into the
+                # provided (fresh) registry; without this, cached modules from
+                # a prior import would leave the fresh registry empty.
+                if full in sys.modules:
+                    importlib.reload(sys.modules[full])
         finally:
             REGISTRY = saved
         return
