@@ -298,3 +298,48 @@ def ask(
       <div class="answer">{answer_html}</div>
     </article>
     """)
+
+
+import asyncio as _asyncio
+
+from sse_starlette.sse import EventSourceResponse
+
+
+@app.post("/ask/stream")
+async def ask_stream(
+    date: str,
+    repo: str | None = None,
+    question: str = Form(...),
+    mode: Literal["fast", "deep"] = Form("fast"),
+):
+    _validate_date_repo(date, repo)
+    p = _digest_file_for(date, repo)
+    if not p.exists():
+        label = f"{repo}/{date}" if repo else date
+        raise HTTPException(status_code=404, detail=f"no digest for {label}")
+    digest_md = p.read_text()
+
+    async def event_generator():
+        loop = _asyncio.get_running_loop()
+        try:
+            answer = await loop.run_in_executor(
+                None,
+                lambda: answer_question(
+                    question=question, digest_markdown=digest_md,
+                    date=date, mode=mode,
+                ),
+            )
+        except Exception as e:
+            yield {"event": "error", "data": str(e)}
+            return
+        CHUNK = 80
+        for i in range(0, len(answer), CHUNK):
+            yield {"event": "token", "data": answer[i:i + CHUNK]}
+            await _asyncio.sleep(0)
+        yield {
+            "event": "rendered",
+            "data": _md.markdown(answer, extensions=["fenced_code"]),
+        }
+        yield {"event": "done", "data": ""}
+
+    return EventSourceResponse(event_generator())
