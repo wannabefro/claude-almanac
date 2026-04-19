@@ -1,4 +1,5 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "claude-almanac",
   "owner": {
     "name": "Sam McTaggart"
@@ -10,7 +11,7 @@
   "plugins": [
     {
       "name": "claude-almanac",
-      "source": ".",
+      "source": "./",
       "description": "Daily intelligence layer for Claude Code — memory, code-index, digest.",
       "version": "0.1.0",
       "author": {
@@ -18,7 +19,8 @@
       },
       "license": "MIT",
       "homepage": "https://github.com/wannabefro/claude-almanac",
-      "keywords": [
+      "category": "productivity",
+      "tags": [
         "memory",
         "digest",
         "code-index",
@@ -26,8 +28,7 @@
         "productivity",
         "ollama",
         "semantic-search"
-      ],
-      "category": "productivity"
+      ]
     }
   ]
 }
