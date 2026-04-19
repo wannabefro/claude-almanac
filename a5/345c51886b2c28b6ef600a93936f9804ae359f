@@ -1,0 +1,29 @@
+src/claude_almanac/platform/linux_systemd.py
+  8f761abaa2c072a7 1-88
+tests/unit/test_linux_systemd.py
+  8f761abaa2c072a7 1-43
+src/claude_almanac/platform/templates/systemd_daily.timer.j2
+  8f761abaa2c072a7 1-9
+src/claude_almanac/platform/templates/systemd.service.j2
+  8f761abaa2c072a7 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "a5345c51886b2c28b6ef600a93936f9804ae359f",
+  "prompts": {
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 175,
+      "total_deletions": 0,
+      "accepted_lines": 328,
+      "overriden_lines": 0
+    }
+  }
+}
