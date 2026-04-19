@@ -7,6 +7,7 @@ from pathlib import Path
 
 import sqlite_vec  # type: ignore[import-untyped]
 
+from ....core import archive
 from ....core import config as core_config
 from ....core import paths
 from ....embedders import make_embedder
@@ -35,7 +36,12 @@ def search_activity(
     cfg = core_config.load()
     try:
         embedder = make_embedder(cfg.embedder.provider, cfg.embedder.model)
+        archive.assert_compatible(
+            db, embedder_name=embedder.name, model=embedder.model, dim=embedder.dim,
+        )
         [vec] = embedder.embed([query])
+    except archive.EmbedderMismatch:
+        raise  # don't mask a real corruption signal
     except Exception:
         return []
     conn = sqlite3.connect(str(db), timeout=5.0)

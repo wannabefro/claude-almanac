@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from claude_almanac.core import archive
 from claude_almanac.digest.qa import registry
 from claude_almanac.digest.qa.tools import search_activity, git_show
 
@@ -18,6 +19,7 @@ def test_search_activity_returns_hits(tmp_path, monkeypatch):
     from claude_almanac.digest import activity_db
     emb = MagicMock()
     emb.name = "ollama"
+    emb.model = "bge-m3"
     emb.dim = 4
     emb.distance = "l2"
     emb.embed.return_value = [[0.1, 0.2, 0.3, 0.4]]
@@ -37,6 +39,38 @@ def test_search_activity_returns_hits(tmp_path, monkeypatch):
     assert len(out) == 1
     assert out[0]["repo"] == "r"
     assert out[0]["sha"] == "abc123"
+
+
+def test_search_activity_raises_on_embedder_mismatch(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    from claude_almanac.digest import activity_db
+    # Seed activity.db with ollama/bge-m3/dim=4
+    seed_emb = MagicMock()
+    seed_emb.name = "ollama"
+    seed_emb.dim = 4
+    seed_emb.distance = "l2"
+    seed_emb.embed.return_value = [[0.1, 0.2, 0.3, 0.4]]
+    db = Path(tmp_path) / "activity.db"
+    activity_db.init_db(db, embedder=seed_emb, model="bge-m3")
+    rec = activity_db.CommitRecord(
+        repo="r", sha="abc123", author="t", subject="feat: x",
+        body="", stat_files=1, stat_insertions=1, stat_deletions=0,
+        diff_snippet="", committed_at="2026-04-19T00:00:00Z",
+    )
+    activity_db.insert_commit(db, rec, embedder=seed_emb, model="bge-m3")
+    # Query with a different embedder (openai instead of ollama)
+    query_emb = MagicMock()
+    query_emb.name = "openai"
+    query_emb.model = "text-embedding-3-small"
+    query_emb.dim = 4
+    query_emb.distance = "cosine"
+    query_emb.embed.return_value = [[0.1, 0.2, 0.3, 0.4]]
+    monkeypatch.setattr(
+        "claude_almanac.digest.qa.tools.search_activity.make_embedder",
+        lambda *a, **kw: query_emb,
+    )
+    with pytest.raises(archive.EmbedderMismatch):
+        search_activity.search_activity(query="x", top_k=3)
 
 
 def test_git_show_rejects_invalid_sha(monkeypatch):

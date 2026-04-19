@@ -22,6 +22,10 @@ def _call_claude(prompt: str, model: str) -> str:
         )
     except subprocess.TimeoutExpired as e:
         raise RuntimeError("claude timed out after 45s") from e
+    except FileNotFoundError:
+        raise RuntimeError(
+            "claude binary not found — is Claude Code installed?"
+        ) from None
     if out.returncode != 0:
         raise RuntimeError(f"claude exit {out.returncode}: {out.stderr[:400]}")
     return out.stdout.strip()
