@@ -1,0 +1,23 @@
+plugin.json
+  8f761abaa2c072a7 4,7-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "a008e0ff340893f9bfba89ba4dabaca958998c6c",
+  "prompts": {
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 239,
+      "total_deletions": 8,
+      "accepted_lines": 239,
+      "overriden_lines": 0
+    }
+  }
+}
