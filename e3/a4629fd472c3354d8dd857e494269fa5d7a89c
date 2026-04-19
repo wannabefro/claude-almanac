@@ -1,0 +1,29 @@
+pyproject.toml
+  8f761abaa2c072a7 53-54
+tests/unit/test_digest_server_health.py
+  8f761abaa2c072a7 1-18
+src/claude_almanac/digest/server.py
+  8f761abaa2c072a7 1-63
+src/claude_almanac/digest/templates/__init__.py
+  8f761abaa2c072a7 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "e3a4629fd472c3354d8dd857e494269fa5d7a89c",
+  "prompts": {
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 84,
+      "total_deletions": 0,
+      "accepted_lines": 84,
+      "overriden_lines": 0
+    }
+  }
+}
