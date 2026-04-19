@@ -1,0 +1,11 @@
+[Unit]
+Description={{ unit_name }}
+
+[Service]
+Type=oneshot
+ExecStart={{ exec_start }}
+StandardOutput=append:{{ log_path }}
+StandardError=append:{{ log_path }}
+
+[Install]
+WantedBy=default.target

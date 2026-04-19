@@ -1,0 +1,9 @@
+[Unit]
+Description={{ unit_name }} daily timer
+
+[Timer]
+OnCalendar=*-*-* {{ hour_padded }}:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
