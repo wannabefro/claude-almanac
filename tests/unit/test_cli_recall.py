@@ -42,3 +42,11 @@ def test_list_scans_md_files(tmp_path, monkeypatch, capsys):
 def test_no_args_prints_usage(capsys):
     cli_recall.run([])
     assert "Usage" in capsys.readouterr().out
+
+
+def test_recall_unsupported_command_points_to_github(capsys):
+    from claude_almanac.cli import recall
+    recall.run(["pin", "abc123"])
+    out = capsys.readouterr().out
+    assert "not implemented in v0.1" in out
+    assert "github.com" in out

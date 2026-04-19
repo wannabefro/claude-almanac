@@ -13,9 +13,11 @@ USAGE = """Usage: claude-almanac recall <subcommand> [args]
   code <query>        semantic search over the current repo's code-index
   list [type]         list markdown memories (type: user|feedback|project|reference)
   show <slug>         print a memory file body
-  pin <id> [scope]    pin an archive entry (scope: global|project, default=project)
-  unpin <id> [scope]  unpin
-  forget <slug-or-id> move memory to trash; delete archive rows
+
+  (deferred to v0.2 — see GitHub issues):
+  pin <id>            pin an archive entry
+  unpin <id>          unpin
+  forget <slug-or-id> move memory to trash
   export [path]       dump all memories to one markdown file
 """
 
@@ -114,5 +116,14 @@ def run(argv: list[str]) -> None:
             return
         _show(rest[0])
     else:
-        # pin/unpin/forget/export are stubs in v0.1; document in Task 25 follow-up.
-        print(f"unsupported in v0.1: {cmd}")
+        # pin/unpin/forget/export are deferred to v0.2.
+        # See https://github.com/sammctaggart/claude-almanac/issues for current status.
+        if cmd in {"pin", "unpin", "forget", "export"}:
+            print(
+                f"'{cmd}' is not implemented in v0.1. "
+                f"Track progress at https://github.com/sammctaggart/claude-almanac/issues"
+                f" (label: v0.2)."
+            )
+            return
+        print(f"unknown subcommand: {cmd}", file=sys.stderr)
+        print(USAGE)
