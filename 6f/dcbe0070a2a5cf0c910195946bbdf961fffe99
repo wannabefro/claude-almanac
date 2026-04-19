@@ -1,0 +1,25 @@
+tests/unit/test_cli_setup.py
+  8f761abaa2c072a7 1-35
+src/claude_almanac/cli/setup.py
+  8f761abaa2c072a7 1-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "6fdcbe0070a2a5cf0c910195946bbdf961fffe99",
+  "prompts": {
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 144,
+      "total_deletions": 0,
+      "accepted_lines": 144,
+      "overriden_lines": 0
+    }
+  }
+}
