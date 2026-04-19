@@ -1,0 +1,24 @@
+{# src/claude_almanac/digest/templates/generate_form.html #}
+{% extends "base.html" %}
+{% block title %}generate digest{% endblock %}
+{% block content %}
+<main class="generate">
+  <h1>Generate a custom digest</h1>
+  <form method="post" action="/generate">
+    <label>
+      Repo (blank = all configured)
+      <input name="repo" type="text" placeholder="e.g. fender">
+    </label>
+    <label>
+      Window (hours)
+      <input name="since_hours" type="number" min="1" max="720" value="24">
+    </label>
+    <label>
+      Date label (YYYY-MM-DD, blank = today)
+      <input name="date" type="text" pattern="\d{4}-\d{2}-\d{2}" placeholder="2026-04-18">
+    </label>
+    <button type="submit">generate</button>
+  </form>
+  <p><a href="/digests">← cancel</a></p>
+</main>
+{% endblock %}

@@ -343,3 +343,37 @@ async def ask_stream(
         yield {"event": "done", "data": ""}
 
     return EventSourceResponse(event_generator())
+
+
+from . import generator
+
+
+@app.get("/generate", response_class=HTMLResponse)
+def generate_form(request: Request):
+    return templates.TemplateResponse(request, "generate_form.html", {})
+
+
+@app.post("/generate")
+def generate_post(
+    repo: str = Form(""),
+    since_hours: int = Form(24),
+    date: str = Form(""),
+):
+    repo_filter = repo.strip() or None
+    date_arg: str | None = date.strip() or None
+    if date_arg and not _DATE_RE.match(date_arg):
+        raise HTTPException(status_code=422, detail="invalid date format")
+    try:
+        result = generator.generate(
+            date=date_arg, notify=False,
+            repo_filter=repo_filter, since_hours=since_hours,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    digest_name = Path(result["digest_path"]).stem
+    if repo_filter:
+        date_part = digest_name.split("_", 1)[0]
+        return RedirectResponse(
+            url=f"/digest/{repo_filter}/{date_part}", status_code=302,
+        )
+    return RedirectResponse(url=f"/digest/{digest_name}", status_code=302)
