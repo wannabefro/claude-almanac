@@ -14,8 +14,10 @@
     "ollama",
     "semantic-search"
   ],
-  "repository": "https://github.com/sammctaggart/claude-almanac",
+  "repository": "https://github.com/wannabefro/claude-almanac",
   "license": "MIT",
-  "author": "Sam McTaggart",
-  "homepage": "https://github.com/sammctaggart/claude-almanac#readme"
+  "author": {
+    "name": "Sam McTaggart"
+  },
+  "homepage": "https://github.com/wannabefro/claude-almanac#readme"
 }
