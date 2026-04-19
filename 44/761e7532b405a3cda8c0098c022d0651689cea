@@ -1,0 +1,25 @@
+src/claude_almanac/core/curator.py
+  8f761abaa2c072a7 67-84,150-154
+tests/unit/test_embedders_base.py
+  8f761abaa2c072a7 31-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "44761e7532b405a3cda8c0098c022d0651689cea",
+  "prompts": {
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 41,
+      "total_deletions": 9,
+      "accepted_lines": 41,
+      "overriden_lines": 0
+    }
+  }
+}
