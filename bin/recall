@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# bin/recall — wrapper for ${CLAUDE_PLUGIN_ROOT}/bin/recall invoked by /recall slash command.
+# Shells into `claude-almanac recall`.
+set -u
+exec claude-almanac recall "$@"
