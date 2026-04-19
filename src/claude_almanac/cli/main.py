@@ -19,6 +19,18 @@ def build_parser() -> argparse.ArgumentParser:
     s_recall.add_argument("subcmd", nargs="?")
     s_recall.add_argument("args", nargs="*")
 
+    s_ci = sub.add_parser("codeindex", help="Code-index subsystem")
+    ci_sub = s_ci.add_subparsers(dest="ci_cmd")
+    for name, help_ in (
+        ("init",    "Initial symbol indexing for the current repo"),
+        ("refresh", "Incremental re-index against origin's default branch"),
+        ("arch",    "Module-level arch summaries (requires send_code_to_llm)"),
+        ("status",  "Show DB health and dirty-module queue"),
+    ):
+        sp = ci_sub.add_parser(name, help=help_)
+        sp.add_argument("--repo", default=None,
+                        help="Repo root; defaults to current working directory")
+
     return p
 
 
@@ -40,6 +52,11 @@ def cmd_recall(args: argparse.Namespace) -> None:
     _recall.run([args.subcmd, *args.args] if args.subcmd else [])
 
 
+def cmd_codeindex(args: argparse.Namespace) -> None:
+    from . import codeindex as _ci
+    _ci.run(args)
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     ns = parser.parse_args(argv)
@@ -50,6 +67,7 @@ def main(argv: list[str] | None = None) -> None:
         "status": cmd_status,
         "setup": cmd_setup,
         "recall": cmd_recall,
+        "codeindex": cmd_codeindex,
     }
     fn = dispatch.get(ns.cmd)
     if fn is None:
