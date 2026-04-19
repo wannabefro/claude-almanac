@@ -19,6 +19,10 @@ def build_parser() -> argparse.ArgumentParser:
     s_recall.add_argument("subcmd", nargs="?")
     s_recall.add_argument("args", nargs="*")
 
+    s_digest = sub.add_parser("digest", help="Digest generate/serve")
+    s_digest.add_argument("subcmd", nargs="?")
+    s_digest.add_argument("args", nargs="*")
+
     s_ci = sub.add_parser("codeindex", help="Code-index subsystem")
     ci_sub = s_ci.add_subparsers(dest="ci_cmd")
     for name, help_ in (
@@ -57,6 +61,11 @@ def cmd_codeindex(args: argparse.Namespace) -> None:
     _ci.run(args)
 
 
+def cmd_digest(args: argparse.Namespace) -> None:
+    from . import digest as _digest
+    sys.exit(_digest.run([args.subcmd, *args.args] if args.subcmd else []))
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     ns = parser.parse_args(argv)
@@ -67,6 +76,7 @@ def main(argv: list[str] | None = None) -> None:
         "status": cmd_status,
         "setup": cmd_setup,
         "recall": cmd_recall,
+        "digest": cmd_digest,
         "codeindex": cmd_codeindex,
     }
     fn = dispatch.get(ns.cmd)
