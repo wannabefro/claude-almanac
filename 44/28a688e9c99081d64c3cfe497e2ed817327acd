@@ -1,0 +1,44 @@
+tests/unit/codeindex/test_db.py
+  8f761abaa2c072a7 1-2,85-101
+tests/unit/codeindex/test_python_ast.py
+  8f761abaa2c072a7 17-18
+src/claude_almanac/codeindex/db.py
+  8f761abaa2c072a7 91-102
+tests/unit/codeindex/test_regex_tuned.py
+  8f761abaa2c072a7 16-17
+tests/unit/codeindex/test_serena_fallback.py
+  8f761abaa2c072a7 35-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "4428a688e9c99081d64c3cfe497e2ed817327acd",
+  "prompts": {
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 57,
+      "total_deletions": 0,
+      "accepted_lines": 57,
+      "overriden_lines": 0
+    },
+    "ce23855fb71576a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8137c00c-352c-43b9-b46e-4c963a8b2c40",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 52,
+      "overriden_lines": 0
+    }
+  }
+}
