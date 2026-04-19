@@ -1,8 +1,21 @@
 {
   "name": "claude-almanac",
   "version": "0.1.0",
-  "description": "Daily intelligence layer for Claude Code",
+  "description": "Daily intelligence layer for Claude Code — memory + digest + code-index.",
   "hooks": "./hooks/hooks.json",
   "commands": "./commands/",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "keywords": [
+    "memory",
+    "digest",
+    "code-index",
+    "retrieval",
+    "productivity",
+    "ollama",
+    "semantic-search"
+  ],
+  "repository": "https://github.com/sammctaggart/claude-almanac",
+  "license": "MIT",
+  "author": "Sam McTaggart",
+  "homepage": "https://github.com/sammctaggart/claude-almanac#readme"
 }
