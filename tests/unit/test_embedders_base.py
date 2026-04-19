@@ -28,3 +28,21 @@ def test_embedder_is_a_protocol():
 
     fake: Embedder = FakeEmbedder()  # Protocol acceptance
     assert fake.embed(["a"])[0] == [0.0, 0.0, 0.0, 0.0]
+
+
+def test_concrete_embedders_name_equals_provider():
+    from unittest.mock import patch
+    from claude_almanac.embedders.ollama import OllamaEmbedder
+    from claude_almanac.embedders.openai import OpenAIEmbedder
+    from claude_almanac.embedders.voyage import VoyageEmbedder
+
+    ollama = OllamaEmbedder(model="bge-m3", dim=1024)
+    assert ollama.name == "ollama"
+
+    with patch("claude_almanac.embedders.openai.OpenAI"):
+        openai = OpenAIEmbedder(model="text-embedding-3-small", dim=1536, api_key="x")
+    assert openai.name == "openai"
+
+    with patch("claude_almanac.embedders.voyage.voyageai"):
+        voyage = VoyageEmbedder(model="voyage-3-large", dim=1024, api_key="x")
+    assert voyage.name == "voyage"

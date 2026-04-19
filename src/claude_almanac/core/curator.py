@@ -64,21 +64,31 @@ def _apply_decisions(decisions: list[dict]) -> None:
     threshold = cfg.thresholds.dedup_distance or profile.dedup_distance
     embedder = make_embedder(cfg.embedder.provider, cfg.embedder.model)
 
+    scope_dirs = {
+        paths.global_memory_dir(): paths.global_memory_dir() / "archive.db",
+        paths.project_memory_dir(): paths.project_memory_dir() / "archive.db",
+    }
+    for scope_dir, db in scope_dirs.items():
+        scope_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            archive.init(
+                db,
+                embedder_name=embedder.name,
+                model=cfg.embedder.model,
+                dim=embedder.dim,
+                distance=embedder.distance,
+            )
+        except archive.EmbedderMismatch as e:
+            LOGGER.error("embedder mismatch in %s — re-index required: %s", db, e)
+            return
+
     for d in decisions:
         action = d.get("action")
         scope = d.get("scope", "project")
         scope_dir = (
             paths.global_memory_dir() if scope == "global" else paths.project_memory_dir()
         )
-        scope_dir.mkdir(parents=True, exist_ok=True)
         db = scope_dir / "archive.db"
-        archive.init(
-            db,
-            embedder_name=embedder.name,
-            model=cfg.embedder.model,
-            dim=embedder.dim,
-            distance=embedder.distance,
-        )
 
         if action == "write_md":
             slug = d["slug"]
@@ -137,7 +147,11 @@ def main() -> None:
         return
     try:
         raw = _run_llm(tail)
-        payload = json.loads(raw) if raw.strip() else {}
+        try:
+            payload = json.loads(raw) if raw.strip() else {}
+        except json.JSONDecodeError:
+            LOGGER.warning("curator: LLM returned non-JSON: %.200s", raw)
+            return
         decisions = payload.get("decisions", [])
         if decisions:
             _apply_decisions(decisions)
