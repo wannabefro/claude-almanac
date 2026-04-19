@@ -258,3 +258,43 @@ def digest_page(request: Request, date: str):
 @app.get("/digest/{repo}/{date}", response_class=HTMLResponse)
 def digest_page_repo(request: Request, repo: str, date: str):
     return _render_digest_page(request, date, repo)
+
+
+import html as _html
+from typing import Literal
+
+from fastapi import Form
+
+from .qa.api import answer_question
+
+
+def _escape(text: str) -> str:
+    return _html.escape(text)
+
+
+@app.post("/ask", response_class=HTMLResponse)
+def ask(
+    date: str,
+    repo: str | None = None,
+    question: str = Form(...),
+    mode: Literal["fast", "deep"] = Form("fast"),
+):
+    _validate_date_repo(date, repo)
+    p = _digest_file_for(date, repo)
+    if not p.exists():
+        label = f"{repo}/{date}" if repo else date
+        raise HTTPException(status_code=404, detail=f"no digest for {label}")
+    try:
+        answer = answer_question(
+            question=question, digest_markdown=p.read_text(),
+            date=date, mode=mode,
+        )
+    except Exception as e:
+        answer = f"_(error: {e})_"
+    answer_html = _md.markdown(answer, extensions=["fenced_code"])
+    return HTMLResponse(f"""
+    <article class="chat-turn">
+      <div class="question"><strong>Q:</strong> {_escape(question)}</div>
+      <div class="answer">{answer_html}</div>
+    </article>
+    """)
