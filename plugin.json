@@ -1,0 +1,8 @@
+{
+  "name": "claude-almanac",
+  "version": "0.1.0",
+  "description": "Daily intelligence layer for Claude Code",
+  "hooks": "./hooks/hooks.json",
+  "commands": "./commands/",
+  "skills": "./skills/"
+}
