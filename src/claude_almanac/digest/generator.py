@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ..core import archive
 from ..core import config as core_config
 from ..core import paths
 from ..embedders import make_embedder
@@ -86,25 +87,28 @@ def generate(
             {"sha": c.sha, "subject": c.subject, "author": c.author}
             for c in commits
         ]
-        for c in commits:
-            rec = CommitRecord(
-                repo=c.repo, sha=c.sha, author=c.author,
-                subject=c.subject, body=c.body,
-                stat_files=c.stat_files, stat_insertions=c.stat_insertions,
-                stat_deletions=c.stat_deletions,
-                diff_snippet=c.diff_snippet, committed_at=c.committed_at,
-            )
-            try:
-                if insert_commit(
-                    activity_db, rec,
-                    embedder=embedder, model=cfg.embedder.model,
-                ):
-                    commits_inserted += 1
-            except Exception as e:
-                print(
-                    f"warn: insert failed for {c.repo}@{c.sha}: {e}",
-                    file=sys.stderr,
+        if not dry_run:
+            for c in commits:
+                rec = CommitRecord(
+                    repo=c.repo, sha=c.sha, author=c.author,
+                    subject=c.subject, body=c.body,
+                    stat_files=c.stat_files, stat_insertions=c.stat_insertions,
+                    stat_deletions=c.stat_deletions,
+                    diff_snippet=c.diff_snippet, committed_at=c.committed_at,
                 )
+                try:
+                    if insert_commit(
+                        activity_db, rec,
+                        embedder=embedder, model=cfg.embedder.model,
+                    ):
+                        commits_inserted += 1
+                except archive.EmbedderMismatch:
+                    raise  # don't swallow — re-raise to abort the run
+                except Exception as e:
+                    print(
+                        f"warn: insert failed for {c.repo}@{c.sha}: {e}",
+                        file=sys.stderr,
+                    )
 
     narratives_by_repo = {
         repo: haiku_narrate(
@@ -130,7 +134,10 @@ def generate(
     else:
         digest_path.write_text(md)
 
-    pruned = prune_activity(activity_db, retention_days=rt.retention_days)
+    if dry_run:
+        pruned = 0
+    else:
+        pruned = prune_activity(activity_db, retention_days=rt.retention_days)
 
     notified: bool | None = None
     if notify and rt.notification and not dry_run:

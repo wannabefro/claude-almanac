@@ -34,16 +34,25 @@ def run(argv: list[str] | None = None) -> int:
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
-        print(
-            f"wrote {result['digest_path']} "
-            f"(+{result['commits_inserted']} commits, "
-            f"-{result['pruned']} pruned, "
-            f"notified={result['notified']})"
-        )
+        if ns.dry_run:
+            print("(dry run — no file written)")
+        else:
+            print(
+                f"wrote {result['digest_path']} "
+                f"(+{result['commits_inserted']} commits, "
+                f"-{result['pruned']} pruned, "
+                f"notified={result['notified']})"
+            )
         return 0
     if ns.cmd == "serve":
-        # Wired in Task C6
-        from ..digest.server import serve as server_serve
-        return server_serve()
+        try:
+            from ..digest import server
+        except ImportError:
+            print(
+                "digest serve not yet available (ships in the web UI phase)",
+                file=sys.stderr,
+            )
+            return 1
+        return server.serve()
     print("unknown subcommand", file=sys.stderr)
     return 2

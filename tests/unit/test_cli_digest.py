@@ -31,3 +31,20 @@ def test_generate_respects_repo_and_since(monkeypatch):
     assert kwargs["repo_filter"] == "r"
     assert kwargs["since_hours"] == 48
     assert kwargs["notify"] is False
+
+
+def test_serve_prints_friendly_message_when_server_absent(capsys, monkeypatch):
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if level and fromlist and "server" in fromlist:
+            raise ImportError("no server module yet")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", _fake_import)
+    rc = cli_digest.run(["serve"])
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "not yet available" in err
