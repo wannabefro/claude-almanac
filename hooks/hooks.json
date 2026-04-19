@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m claude_almanac.hooks.retrieve"
+            "command": "claude-almanac-retrieve-hook"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m claude_almanac.hooks.curate"
+            "command": "claude-almanac-curate-hook"
           }
         ]
       }

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "claude-almanac"
-version = "0.1.0"
+version = "0.1.1"
 description = "Daily intelligence layer for Claude Code"
 readme = "README.md"
 license = { text = "MIT" }
@@ -40,6 +40,8 @@ dev = [
 
 [project.scripts]
 claude-almanac = "claude_almanac.cli.main:main"
+claude-almanac-retrieve-hook = "claude_almanac.hooks.retrieve:main"
+claude-almanac-curate-hook = "claude_almanac.hooks.curate:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/claude_almanac"]
