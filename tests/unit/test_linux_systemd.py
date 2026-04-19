@@ -41,3 +41,27 @@ def test_notifier_uses_notify_send(monkeypatch):
     )
     SystemdNotifier().notify("t", "m")
     assert "notify-send" in called[0][0]
+
+
+def test_render_service_quotes_paths_with_spaces(tmp_path):
+    s = SystemdScheduler(units_dir=tmp_path)
+    svc = s._render_service("claude-almanac-digest", ["/home/my user/bin/py", "-m", "x"])
+    # shlex-quoted: the space-containing path is wrapped in single quotes
+    assert "'/home/my user/bin/py'" in svc
+
+
+def test_status_checks_service_when_timer_inactive(monkeypatch, tmp_path):
+    from unittest.mock import MagicMock
+    calls = []
+    def fake_run(args, **kw):
+        calls.append(args)
+        # Pretend timer inactive, service active
+        if args[-1].endswith(".timer"):
+            return MagicMock(stdout="inactive\n")
+        return MagicMock(stdout="active\n")
+    monkeypatch.setattr("subprocess.run", fake_run)
+    status = SystemdScheduler(units_dir=tmp_path).status("claude-almanac-curator")
+    assert status.running is True
+    # Timer was checked first, then service
+    assert calls[0][-1].endswith(".timer")
+    assert calls[1][-1].endswith(".service")

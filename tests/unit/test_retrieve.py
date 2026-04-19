@@ -48,3 +48,22 @@ def test_run_retrieves_from_global_and_project(monkeypatch, tmp_path):
     assert "Relevant memories" in out
     # Ensure both scopes were searched
     assert len(calls) == 2
+
+
+def test_run_raises_on_embedder_mismatch(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    from claude_almanac.core import archive, retrieve, paths
+    paths.ensure_dirs()
+    # Seed a DB at the global path with ollama/bge-m3
+    db = paths.global_memory_dir() / "archive.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=4, distance="l2")
+    # Configure retrieve to use a different embedder
+    from unittest.mock import MagicMock
+    fake = MagicMock(); fake.name = "openai"; fake.model = "text-embedding-3-small"
+    fake.dim = 1536; fake.distance = "cosine"
+    fake.embed.return_value = [[0.0] * 1536]
+    monkeypatch.setattr("claude_almanac.core.retrieve.make_embedder",
+                        lambda *a, **kw: fake)
+    import pytest
+    with pytest.raises(archive.EmbedderMismatch):
+        retrieve.run("hi")

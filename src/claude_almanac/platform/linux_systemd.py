@@ -1,6 +1,7 @@
 """systemd --user Scheduler and notify-send Notifier."""
 from __future__ import annotations
 
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -25,7 +26,7 @@ class SystemdScheduler:
         tmpl = _env.get_template("systemd.service.j2")
         return tmpl.render(
             unit_name=unit_name,
-            exec_start=" ".join(cmd),
+            exec_start=shlex.join(cmd),
             log_path=str(paths.logs_dir() / f"{unit_name}.log"),
         )
 
@@ -68,13 +69,20 @@ class SystemdScheduler:
         self._systemctl("daemon-reload")
 
     def status(self, unit_name: str) -> SchedulerStatus:
-        result = subprocess.run(
+        timer_result = subprocess.run(
             ["systemctl", "--user", "is-active", f"{unit_name}.timer"],
             capture_output=True, text=True, check=False,
         )
+        running = timer_result.stdout.strip() == "active"
+        if not running:
+            service_result = subprocess.run(
+                ["systemctl", "--user", "is-active", f"{unit_name}.service"],
+                capture_output=True, text=True, check=False,
+            )
+            running = service_result.stdout.strip() == "active"
         return SchedulerStatus(
             name=unit_name,
-            running=result.stdout.strip() == "active",
+            running=running,
             last_exit_code=None,
         )
 

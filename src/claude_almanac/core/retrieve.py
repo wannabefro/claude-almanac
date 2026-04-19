@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from . import archive, config, paths
-from ..embedders import get_profile, make_embedder
+from ..embedders import make_embedder
 from ..embedders.base import Embedder
 
 
@@ -17,6 +17,11 @@ def _ensure_db(db: Path, embedder: Embedder, model: str) -> None:
     if not db.exists():
         archive.init(db, embedder_name=embedder.name, model=model,
                      dim=embedder.dim, distance=embedder.distance)
+    else:
+        archive.assert_compatible(
+            db, embedder_name=embedder.name, model=embedder.model,
+            dim=embedder.dim,
+        )
 
 
 def format_hits(hits: list[archive.Hit]) -> str:
@@ -41,7 +46,6 @@ def run(prompt: str) -> str:
         return ""
 
     cfg = config.load()
-    profile = get_profile(cfg.embedder.provider, cfg.embedder.model)
     embedder = make_embedder(cfg.embedder.provider, cfg.embedder.model)
 
     try:
