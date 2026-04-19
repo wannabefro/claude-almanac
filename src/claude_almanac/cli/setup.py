@@ -43,13 +43,8 @@ def _do_install() -> None:
     if ok:
         print("embedder reachable")
     if cfg.digest.enabled:
-        scheduler = get_scheduler()
-        scheduler.install_daily(
-            DIGEST_UNIT_NAME,
-            [sys.executable, "-m", "claude_almanac.cli.main", "digest", "generate"],
-            cfg.digest.hour,
-        )
-        print(f"installed daily digest unit: {DIGEST_UNIT_NAME}")
+        print("digest subsystem not available in v0.1 — skipping daemon install")
+        print("enable digest in a future release")
     print("setup complete. next: add repos to digest.repos in config.yaml")
 
 
