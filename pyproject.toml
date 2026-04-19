@@ -46,12 +46,9 @@ packages = ["src/claude_almanac"]
 [tool.hatch.build.targets.wheel.sources]
 "src/claude_almanac" = "claude_almanac"
 
-[tool.hatch.build.targets.wheel.force-include]
-"src/claude_almanac/platform/templates" = "claude_almanac/platform/templates"
-"src/claude_almanac/core/assets" = "claude_almanac/core/assets"
-"src/claude_almanac/codeindex/assets/arch_prompt.md" = "claude_almanac/codeindex/assets/arch_prompt.md"
-"src/claude_almanac/digest/templates" = "claude_almanac/digest/templates"
-"src/claude_almanac/digest/static" = "claude_almanac/digest/static"
+# Non-.py package data (templates, prompts, CSS) lives inside the package tree
+# and ships automatically via `packages`. If you add a new non-.py asset
+# directory, verify it's bundled via `unzip -l dist/*.whl | grep <name>`.
 
 [tool.ruff]
 line-length = 100
