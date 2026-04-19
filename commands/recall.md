@@ -1,6 +1,6 @@
 ---
 description: Search and manage long-term memories (by-repo + cross-repo)
-argument-hint: "<search|search-all|list|show|pin|unpin|forget|export> [args]"
+argument-hint: "<search|search-all|list|show|pin|unpin|forget|export|code> [args]"
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/bin/recall:*)
 ---
 
@@ -13,3 +13,16 @@ ${CLAUDE_PLUGIN_ROOT}/bin/recall $ARGUMENTS
 ```
 
 If `$ARGUMENTS` is empty, show the usage help.
+
+### `recall code <query>`
+
+Search the per-repo code index directly. Returns symbol + module summaries.
+Requires `claude-almanac codeindex init` to have run for this repo.
+
+Example:
+  recall code "jwt verification flow"
+
+Note: code-index hits are also auto-injected alongside memory hits for prompts
+that look like code questions (the `autoinject.should_query` gate in
+`core/retrieve.py`). Use `recall code <query>` when you want to bypass the gate
+and search the index directly.
