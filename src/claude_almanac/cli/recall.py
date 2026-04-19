@@ -1,6 +1,8 @@
 """`claude-almanac recall` — search/list/show/pin memories."""
 from __future__ import annotations
 
+import sys
+
 from claude_almanac.core import archive, config, paths
 from claude_almanac.embedders import make_embedder
 
@@ -8,6 +10,7 @@ USAGE = """Usage: claude-almanac recall <subcommand> [args]
 
   search <query>      semantic search over global + current-project archives
   search-all <query>  fan out across ALL project archives
+  code <query>        semantic search over the current repo's code-index
   list [type]         list markdown memories (type: user|feedback|project|reference)
   show <slug>         print a memory file body
   pin <id> [scope]    pin an archive entry (scope: global|project, default=project)
@@ -75,6 +78,23 @@ def _show(slug: str) -> None:
     print(f"not found: {slug}")
 
 
+def _cmd_code(argv: list[str]) -> int:
+    if not argv:
+        print("usage: recall code <query>", file=sys.stderr)
+        return 2
+    from claude_almanac.codeindex import search as _ci_search
+    dbp = paths.project_memory_dir() / "code-index.db"
+    if not dbp.exists():
+        print("no code-index.db — run `claude-almanac codeindex init`")
+        return 1
+    cfg = config.load()
+    embedder = make_embedder(cfg.embedder.provider, cfg.embedder.model)
+    [vec] = embedder.embed([" ".join(argv)])
+    out = _ci_search.search_and_format(str(dbp), query_vec=vec, sym_k=3, arch_k=2)
+    print(out or "(no matches)")
+    return 0
+
+
 def run(argv: list[str]) -> None:
     if not argv:
         print(USAGE)
@@ -84,6 +104,8 @@ def run(argv: list[str]) -> None:
         _search(" ".join(rest), all_projects=False)
     elif cmd == "search-all":
         _search(" ".join(rest), all_projects=True)
+    elif cmd == "code":
+        _cmd_code(rest)
     elif cmd == "list":
         _list(rest[0] if rest else None)
     elif cmd == "show":
