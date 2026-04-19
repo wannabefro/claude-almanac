@@ -1,0 +1,55 @@
+src/claude_almanac/digest/qa/deep.py
+  8f761abaa2c072a7 65
+tests/unit/test_digest_qa_tools.py
+  8f761abaa2c072a7 90-93
+src/claude_almanac/digest/generator.py
+  8f761abaa2c072a7 11-14,76,137-140
+src/claude_almanac/digest/render.py
+  8f761abaa2c072a7 7,14,16,33
+src/claude_almanac/digest/collectors.py
+  8f761abaa2c072a7 8,25,28,53-54,117
+src/claude_almanac/digest/qa/registry.py
+  8f761abaa2c072a7 58-60,117-119,135
+tests/unit/test_digest_collectors.py
+  8f761abaa2c072a7 73-76
+src/claude_almanac/cli/digest.py
+  8f761abaa2c072a7 7,49
+src/claude_almanac/digest/activity_db.py
+  8f761abaa2c072a7 17-18
+tests/integration/test_digest_end_to_end.py
+  8f761abaa2c072a7 34-37
+src/claude_almanac/digest/notify.py
+  8f761abaa2c072a7 4
+src/claude_almanac/digest/qa/tools/git_show.py
+  8f761abaa2c072a7 9-10
+src/claude_almanac/digest/qa/tools/search_activity.py
+  8f761abaa2c072a7 6,10-13,30,53
+tests/unit/test_cli_digest.py
+  8f761abaa2c072a7 40-43
+src/claude_almanac/digest/config.py
+  8f761abaa2c072a7 12-13
+tests/unit/test_digest_generator.py
+  8f761abaa2c072a7 41-44,120-123,171-174
+src/claude_almanac/digest/server.py
+  8f761abaa2c072a7 9-10,12,14,16,18-20,23-25,27-28,80,113,149,166,208,218-220,243,258,263,277,305,313,340,349
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "19c5c30159b9b494697d73480aab61f008596d3d",
+  "prompts": {
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 104,
+      "total_deletions": 88,
+      "accepted_lines": 100,
+      "overriden_lines": 0
+    }
+  }
+}
