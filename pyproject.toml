@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "claude-almanac"
+version = "0.1.0"
+description = "Daily intelligence layer for Claude Code"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+authors = [{ name = "Sam McTaggart" }]
+dependencies = [
+  "sqlite-vec>=0.1.6",
+  "httpx>=0.27",
+  "jinja2>=3.1",
+  "pyyaml>=6.0",
+  "platformdirs>=4.2",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.50"]
+voyage = ["voyageai>=0.2"]
+dev = [
+  "pytest>=8.0",
+  "pytest-mock>=3.12",
+  "ruff>=0.5",
+  "mypy>=1.11",
+  "types-pyyaml",
+]
+
+[project.scripts]
+claude-almanac = "claude_almanac.cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/claude_almanac"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "TID"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: requires live Ollama/network (skipped by default)"]
+addopts = "-m 'not integration'"
