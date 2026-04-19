@@ -50,6 +50,8 @@ packages = ["src/claude_almanac"]
 "src/claude_almanac/platform/templates" = "claude_almanac/platform/templates"
 "src/claude_almanac/core/assets" = "claude_almanac/core/assets"
 "src/claude_almanac/codeindex/assets/arch_prompt.md" = "claude_almanac/codeindex/assets/arch_prompt.md"
+"src/claude_almanac/digest/templates" = "claude_almanac/digest/templates"
+"src/claude_almanac/digest/static" = "claude_almanac/digest/static"
 
 [tool.ruff]
 line-length = 100
