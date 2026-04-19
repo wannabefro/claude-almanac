@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="history">
+  <h1>Digest history</h1>
+  {% if daily %}
+    <section class="history-section">
+      <h2 class="history-heading">Daily</h2>
+      <ul class="digest-list">
+        {% for date in daily %}
+          <li><a href="/digest/{{ date }}">{{ date }}</a></li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+  {% if by_repo %}
+    {% for repo, dates in by_repo.items() %}
+      <section class="history-section">
+        <h2 class="history-heading">{{ repo }}</h2>
+        <ul class="digest-list">
+          {% for date in dates %}
+            <li><a href="/digest/{{ repo }}/{{ date }}">{{ date }}</a></li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+  {% endif %}
+  {% if not daily and not by_repo %}
+    <p class="empty">no digests yet — run <code>claude-almanac digest generate</code></p>
+  {% endif %}
+</main>
+{% endblock %}

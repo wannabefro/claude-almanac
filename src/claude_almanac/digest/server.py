@@ -208,3 +208,53 @@ def today(request: Request):
     date, repo = latest
     url = f"/digest/{repo}/{date}" if repo else f"/digest/{date}"
     return RedirectResponse(url=url, status_code=307)
+
+
+import markdown as _md
+
+
+def _render_digest_page(request: Request, date: str, repo: str | None):
+    _validate_date_repo(date, repo)
+    p = _digest_file_for(date, repo)
+    if not p.exists():
+        label = f"{repo}/{date}" if repo else date
+        raise HTTPException(status_code=404, detail=f"no digest for {label}")
+    listing = _list_digests()
+    daily_exists = date in listing["daily"]
+    other_repos = sorted(
+        r for r, dates in listing["by_repo"].items()
+        if date in dates and r != repo
+    )
+    html = _md.markdown(p.read_text(), extensions=["fenced_code", "tables"])
+    return templates.TemplateResponse(
+        request, "digest.html",
+        {
+            "date": date, "repo": repo, "digest_html": html,
+            "daily_exists": daily_exists, "other_repos": other_repos,
+        },
+    )
+
+
+@app.get("/digests", response_class=HTMLResponse)
+def digests_list(request: Request):
+    listing = _list_digests()
+    return templates.TemplateResponse(
+        request, "history.html",
+        {
+            "daily": list(reversed(listing["daily"])),
+            "by_repo": {
+                repo: list(reversed(dates))
+                for repo, dates in sorted(listing["by_repo"].items())
+            },
+        },
+    )
+
+
+@app.get("/digest/{date}", response_class=HTMLResponse)
+def digest_page(request: Request, date: str):
+    return _render_digest_page(request, date, None)
+
+
+@app.get("/digest/{repo}/{date}", response_class=HTMLResponse)
+def digest_page_repo(request: Request, repo: str, date: str):
+    return _render_digest_page(request, date, repo)

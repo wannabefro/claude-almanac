@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}{{ date }} — digest{% endblock %}
+{% block content %}
+<header class="topbar">
+  <a href="/digests">← history</a>
+  <div class="topbar-center">
+    <h2>
+      {{ date }}{% if repo %} <span class="scope-badge">{{ repo }}</span>{% endif %}
+    </h2>
+    {% if (repo and daily_exists) or other_repos %}
+    <nav class="scope-links">
+      {% if repo and daily_exists %}<a href="/digest/{{ date }}">daily</a>{% endif %}
+      {% for other in other_repos %}
+        {% if not loop.first or (repo and daily_exists) %}<span class="scope-sep">·</span>{% endif %}
+        <a href="/digest/{{ other }}/{{ date }}">{{ other }}</a>
+      {% endfor %}
+    </nav>
+    {% endif %}
+  </div>
+  <a href="/generate" class="generate-link">generate custom</a>
+</header>
+<div class="layout">
+  <article class="digest-body">
+    {{ digest_html | safe }}
+  </article>
+  <aside class="chat-panel">
+    <h3>Follow-up questions</h3>
+    <form id="ask-form">
+      <label>
+        Mode
+        <select id="mode" name="mode">
+          <option value="fast">fast</option>
+          <option value="deep">deep (tools)</option>
+        </select>
+      </label>
+      <textarea id="question" name="question" required
+                placeholder="what changed around i18n?"></textarea>
+      <button type="submit">ask</button>
+    </form>
+    <div id="chat-log" class="chat-log" aria-live="polite"></div>
+    <script>
+    (() => {
+      const form = document.getElementById('ask-form');
+      const log = document.getElementById('chat-log');
+      const date = "{{ date }}";
+      const repo = "{{ repo or '' }}";
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const q = form.question.value.trim();
+        if (!q) return;
+        const mode = form.mode.value;
+        const turn = document.createElement('article');
+        turn.className = 'chat-turn';
+        turn.innerHTML = `<div class="question"><strong>Q:</strong> ${escapeHtml(q)}</div><div class="answer"></div>`;
+        log.appendChild(turn);
+        const answerEl = turn.querySelector('.answer');
+        const fd = new FormData();
+        fd.set('question', q);
+        fd.set('mode', mode);
+        const qs = new URLSearchParams({ date });
+        if (repo) qs.set('repo', repo);
+        const resp = await fetch(`/ask/stream?${qs}`, { method: 'POST', body: fd });
+        const reader = resp.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          const events = buf.split(/\r?\n\r?\n/);
+          buf = events.pop();
+          for (const evt of events) {
+            const lines = evt.split(/\r?\n/);
+            let event = 'message', data = '';
+            for (const line of lines) {
+              if (line.startsWith('event:')) event = line.slice(6).trim();
+              if (line.startsWith('data:')) data += line.slice(5).replace(/^ /, '').replace(/\r$/, '');
+            }
+            if (event === 'token') answerEl.textContent += data;
+            if (event === 'rendered') answerEl.innerHTML = data;
+            if (event === 'error') answerEl.innerHTML = `<em>error: ${escapeHtml(data)}</em>`;
+            if (event === 'done') form.question.value = '';
+          }
+        }
+      });
+      function escapeHtml(s) {
+        return s.replace(/[&<>"']/g, c => ({
+          '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
+      }
+    })();
+    </script>
+  </aside>
+</div>
+{% endblock %}
