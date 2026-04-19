@@ -1,0 +1,27 @@
+.claude/skills/trust-boundary-check/SKILL.md
+  8f761abaa2c072a7 1-37
+.claude/skills/test-conventions/SKILL.md
+  8f761abaa2c072a7 1-103
+.claude/skills/add-embedder/SKILL.md
+  8f761abaa2c072a7 1-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "a786bd0a3d3351bb49d8854e8e5aa34a462dfe2f",
+  "prompts": {
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 376,
+      "overriden_lines": 0
+    }
+  }
+}
