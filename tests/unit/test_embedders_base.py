@@ -19,6 +19,7 @@ def test_embedder_is_a_protocol():
     # Duck-typing check: anything with .name, .dim, .distance, .embed() qualifies.
     class FakeEmbedder:
         name = "fake"
+        model = "fake"
         dim = 4
         distance = "l2"
 

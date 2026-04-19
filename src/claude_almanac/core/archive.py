@@ -45,10 +45,16 @@ def init(db: Path, *, embedder_name: str, model: str, dim: int, distance: Distan
         )
         existing = {row[0]: row[1] for row in conn.execute("SELECT key, value FROM meta")}
         if existing:
-            if existing.get("embedder") != embedder_name or int(existing.get("dim", "0")) != dim:
+            if (
+                existing.get("embedder") != embedder_name
+                or existing.get("model") != model
+                or int(existing.get("dim", "0")) != dim
+            ):
                 raise EmbedderMismatch(
-                    f"DB initialized with {existing.get('embedder')} dim={existing.get('dim')}; "
-                    f"requested {embedder_name} dim={dim}. Re-index required."
+                    f"DB initialized with {existing.get('embedder')} "
+                    f"model={existing.get('model')} dim={existing.get('dim')}; "
+                    f"requested {embedder_name} model={model} dim={dim}. "
+                    f"Re-index required."
                 )
             return
         conn.executemany(
@@ -93,10 +99,15 @@ def get_meta(db: Path) -> dict[str, str | int]:
 
 def assert_compatible(db: Path, *, embedder_name: str, model: str, dim: int) -> None:
     meta = get_meta(db)
-    if meta.get("embedder") != embedder_name or meta.get("dim") != dim:
+    if (
+        meta.get("embedder") != embedder_name
+        or meta.get("model") != model
+        or meta.get("dim") != dim
+    ):
         raise EmbedderMismatch(
-            f"DB embedder={meta.get('embedder')} dim={meta.get('dim')}; "
-            f"requested {embedder_name} dim={dim}"
+            f"DB embedder={meta.get('embedder')} model={meta.get('model')} "
+            f"dim={meta.get('dim')}; "
+            f"requested {embedder_name} model={model} dim={dim}"
         )
 
 

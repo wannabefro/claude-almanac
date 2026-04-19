@@ -12,7 +12,13 @@ def make_embedder(provider: str, model: str) -> Embedder:
     ImportError on missing optional extras, RuntimeError on missing API keys."""
     if provider not in _KNOWN_PROVIDERS:
         raise ValueError(f"unknown embedder provider: {provider}")
-    profile = get_profile(provider, model)
+    try:
+        profile = get_profile(provider, model)
+    except KeyError as e:
+        raise ValueError(
+            f"no profile registered for {provider}/{model}; "
+            f"configure thresholds.dedup_distance explicitly"
+        ) from e
     if provider == "ollama":
         from .ollama import OllamaEmbedder
         return OllamaEmbedder(model=model, dim=profile.dim)

@@ -53,6 +53,13 @@ def test_nearest_source_prefix_filter(tmp_path):
     assert hit.source == "md:foo.md"
 
 
+def test_mismatched_model_refuses(tmp_path):
+    db = tmp_path / "a.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=4, distance="l2")
+    with pytest.raises(archive.EmbedderMismatch):
+        archive.init(db, embedder_name="ollama", model="other-model", dim=4, distance="l2")
+
+
 def test_prune_old_unpinned(tmp_path):
     import time
     db = tmp_path / "a.db"

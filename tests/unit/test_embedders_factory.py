@@ -18,3 +18,8 @@ def test_factory_wires_openai():
         with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-x"}):
             e = make_embedder("openai", "text-embedding-3-small")
     assert e.name == "openai"
+
+
+def test_factory_unknown_model_raises_valueerror():
+    with pytest.raises(ValueError, match="no profile"):
+        make_embedder("ollama", "nonexistent-model")

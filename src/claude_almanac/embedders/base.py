@@ -10,6 +10,7 @@ Distance = Literal["l2", "cosine"]
 @runtime_checkable
 class Embedder(Protocol):
     name: str
+    model: str
     dim: int
     distance: Distance
 
