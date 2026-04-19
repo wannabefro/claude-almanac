@@ -1,6 +1,7 @@
 """Unit tests for the curator worker."""
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock
 
 from claude_almanac.core import curator
@@ -10,8 +11,15 @@ def test_main_loads_config_and_invokes_worker(monkeypatch, tmp_path):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
 
-    transcript = tmp_path / "transcript.txt"
-    transcript.write_text("user: hi\nassistant: hello\n")
+    transcript = tmp_path / "transcript.jsonl"
+    transcript.write_text(
+        "\n".join(
+            [
+                json.dumps({"message": {"role": "user", "content": "hi"}}),
+                json.dumps({"message": {"role": "assistant", "content": "hello"}}),
+            ]
+        )
+    )
     monkeypatch.setenv("CLAUDE_ALMANAC_TRANSCRIPT", str(transcript))
 
     called = {"ran": False}

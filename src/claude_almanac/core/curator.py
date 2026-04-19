@@ -8,11 +8,10 @@ Ported from ~/.claude/memory-tools/curator-worker.py. Key changes:
 - embedder is pluggable via claude_almanac.embedders
 - dedup threshold loaded from per-embedder profile (or config override)
 
-The `_read_conversation_tail` function is intentionally a stub for v0.1 —
-it only honors an explicit ``CLAUDE_ALMANAC_TRANSCRIPT`` env var. The
-existing curator-worker.py has session-scraping logic; porting it is
-tracked as follow-up work (see the Foundation plan "Known follow-up work"
-section).
+The transcript reader parses Claude Code's JSONL session transcript. It
+honors ``CLAUDE_ALMANAC_TRANSCRIPT`` (explicit override for CLI/testing)
+and ``CLAUDE_ALMANAC_HOOK_TRANSCRIPT`` (set by the Stop hook when forking
+the worker).
 """
 from __future__ import annotations
 
@@ -20,6 +19,7 @@ import json
 import logging
 import os
 import subprocess
+from collections.abc import Iterator
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
@@ -29,6 +29,8 @@ from claude_almanac.embedders import get_profile, make_embedder
 from . import archive, config, dedup, paths
 
 LOGGER = logging.getLogger("claude_almanac.curator")
+
+MAX_TRANSCRIPT_CHARS = 120_000   # Haiku context budget minus prompt overhead
 
 
 def _setup_logging() -> None:
@@ -127,17 +129,73 @@ def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
             )
 
 
-def _read_conversation_tail() -> str:
-    """Placeholder for conversation capture.
+def _iter_turns(transcript_path: str) -> Iterator[tuple[str, str]]:
+    """Yield (role, text) for each user/assistant turn in a JSONL transcript.
 
-    In the existing memory-tools system this is done by scraping Claude
-    Code's session log. For v0.1 the curator only runs if a transcript
-    file is explicitly provided via the ``CLAUDE_ALMANAC_TRANSCRIPT`` env
-    var; porting the session-scrape logic is tracked as follow-up work.
+    Ported from memory-tools/curator-worker.py. Handles:
+    - string content
+    - list-of-parts content (extracts type=text parts, skips tool_use/tool_result)
+    - malformed lines (logged-and-skipped, not raised)
     """
-    transcript = os.environ.get("CLAUDE_ALMANAC_TRANSCRIPT")
-    if transcript and Path(transcript).exists():
-        return Path(transcript).read_text()
+    try:
+        with open(transcript_path, encoding="utf-8") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line:
+                    continue
+                try:
+                    ev = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                msg = ev.get("message") or {}
+                role = msg.get("role") or ev.get("type")
+                if role not in ("user", "assistant"):
+                    continue
+                content = msg.get("content")
+                text = ""
+                if isinstance(content, str):
+                    text = content
+                elif isinstance(content, list):
+                    parts = [
+                        c.get("text", "")
+                        for c in content
+                        if isinstance(c, dict) and c.get("type") == "text"
+                    ]
+                    text = "\n".join(parts)
+                if not text.strip():
+                    continue
+                yield role, text
+    except OSError as e:
+        LOGGER.warning("transcript read failed: %s", e)
+
+
+def _parse_full_transcript(transcript_path: str) -> str:
+    """Concatenate all user/assistant turns with <USER>/<ASSISTANT> tags.
+
+    Tail-truncates when the result would exceed MAX_TRANSCRIPT_CHARS.
+    """
+    chunks: list[str] = []
+    for role, text in _iter_turns(transcript_path):
+        label = "USER" if role == "user" else "ASSISTANT"
+        chunks.append(f"<{label}>\n{text}\n</{label}>")
+    full = "\n\n".join(chunks)
+    if len(full) > MAX_TRANSCRIPT_CHARS:
+        full = "...(earlier turns truncated)...\n\n" + full[-MAX_TRANSCRIPT_CHARS:]
+    return full
+
+
+def _read_conversation_tail() -> str:
+    """Read the conversation tail for the curator.
+
+    Prefers ``CLAUDE_ALMANAC_TRANSCRIPT`` (explicit override for CLI/testing),
+    falls back to ``CLAUDE_ALMANAC_HOOK_TRANSCRIPT`` (set by the Stop hook
+    when forking the worker). Returns empty string if neither is set or
+    the path doesn't exist.
+    """
+    for env_var in ("CLAUDE_ALMANAC_TRANSCRIPT", "CLAUDE_ALMANAC_HOOK_TRANSCRIPT"):
+        path = os.environ.get(env_var)
+        if path and Path(path).exists():
+            return _parse_full_transcript(path)
     return ""
 
 
