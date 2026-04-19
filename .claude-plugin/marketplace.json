@@ -1,0 +1,33 @@
+{
+  "name": "claude-almanac",
+  "owner": {
+    "name": "Sam McTaggart"
+  },
+  "metadata": {
+    "description": "A daily intelligence layer for Claude Code — self-curating memory, per-repo code-symbol index, and daily digest with Q&A",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "claude-almanac",
+      "source": ".",
+      "description": "Daily intelligence layer for Claude Code — memory, code-index, digest.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Sam McTaggart"
+      },
+      "license": "MIT",
+      "homepage": "https://github.com/wannabefro/claude-almanac",
+      "keywords": [
+        "memory",
+        "digest",
+        "code-index",
+        "retrieval",
+        "productivity",
+        "ollama",
+        "semantic-search"
+      ],
+      "category": "productivity"
+    }
+  ]
+}
