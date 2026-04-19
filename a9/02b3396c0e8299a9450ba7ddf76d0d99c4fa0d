@@ -1,0 +1,23 @@
+CLAUDE.md
+  8f761abaa2c072a7 32-33,39-41,59,68-69,73-78,80-87,89-118,122-125,135,144-145,147-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "a902b3396c0e8299a9450ba7ddf76d0d99c4fa0d",
+  "prompts": {
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 67,
+      "total_deletions": 20,
+      "accepted_lines": 67,
+      "overriden_lines": 0
+    }
+  }
+}
