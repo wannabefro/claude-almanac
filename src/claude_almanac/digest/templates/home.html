@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}digest{% endblock %}
+{% block content %}
+<main class="home">
+  <header class="home-header">
+    <h1 class="home-title">digest</h1>
+    <p class="home-sub">
+      {% if health.ok %}
+        <span class="health-dot ok" aria-label="all systems ok"></span>
+      {% else %}
+        <span class="health-dot warn" aria-label="degraded"></span>
+      {% endif %}
+      {{ total_daily }} daily · {{ total_repos }} repo{{ '' if total_repos == 1 else 's' }}
+    </p>
+  </header>
+  {% if hero %}
+    <section class="home-hero">
+      <a href="{{ hero.url }}" class="hero-card">
+        <div class="hero-label">latest digest</div>
+        <div class="hero-date">
+          {{ hero.date }}{% if hero.repo %} <span class="scope-badge">{{ hero.repo }}</span>{% endif %}
+        </div>
+        {% if hero.preview %}
+          <p class="hero-preview">{{ hero.preview }}</p>
+        {% endif %}
+        <div class="hero-cta">open →</div>
+      </a>
+    </section>
+  {% else %}
+    <section class="home-empty">
+      <p class="empty">no digests yet — run <code>claude-almanac digest generate</code> to create one</p>
+    </section>
+  {% endif %}
+  {% if by_repo_latest %}
+    <section class="home-section">
+      <h2 class="home-heading">By repo</h2>
+      <ul class="repo-grid">
+        {% for repo, date in by_repo_latest.items() %}
+          <li class="repo-tile">
+            <a href="/digest/{{ repo }}/{{ date }}">
+              <span class="repo-name">{{ repo }}</span>
+              <span class="repo-date">{{ date }}</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+  {% if recent %}
+    <section class="home-section">
+      <h2 class="home-heading">Recent</h2>
+      <ul class="recent-list">
+        {% for entry in recent %}
+          <li>
+            <a href="{{ entry.url }}">
+              <span class="recent-date">{{ entry.date }}</span>
+              <span class="recent-scope">{{ entry.repo or 'daily' }}</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+  <nav class="home-actions">
+    <a href="/generate" class="home-cta">generate custom</a>
+    <a href="/digests" class="home-cta secondary">all history →</a>
+  </nav>
+</main>
+{% endblock %}
