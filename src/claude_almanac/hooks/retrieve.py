@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
-from ..core import retrieve as core_retrieve
+from claude_almanac.core import retrieve as core_retrieve
 
 
 def main() -> None:

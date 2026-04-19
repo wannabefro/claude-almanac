@@ -22,8 +22,10 @@ import os
 import subprocess
 from importlib.resources import files
 from pathlib import Path
+from typing import Any
 
-from ..embedders import get_profile, make_embedder
+from claude_almanac.embedders import get_profile, make_embedder
+
 from . import archive, config, dedup, paths
 
 LOGGER = logging.getLogger("claude_almanac.curator")
@@ -58,7 +60,7 @@ def _run_llm(conversation_tail: str) -> str:
         return "{}"
 
 
-def _apply_decisions(decisions: list[dict]) -> None:
+def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
     cfg = config.load()
     profile = get_profile(cfg.embedder.provider, cfg.embedder.model)
     threshold = cfg.thresholds.dedup_distance or profile.dedup_distance

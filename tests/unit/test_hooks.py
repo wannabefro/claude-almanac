@@ -1,8 +1,8 @@
-import json
 import io
-from unittest.mock import patch
-from claude_almanac.hooks import retrieve as hooks_retrieve
+import json
+
 from claude_almanac.hooks import curate as hooks_curate
+from claude_almanac.hooks import retrieve as hooks_retrieve
 
 
 def test_retrieve_hook_reads_stdin_prints_context(monkeypatch, capsys):

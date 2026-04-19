@@ -11,7 +11,7 @@ def distances(embedder: Embedder, pairs: list[tuple[str, str]]) -> list[float]:
     flat = [t for pair in pairs for t in pair]
     vecs = embedder.embed(flat)
     out: list[float] = []
-    for i, (a, b) in enumerate(pairs):
+    for i, (_a, _b) in enumerate(pairs):
         va = vecs[2 * i]
         vb = vecs[2 * i + 1]
         if embedder.distance == "l2":

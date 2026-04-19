@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from claude_almanac.platform.base import Scheduler, Notifier, SchedulerStatus
+
+from claude_almanac.platform.base import Notifier, Scheduler, SchedulerStatus
 
 
 @dataclass

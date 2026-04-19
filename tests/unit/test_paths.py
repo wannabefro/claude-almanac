@@ -1,7 +1,5 @@
 import hashlib
-import os
-from pathlib import Path
-import pytest
+
 from claude_almanac.core import paths
 
 

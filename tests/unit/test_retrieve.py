@@ -1,6 +1,7 @@
-import pytest
-from pathlib import Path
 from unittest.mock import MagicMock
+
+import pytest
+
 from claude_almanac.core import retrieve
 from claude_almanac.core.archive import Hit
 
@@ -29,7 +30,10 @@ def test_run_retrieves_from_global_and_project(monkeypatch, tmp_path):
 
     fake_embedder = MagicMock()
     fake_embedder.embed.return_value = [[1.0, 0.0]]
-    monkeypatch.setattr("claude_almanac.core.retrieve.make_embedder", lambda *a, **kw: fake_embedder)
+    monkeypatch.setattr(
+        "claude_almanac.core.retrieve.make_embedder",
+        lambda *a, **kw: fake_embedder,
+    )
 
     # Stub archive.search to return canned hits from two DBs
     calls = []
@@ -52,18 +56,20 @@ def test_run_retrieves_from_global_and_project(monkeypatch, tmp_path):
 
 def test_run_raises_on_embedder_mismatch(tmp_path, monkeypatch):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
-    from claude_almanac.core import archive, retrieve, paths
+    from claude_almanac.core import archive, paths, retrieve
     paths.ensure_dirs()
     # Seed a DB at the global path with ollama/bge-m3
     db = paths.global_memory_dir() / "archive.db"
     archive.init(db, embedder_name="ollama", model="bge-m3", dim=4, distance="l2")
     # Configure retrieve to use a different embedder
     from unittest.mock import MagicMock
-    fake = MagicMock(); fake.name = "openai"; fake.model = "text-embedding-3-small"
-    fake.dim = 1536; fake.distance = "cosine"
+    fake = MagicMock()
+    fake.name = "openai"
+    fake.model = "text-embedding-3-small"
+    fake.dim = 1536
+    fake.distance = "cosine"
     fake.embed.return_value = [[0.0] * 1536]
     monkeypatch.setattr("claude_almanac.core.retrieve.make_embedder",
                         lambda *a, **kw: fake)
-    import pytest
     with pytest.raises(archive.EmbedderMismatch):
         retrieve.run("hi")

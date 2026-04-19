@@ -1,8 +1,9 @@
 """Config schema and YAML I/O. config.yaml lives under config_dir()."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -83,7 +84,7 @@ def save(cfg: Config) -> None:
         yaml.safe_dump(asdict(cfg), f, sort_keys=False)
 
 
-def _from_dict(raw: dict) -> Config:
+def _from_dict(raw: dict[str, Any]) -> Config:
     emb = raw.get("embedder", {})
     dig = raw.get("digest", {})
     repos = [RepoCfg(**r) for r in dig.get("repos", [])]

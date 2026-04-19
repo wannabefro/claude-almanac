@@ -1,5 +1,3 @@
-import pytest
-from unittest.mock import MagicMock
 from claude_almanac.core import dedup
 from claude_almanac.core.archive import Hit
 

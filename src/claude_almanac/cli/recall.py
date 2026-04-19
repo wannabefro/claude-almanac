@@ -1,11 +1,8 @@
 """`claude-almanac recall` — search/list/show/pin memories."""
 from __future__ import annotations
 
-from pathlib import Path
-
-from ..core import archive, config, paths
-from ..embedders import make_embedder
-
+from claude_almanac.core import archive, config, paths
+from claude_almanac.embedders import make_embedder
 
 USAGE = """Usage: claude-almanac recall <subcommand> [args]
 

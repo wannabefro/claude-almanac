@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 from claude_almanac.embedders.openai import OpenAIEmbedder
 
 
@@ -28,6 +30,8 @@ def test_openai_attrs():
 
 def test_openai_requires_api_key(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    with patch("claude_almanac.embedders.openai.OpenAI"):
-        with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
-            OpenAIEmbedder(model="text-embedding-3-small", dim=1536)
+    with (
+        patch("claude_almanac.embedders.openai.OpenAI"),
+        pytest.raises(RuntimeError, match="OPENAI_API_KEY"),
+    ):
+        OpenAIEmbedder(model="text-embedding-3-small", dim=1536)

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-import sqlite_vec
+import sqlite_vec  # type: ignore[import-untyped]
 
 Distance = Literal["l2", "cosine"]
 

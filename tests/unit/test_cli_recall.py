@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+
 from claude_almanac.cli import recall as cli_recall
 
 

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from claude_almanac.embedders import make_embedder
+from claude_almanac.embedders.base import Embedder
+
 from . import archive, config, paths
-from ..embedders import make_embedder
-from ..embedders.base import Embedder
 
 
 def _db_for(directory: Path) -> Path:

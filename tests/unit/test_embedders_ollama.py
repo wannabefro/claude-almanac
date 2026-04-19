@@ -1,5 +1,6 @@
 import httpx
 import pytest
+
 from claude_almanac.embedders.ollama import OllamaEmbedder
 
 

@@ -1,6 +1,7 @@
 import pytest
-from claude_almanac.embedders.base import Embedder, EmbedderProfile
+
 from claude_almanac.embedders import profiles
+from claude_almanac.embedders.base import Embedder
 
 
 def test_profile_has_ollama_bge_m3_threshold():
@@ -32,6 +33,7 @@ def test_embedder_is_a_protocol():
 
 def test_concrete_embedders_name_equals_provider():
     from unittest.mock import patch
+
     from claude_almanac.embedders.ollama import OllamaEmbedder
     from claude_almanac.embedders.openai import OpenAIEmbedder
     from claude_almanac.embedders.voyage import VoyageEmbedder

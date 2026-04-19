@@ -1,6 +1,6 @@
-import pytest
-from unittest.mock import patch, MagicMock
-from claude_almanac.platform.macos_launchd import LaunchdScheduler, LaunchdNotifier
+from unittest.mock import MagicMock
+
+from claude_almanac.platform.macos_launchd import LaunchdNotifier, LaunchdScheduler
 
 
 def test_render_daily_plist_includes_StartCalendarInterval(tmp_path):

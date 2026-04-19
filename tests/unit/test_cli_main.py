@@ -1,4 +1,5 @@
 import pytest
+
 from claude_almanac.cli import main as cli_main
 
 

@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+
 from claude_almanac.cli import setup as cli_setup
 
 

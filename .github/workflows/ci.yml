@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    name: Unit tests (${{ matrix.os }} / py${{ matrix.python }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev,openai,voyage]"
+      - name: Ruff
+        run: ruff check .
+      - name: Mypy
+        run: mypy src/claude_almanac
+      - name: Pytest (unit only)
+        run: pytest tests/unit -v

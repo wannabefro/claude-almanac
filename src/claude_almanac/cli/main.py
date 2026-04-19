@@ -23,8 +23,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def cmd_status(args: argparse.Namespace) -> None:
-    from ..core import paths
-    print(f"claude-almanac")
+    from claude_almanac.core import paths
+    print("claude-almanac")
     print(f"data_dir:   {paths.data_dir()}")
     print(f"config_dir: {paths.config_dir()}")
     print(f"project:    {paths.project_key()}")

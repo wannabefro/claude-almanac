@@ -1,4 +1,4 @@
-from .base import Embedder, EmbedderProfile, Distance
+from .base import Distance, Embedder, EmbedderProfile
 from .factory import make_embedder
 from .profiles import get as get_profile
 

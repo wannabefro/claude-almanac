@@ -7,9 +7,9 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
-from ..core import paths
-from .base import SchedulerStatus
+from claude_almanac.core import paths
 
+from .base import SchedulerStatus
 
 _env = Environment(
     loader=PackageLoader("claude_almanac.platform", "templates"),

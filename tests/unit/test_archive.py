@@ -1,4 +1,5 @@
 import pytest
+
 from claude_almanac.core import archive
 
 
@@ -47,8 +48,14 @@ def test_insert_and_search_roundtrip(tmp_path):
 def test_nearest_source_prefix_filter(tmp_path):
     db = tmp_path / "a.db"
     archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
-    archive.insert_entry(db, text="a", kind="note", source="md:foo.md", pinned=True, embedding=[1.0, 0.0])
-    archive.insert_entry(db, text="b", kind="note", source="turn", pinned=False, embedding=[1.0, 0.0])
+    archive.insert_entry(
+        db, text="a", kind="note", source="md:foo.md",
+        pinned=True, embedding=[1.0, 0.0],
+    )
+    archive.insert_entry(
+        db, text="b", kind="note", source="turn",
+        pinned=False, embedding=[1.0, 0.0],
+    )
     hit = archive.nearest(db, query_embedding=[1.0, 0.0], source_prefix="md:")
     assert hit.source == "md:foo.md"
 

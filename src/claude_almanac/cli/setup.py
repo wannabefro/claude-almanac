@@ -5,11 +5,10 @@ from __future__ import annotations
 import shutil
 import sys
 
-from ..core import config as core_config
-from ..core import paths
-from ..embedders import make_embedder
-from ..platform import get_scheduler
-
+from claude_almanac.core import config as core_config
+from claude_almanac.core import paths
+from claude_almanac.embedders import make_embedder
+from claude_almanac.platform import get_scheduler
 
 DIGEST_UNIT_NAME = "com.claude-almanac.digest"
 
@@ -55,7 +54,6 @@ def _do_uninstall(*, purge_data: bool) -> None:
     print("uninstalled platform units")
     if purge_data:
         ans = input(f"delete all data under {paths.data_dir()}? type 'yes': ")
-        if ans.strip().lower() == "yes":
-            if paths.data_dir().exists():
-                shutil.rmtree(paths.data_dir())
-                print(f"removed {paths.data_dir()}")
+        if ans.strip().lower() == "yes" and paths.data_dir().exists():
+            shutil.rmtree(paths.data_dir())
+            print(f"removed {paths.data_dir()}")

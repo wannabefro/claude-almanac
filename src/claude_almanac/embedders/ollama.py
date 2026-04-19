@@ -1,6 +1,7 @@
 """Ollama embeddings adapter using /api/embed."""
 from __future__ import annotations
 
+import contextlib
 import os
 
 import httpx
@@ -33,10 +34,9 @@ class OllamaEmbedder:
         )
         resp.raise_for_status()
         data = resp.json()
-        return data["embeddings"]
+        embeddings: list[list[float]] = data["embeddings"]
+        return embeddings
 
     def __del__(self) -> None:
-        try:
+        with contextlib.suppress(Exception):
             self._client.close()
-        except Exception:
-            pass

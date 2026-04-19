@@ -1,4 +1,3 @@
-import pytest
 from claude_almanac.core import config
 
 
