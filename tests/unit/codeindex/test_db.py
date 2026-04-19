@@ -1,3 +1,5 @@
+import pytest
+
 from claude_almanac.codeindex import db
 
 
@@ -80,3 +82,20 @@ def test_last_sha_returns_latest(tmp_path):
                   line_start=1, line_end=1, commit_sha="sha1",
                   embedding=[1.0, 0.0])
     assert db.last_sha(p) == "sha1"
+
+
+def test_upsert_sym_rejects_unknown_kind(tmp_path):
+    p = _init(tmp_path)
+    with pytest.raises(ValueError, match="must be 'sym' or 'arch'"):
+        db.upsert_sym(
+            p,
+            kind="function",  # wrong: should be 'sym'
+            text="...",
+            file_path="src/a.py",
+            symbol_name="foo",
+            module="src",
+            line_start=1,
+            line_end=1,
+            commit_sha="sha1",
+            embedding=[1.0, 0.0],
+        )

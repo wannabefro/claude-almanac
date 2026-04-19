@@ -14,6 +14,8 @@ def test_extracts_public_function(tmp_path):
     assert syms[0].name == "foo"
     assert syms[0].visibility == "public"
     assert syms[0].kind == "function"
+    assert syms[0].line_start >= 1
+    assert syms[0].line_end >= syms[0].line_start
 
 
 def test_underscore_prefix_is_private(tmp_path):

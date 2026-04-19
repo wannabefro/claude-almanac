@@ -13,6 +13,8 @@ def test_ts_exported_function(tmp_path):
     assert s.name == "foo"
     assert s.visibility == "public"
     assert s.kind == "function"
+    assert s.line_start >= 1
+    assert s.line_end >= s.line_start
 
 
 def test_ts_private_const(tmp_path):

@@ -88,6 +88,18 @@ def upsert_sym(
     commit_sha: str,
     embedding: list[float],
 ) -> int:
+    """Insert or update an entry keyed by (file_path, symbol_name) or (module).
+
+    ``kind`` must be one of the two DB-level sentinels:
+      - ``'sym'`` — a per-symbol entry (unique on file_path + symbol_name)
+      - ``'arch'`` — a per-module architectural summary (unique on module)
+
+    Raw ``SymbolRef.kind`` values like ``'function'`` or ``'class'`` must be
+    mapped to ``'sym'`` before calling this; passing them through unchanged is
+    the bug this guard exists to surface.
+    """
+    if kind not in ("sym", "arch"):
+        raise ValueError(f"upsert_sym kind must be 'sym' or 'arch', got {kind!r}")
     conn = _open(db_path)
     conn.execute("BEGIN IMMEDIATE")
     try:
