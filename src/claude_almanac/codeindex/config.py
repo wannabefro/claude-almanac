@@ -269,7 +269,9 @@ def discover_modules(cfg: Config) -> list[Module]:
     excludes = cfg.excludes
     if cfg.discovery_mode == "patterns":
         return _expand_globs(root, cfg.patterns + cfg.extra_patterns, excludes)
-    for detector in (_detect_workspaces, _detect_pnpm, _detect_go_work, _detect_cargo, _detect_pants):
+    for detector in (
+        _detect_workspaces, _detect_pnpm, _detect_go_work, _detect_cargo, _detect_pants,
+    ):
         pats = detector(root)
         if pats:
             return _expand_globs(root, pats + cfg.extra_patterns, excludes)

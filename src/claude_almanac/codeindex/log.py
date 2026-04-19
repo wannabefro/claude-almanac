@@ -5,7 +5,7 @@ Values are quoted if they contain whitespace, double-quote, equals, or are empty
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -28,7 +28,7 @@ def _quote(value: str) -> str:
 
 
 def emit(path: str | Path, *, component: str, level: str, event: str, **kv: object) -> None:
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     pairs = [
         f"ts={ts}",
         f"component={_quote(component)}",

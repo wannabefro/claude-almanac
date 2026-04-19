@@ -14,7 +14,8 @@ from typing import Protocol
 @_dc.dataclass(frozen=True)
 class SymbolRef:
     name: str
-    kind: str                 # 'function' | 'class' | 'method' | 'variable' | 'type' | 'interface' | 'enum'
+    # kind: function | class | method | variable | type | interface | enum
+    kind: str
     visibility: str           # 'public' | 'private'
     line_start: int           # 1-based, inclusive
     line_end: int             # 1-based, inclusive

@@ -27,5 +27,8 @@ jobs:
         run: ruff check .
       - name: Mypy
         run: mypy src/claude_almanac
+      # Pytest discovers every file under tests/unit/ recursively, which
+      # includes the codeindex/ sub-suite added in Plan 2. No explicit path
+      # enumeration needed.
       - name: Pytest (unit only)
         run: pytest tests/unit -v

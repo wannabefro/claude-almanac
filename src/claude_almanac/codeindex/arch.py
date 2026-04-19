@@ -19,11 +19,13 @@ from importlib.resources import files
 # See init.py for DEVELOPER_DIR rationale.
 os.environ.pop("DEVELOPER_DIR", None)
 
-from . import config as _cfg
-from . import db as _db
-from .log import emit
-from ..core import paths
-from ..embedders import make_embedder as _make_embedder  # re-exported for tests to patch
+from claude_almanac.codeindex import config as _cfg
+from claude_almanac.codeindex import db as _db
+from claude_almanac.codeindex.log import emit
+from claude_almanac.core import paths
+from claude_almanac.embedders import (
+    make_embedder as _make_embedder,  # re-exported for tests to patch
+)
 
 _ENTRYPOINTS = (
     "main.tf", "variables.tf", "outputs.tf", "terragrunt.hcl",
@@ -52,10 +54,7 @@ def select_files(files_: list[str], cap: int = MAX_FILES_PER_ARCH) -> list[str]:
             size = pathlib.Path(f).stat().st_size
         except OSError:
             continue
-        if name in _ENTRYPOINTS:
-            key = (0, _ENTRYPOINTS.index(name))
-        else:
-            key = (1, -size)
+        key = (0, _ENTRYPOINTS.index(name)) if name in _ENTRYPOINTS else (1, -size)
         entries.append((key, f))
     entries.sort(key=lambda e: e[0])
     return [e[1] for e in entries[:cap]]
@@ -68,7 +67,9 @@ def _build_prompt(module_name: str, files_: list[str], repo_root: str,
     for f in files_:
         rel = str(pathlib.Path(f).relative_to(repo_root))
         try:
-            body = pathlib.Path(f).read_text(encoding="utf-8", errors="replace")[:MAX_FILE_BYTES_IN_PROMPT]
+            body = pathlib.Path(f).read_text(
+                encoding="utf-8", errors="replace",
+            )[:MAX_FILE_BYTES_IN_PROMPT]
         except OSError:
             continue
         blocks.append(f"=== {rel} ===\n{body}\n")
@@ -135,9 +136,12 @@ def run_one(*, db_path: str, repo_root: str, module_name: str,
              module=module_name, err=str(e))
         return False
     existing = _db.nearest(db_path, embedding=vec, kind="arch")
-    if existing and existing["distance"] < ARCH_DEDUP_THRESHOLD:
+    existing_distance = existing.get("distance") if existing else None
+    if isinstance(existing_distance, (int, float)) and (
+        existing_distance < ARCH_DEDUP_THRESHOLD
+    ):
         emit(log_path, component="code-index", level="info", event="arch.dedup_skip",
-             module=module_name, distance=f'{existing["distance"]:.3f}')
+             module=module_name, distance=f"{existing_distance:.3f}")
         return True
     _db.upsert_sym(db_path, kind="arch", text=summary, file_path=None,
                    symbol_name=None, module=module_name,
@@ -166,7 +170,7 @@ def main(repo_root: str, *, global_send_code_to_llm: bool) -> int:
     mods_by_name = {m.name: m for m in _cfg.discover_modules(c)}
     target_sha = _git_target_sha(repo_root, c.default_branch)
     # Embedder: global config → make_embedder. Import lazily so tests can patch.
-    from ..core import config as _app_config
+    from claude_almanac.core import config as _app_config
     app_cfg = _app_config.load()
     embedder = _make_embedder(app_cfg.embedder.provider, app_cfg.embedder.model)
     done = 0

@@ -62,7 +62,9 @@ def get_symbols_overview(repo_root: str, file_rel: str) -> list[SerenaSymbol]:
                     out.append(SerenaSymbol(name=item, kind=kind_label.lower(), line_end=0))
                 elif isinstance(item, dict):
                     for class_name in item:
-                        out.append(SerenaSymbol(name=class_name, kind=kind_label.lower(), line_end=0))
+                        out.append(SerenaSymbol(
+                            name=class_name, kind=kind_label.lower(), line_end=0,
+                        ))
         elif isinstance(value, str):
             out.append(SerenaSymbol(name=value, kind=kind_label.lower(), line_end=0))
     return out

@@ -9,11 +9,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .base import SymbolRef
-from . import python_ast as _py
-from . import regex_tuned as _rt
-from . import serena_fallback as _sf
-
+from claude_almanac.codeindex.extractors import python_ast as _py
+from claude_almanac.codeindex.extractors import regex_tuned as _rt
+from claude_almanac.codeindex.extractors import serena_fallback as _sf
+from claude_almanac.codeindex.extractors.base import SymbolRef
 
 _FAST_PATHS = {
     "py":   _py,
@@ -31,10 +30,12 @@ def extract_symbols(abs_path: str, relative_path: str, repo_root: str) -> list[S
     fast_mod = _FAST_PATHS.get(ext)
     if fast_mod is not None:
         try:
-            return fast_mod.extract(abs_path, relative_path)
+            result: list[SymbolRef] = fast_mod.extract(abs_path, relative_path)
+            return result
         except Exception:
             pass
     try:
-        return _sf.extract(abs_path, relative_path)
+        fallback: list[SymbolRef] = _sf.extract(abs_path, relative_path)
+        return fallback
     except Exception:
         return []

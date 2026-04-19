@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import sqlite3
 import struct
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import sqlite_vec  # type: ignore[import-untyped]
 
@@ -33,7 +33,7 @@ def _pack(vec: list[float]) -> bytes:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def init(db_path: str, *, dim: int) -> None:
@@ -210,12 +210,12 @@ def nearest(
     embedding: list[float],
     kind: str | None = None,
     module: str | None = None,
-) -> dict:
+) -> dict[str, object]:
     conn = _open(db_path)
     try:
         k = 20 if (kind is not None or module is not None) else 1
         where = "v.embedding MATCH ? AND k = ?"
-        params: list = [_pack(embedding), k]
+        params: list[object] = [_pack(embedding), k]
         if kind is not None:
             where += " AND e.kind = ?"
             params.append(kind)
@@ -248,12 +248,12 @@ def search(
     k: int,
     kind: str | None = None,
     module: str | None = None,
-) -> list[dict]:
+) -> list[dict[str, object]]:
     conn = _open(db_path)
     try:
         fetch_k = max(k * 5, 20) if (kind is not None or module is not None) else k
         where = "v.embedding MATCH ? AND k = ?"
-        params: list = [_pack(embedding), fetch_k]
+        params: list[object] = [_pack(embedding), fetch_k]
         if kind is not None:
             where += " AND e.kind = ?"
             params.append(kind)

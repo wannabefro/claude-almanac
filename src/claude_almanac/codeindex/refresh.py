@@ -8,13 +8,13 @@ import time
 
 os.environ.pop("DEVELOPER_DIR", None)
 
-from . import config as _cfg
-from . import db as _db
-from . import sym as _sym
-from .log import emit
-from ..core import config as _app_config
-from ..core import paths
-from ..embedders import make_embedder as _make_embedder
+from claude_almanac.codeindex import config as _cfg
+from claude_almanac.codeindex import db as _db
+from claude_almanac.codeindex import sym as _sym
+from claude_almanac.codeindex.log import emit
+from claude_almanac.core import config as _app_config
+from claude_almanac.core import paths
+from claude_almanac.embedders import make_embedder as _make_embedder
 
 
 def resolve_module_for_file(rel_path: str, modules: list[_cfg.Module]) -> str | None:
@@ -22,9 +22,10 @@ def resolve_module_for_file(rel_path: str, modules: list[_cfg.Module]) -> str | 
     best: _cfg.Module | None = None
     for m in modules:
         prefix = m.name.rstrip("/") + "/"
-        if rel_path == m.name or rel_path.startswith(prefix):
-            if best is None or len(m.name) > len(best.name):
-                best = m
+        if (rel_path == m.name or rel_path.startswith(prefix)) and (
+            best is None or len(m.name) > len(best.name)
+        ):
+            best = m
     return best.name if best else None
 
 
@@ -64,7 +65,10 @@ def main(repo_root: str) -> int:
              event="refresh.clean", repo=repo_root, sha=target)
         print("clean — nothing to do")
         return 0
-    changed = _git(["diff", "--name-only", f"{last}..{target}"], repo_root).splitlines() if last else []
+    if last:
+        changed = _git(["diff", "--name-only", f"{last}..{target}"], repo_root).splitlines()
+    else:
+        changed = []
     t0 = time.time()
     files_processed = 0
     modules_dirty: set[str] = set()

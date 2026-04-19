@@ -13,7 +13,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from .base import SymbolRef
+from claude_almanac.codeindex.extractors.base import SymbolRef
 
 
 def extract(abs_path: str, relative_path: str) -> list[SymbolRef]:
@@ -37,32 +37,39 @@ def extract(abs_path: str, relative_path: str) -> list[SymbolRef]:
 
 def _extract_dunder_all(tree: ast.Module) -> set[str] | None:
     for node in tree.body:
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "__all__":
-                    if isinstance(node.value, (ast.List, ast.Tuple)):
-                        names: set[str] = set()
-                        for elt in node.value.elts:
-                            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
-                                names.add(elt.value)
-                        return names
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if (
+                isinstance(target, ast.Name)
+                and target.id == "__all__"
+                and isinstance(node.value, (ast.List, ast.Tuple))
+            ):
+                names: set[str] = set()
+                for elt in node.value.elts:
+                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                        names.add(elt.value)
+                return names
     return None
 
 
-def _node_to_ref(node: ast.stmt, lines: list[str], explicit_all: set[str] | None) -> SymbolRef | None:
+def _node_to_ref(
+    node: ast.stmt, lines: list[str], explicit_all: set[str] | None,
+) -> SymbolRef | None:
     name: str | None = None
     kind: str | None = None
-    if isinstance(node, ast.FunctionDef):
-        name, kind = node.name, "function"
-    elif isinstance(node, ast.AsyncFunctionDef):
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
         name, kind = node.name, "function"
     elif isinstance(node, ast.ClassDef):
         name, kind = node.name, "class"
-    elif isinstance(node, ast.Assign):
-        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-            target_name = node.targets[0].id
-            if target_name.isupper() or target_name.startswith("_"):
-                name, kind = target_name, "variable"
+    elif (
+        isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+    ):
+        target_name = node.targets[0].id
+        if target_name.isupper() or target_name.startswith("_"):
+            name, kind = target_name, "variable"
     if name is None or kind is None:
         return None
     visibility = _visibility(name, explicit_all)

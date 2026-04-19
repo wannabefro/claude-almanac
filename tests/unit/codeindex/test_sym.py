@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 
 from claude_almanac.codeindex import db as ci_db
 from claude_almanac.codeindex import sym
-from claude_almanac.codeindex.extractors.base import SymbolRef
 
 
 def _fake_embedder(dim=2):

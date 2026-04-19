@@ -1,8 +1,5 @@
 """Requires: Ollama running locally with bge-m3 pulled. Marked as `integration`."""
-import os
 import pytest
-from pathlib import Path
-
 
 pytestmark = pytest.mark.integration
 
@@ -33,8 +30,8 @@ def test_curator_round_trip(tmp_install):
 
 
 def test_recall_search_returns_hit_after_write(tmp_install, capsys):
-    from claude_almanac.core import curator
     from claude_almanac.cli import recall
+    from claude_almanac.core import curator
     decisions = [{
         "action": "write_md", "scope": "global", "slug": "project_auth.md",
         "kind": "project", "text": "auth middleware lives in api/auth.py",

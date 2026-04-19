@@ -1,7 +1,9 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from claude_almanac.codeindex import arch, config as ci_config, db as ci_db
+from claude_almanac.codeindex import arch
+from claude_almanac.codeindex import config as ci_config
+from claude_almanac.codeindex import db as ci_db
 
 
 def _make_cfg(root, send_flag):

@@ -9,8 +9,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from .base import SymbolRef
-from .. import serena_client
+from claude_almanac.codeindex import serena_client
+from claude_almanac.codeindex.extractors.base import SymbolRef
 
 
 def extract(abs_path: str, relative_path: str) -> list[SymbolRef]:

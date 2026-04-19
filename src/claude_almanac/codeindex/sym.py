@@ -13,11 +13,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .. import core  # noqa: F401  (kept for future cross-package imports)
-from ..core import paths
-from . import db as _db
-from .extractors import extract_symbols
-from .log import emit
+from claude_almanac import core  # noqa: F401  (kept for future cross-package imports)
+from claude_almanac.codeindex import db as _db
+from claude_almanac.codeindex.extractors import extract_symbols
+from claude_almanac.codeindex.log import emit
+from claude_almanac.core import paths
 
 SNIPPET_CHARS = 120
 MAX_CALLSITES = 3

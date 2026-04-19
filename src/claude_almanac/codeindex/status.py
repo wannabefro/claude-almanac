@@ -4,8 +4,8 @@ from __future__ import annotations
 import pathlib
 import sqlite3
 
-from . import db as _db
-from ..core import paths
+from claude_almanac.codeindex import db as _db
+from claude_almanac.core import paths
 
 
 def _count(db_path: str, kind: str) -> int:

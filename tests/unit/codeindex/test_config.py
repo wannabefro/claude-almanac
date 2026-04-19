@@ -1,5 +1,6 @@
-import pytest
 from pathlib import Path
+
+import pytest
 
 from claude_almanac.codeindex import config as ci_config
 

@@ -4,17 +4,29 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from .base import SymbolRef
+from claude_almanac.codeindex.extractors.base import SymbolRef
 
 MAX_SCAN_LINES = 2000
 
+_TS_FUNCTION = (
+    r"^(?P<export>export\s+(?:default\s+)?)?(?:async\s+)?"
+    r"function\s+(?P<name>\w+)"
+)
+_TS_CLASS = (
+    r"^(?P<export>export\s+(?:default\s+)?)?(?:abstract\s+)?"
+    r"class\s+(?P<name>\w+)"
+)
+_TS_VAR = (
+    r"^(?P<export>export\s+(?:default\s+)?)?"
+    r"(?:const|let|var)\s+(?P<name>\w+)"
+)
 _TS_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("function", re.compile(r"^(?P<export>export\s+(?:default\s+)?)?(?:async\s+)?function\s+(?P<name>\w+)")),
-    ("class",    re.compile(r"^(?P<export>export\s+(?:default\s+)?)?(?:abstract\s+)?class\s+(?P<name>\w+)")),
+    ("function", re.compile(_TS_FUNCTION)),
+    ("class",    re.compile(_TS_CLASS)),
     ("interface",re.compile(r"^(?P<export>export\s+)?interface\s+(?P<name>\w+)")),
     ("type",     re.compile(r"^(?P<export>export\s+)?type\s+(?P<name>\w+)\s*=")),
     ("enum",     re.compile(r"^(?P<export>export\s+)?(?:const\s+)?enum\s+(?P<name>\w+)")),
-    ("variable", re.compile(r"^(?P<export>export\s+(?:default\s+)?)?(?:const|let|var)\s+(?P<name>\w+)")),
+    ("variable", re.compile(_TS_VAR)),
 ]
 
 _GO_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
@@ -23,9 +35,20 @@ _GO_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("variable", re.compile(r"^(?:var|const)\s+(?P<name>\w+)\b")),
 ]
 
+_JAVA_CLASS_MODS = r"(?:(?:public|private|protected|static|abstract|final|sealed)\s+)*"
+_JAVA_METHOD_MODS = (
+    r"(?:(?:public|private|protected|static|abstract|final|"
+    r"synchronized|native|default)\s+)+"
+)
 _JAVA_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("class",    re.compile(r"^(?P<mods>(?:(?:public|private|protected|static|abstract|final|sealed)\s+)*)(?:class|interface|enum|record)\s+(?P<name>\w+)")),
-    ("function", re.compile(r"^(?P<mods>(?:(?:public|private|protected|static|abstract|final|synchronized|native|default)\s+)+)(?:\w[\w<>\[\],\s]*?\s+)?(?P<name>\w+)\s*\(")),
+    ("class", re.compile(
+        rf"^(?P<mods>{_JAVA_CLASS_MODS})"
+        rf"(?:class|interface|enum|record)\s+(?P<name>\w+)",
+    )),
+    ("function", re.compile(
+        rf"^(?P<mods>{_JAVA_METHOD_MODS})"
+        rf"(?:\w[\w<>\[\],\s]*?\s+)?(?P<name>\w+)\s*\(",
+    )),
 ]
 
 _LANG_PATTERNS: dict[str, list[tuple[str, re.Pattern[str]]]] = {

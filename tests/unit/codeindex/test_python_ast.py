@@ -25,7 +25,12 @@ def test_underscore_prefix_is_private(tmp_path):
 
 
 def test_dunder_all_overrides_underscore(tmp_path):
-    p = _write(tmp_path, "__all__ = ['_exported']\n\ndef _exported():\n    pass\n\ndef public():\n    pass\n")
+    p = _write(
+        tmp_path,
+        "__all__ = ['_exported']\n\n"
+        "def _exported():\n    pass\n\n"
+        "def public():\n    pass\n",
+    )
     syms = {s.name: s.visibility for s in python_ast.extract(p, "m.py")}
     assert syms["_exported"] == "public"
     assert syms["public"] == "private"  # not in __all__

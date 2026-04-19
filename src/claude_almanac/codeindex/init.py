@@ -14,13 +14,13 @@ import time
 # SDK which makes the stub error. Unset for our subprocesses.
 os.environ.pop("DEVELOPER_DIR", None)
 
-from . import config as _cfg
-from . import db as _db
-from . import sym as _sym
-from .log import emit
-from ..core import config as _app_config
-from ..core import paths
-from ..embedders import make_embedder as _make_embedder
+from claude_almanac.codeindex import config as _cfg
+from claude_almanac.codeindex import db as _db
+from claude_almanac.codeindex import sym as _sym
+from claude_almanac.codeindex.log import emit
+from claude_almanac.core import config as _app_config
+from claude_almanac.core import paths
+from claude_almanac.embedders import make_embedder as _make_embedder
 
 
 def _ci_db_path() -> pathlib.Path:

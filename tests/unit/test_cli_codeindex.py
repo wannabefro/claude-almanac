@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch
 
 from claude_almanac.cli import main as cli_main
