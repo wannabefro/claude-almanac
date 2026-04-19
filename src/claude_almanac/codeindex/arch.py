@@ -42,7 +42,10 @@ def _load_prompt_template() -> str:
 
 
 def select_files(files_: list[str], cap: int = MAX_FILES_PER_ARCH) -> list[str]:
-    entries: list[tuple[int, int, str]] = []
+    # Two-tier key: bucket 0 = entrypoints (ordered by _ENTRYPOINTS index);
+    # bucket 1 = everything else (largest first). Entrypoints always precede
+    # non-entrypoints regardless of size.
+    entries: list[tuple[tuple[int, int], str]] = []
     for f in files_:
         name = pathlib.Path(f).name
         try:
@@ -50,12 +53,12 @@ def select_files(files_: list[str], cap: int = MAX_FILES_PER_ARCH) -> list[str]:
         except OSError:
             continue
         if name in _ENTRYPOINTS:
-            priority = _ENTRYPOINTS.index(name)
+            key = (0, _ENTRYPOINTS.index(name))
         else:
-            priority = len(_ENTRYPOINTS) + (-size)
-        entries.append((priority, -size, f))
-    entries.sort()
-    return [e[2] for e in entries[:cap]]
+            key = (1, -size)
+        entries.append((key, f))
+    entries.sort(key=lambda e: e[0])
+    return [e[1] for e in entries[:cap]]
 
 
 def _build_prompt(module_name: str, files_: list[str], repo_root: str,
@@ -98,8 +101,16 @@ def _ci_db_path() -> pathlib.Path:
 
 def run_one(*, db_path: str, repo_root: str, module_name: str,
             files_: list[str], language_mix: dict[str, int], commit_sha: str,
-            embedder: object) -> bool:
+            embedder: object,
+            send_code_to_llm: bool, global_send_code_to_llm: bool) -> bool:
     log_path = paths.logs_dir() / "code-index.log"
+    # Trust-boundary gate: refuse here so any direct caller (CLI, future
+    # wiring) hits the same check that main() enforces. Both repo-local and
+    # global must opt in.
+    if not send_code_to_llm or not global_send_code_to_llm:
+        emit(log_path, component="code-index", level="warn", event="arch.refused",
+             module=module_name, reason="send_code_to_llm gate")
+        return False
     selected = select_files(files_)
     if not selected:
         emit(log_path, component="code-index", level="info", event="arch.skip",
@@ -117,7 +128,12 @@ def run_one(*, db_path: str, repo_root: str, module_name: str,
         emit(log_path, component="code-index", level="warn", event="arch.empty_summary",
              module=module_name)
         return False
-    [vec] = embedder.embed([summary])  # type: ignore[attr-defined]
+    try:
+        [vec] = embedder.embed([summary])  # type: ignore[attr-defined]
+    except Exception as e:
+        emit(log_path, component="code-index", level="error", event="arch.embed_fail",
+             module=module_name, err=str(e))
+        return False
     existing = _db.nearest(db_path, embedding=vec, kind="arch")
     if existing and existing["distance"] < ARCH_DEDUP_THRESHOLD:
         emit(log_path, component="code-index", level="info", event="arch.dedup_skip",
@@ -166,7 +182,9 @@ def main(repo_root: str, *, global_send_code_to_llm: bool) -> int:
         mix = _cfg.detect_language_mix(files_)
         ok = run_one(db_path=str(dbp), repo_root=repo_root, module_name=module_name,
                      files_=files_, language_mix=mix, commit_sha=target_sha,
-                     embedder=embedder)
+                     embedder=embedder,
+                     send_code_to_llm=c.send_code_to_llm,
+                     global_send_code_to_llm=global_send_code_to_llm)
         if ok:
             _db.clear_dirty(str(dbp), module_name)
             done += 1

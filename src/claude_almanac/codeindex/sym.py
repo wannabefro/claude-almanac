@@ -55,7 +55,7 @@ def extract_file(*, db_path: str, repo_root: str, module: str, file_abs: str,
              event="sym.embed_fail", module=module, file=file_rel, err=str(e))
         return 0
     written = 0
-    for s, text, vec in zip(public_syms, texts, vecs):
+    for s, text, vec in zip(public_syms, texts, vecs, strict=True):
         try:
             _db.upsert_sym(
                 db_path, kind="sym", text=text, file_path=file_rel,
