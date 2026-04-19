@@ -36,22 +36,50 @@ def test_run_purge_data_wipes_data_dir(tmp_path, monkeypatch):
     assert not (tmp_path / "data" / "global" / "test.txt").exists()
 
 
-def test_run_skips_digest_install_even_when_enabled(tmp_path, monkeypatch, capsys):
+def test_install_daily_registers_generator_and_server(tmp_path, monkeypatch):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path / "cfg"))
-    # Pre-populate config with digest enabled
-    from claude_almanac.core import config as core_config
-    core_config.config_path().parent.mkdir(parents=True, exist_ok=True)
-    cfg = core_config.default_config()
-    cfg.digest.enabled = True
-    core_config.save(cfg)
     monkeypatch.setattr("claude_almanac.cli.setup._probe_embedder", lambda: True)
-    # Scheduler should NOT be called for install
     from unittest.mock import MagicMock
     fake_scheduler = MagicMock()
-    monkeypatch.setattr("claude_almanac.cli.setup.get_scheduler", lambda: fake_scheduler)
+    monkeypatch.setattr(
+        "claude_almanac.cli.setup.get_scheduler", lambda: fake_scheduler,
+    )
+    # Enable digest in default config before save
+    from claude_almanac.core import config as core_config
+    cfg = core_config.default_config()
+    cfg.digest.enabled = True
+    cfg.digest.repos = [core_config.RepoCfg(path=str(tmp_path), alias="ok")]
+    cfg.digest.hour = 9
+    monkeypatch.setattr(
+        "claude_almanac.cli.setup.core_config.load", lambda: cfg,
+    )
     from claude_almanac.cli import setup as cli_setup
     cli_setup.run(uninstall=False, purge_data=False)
-    fake_scheduler.install_daily.assert_not_called()
-    captured = capsys.readouterr()
-    assert "digest subsystem not available in v0.1" in captured.out
+    calls = [c.args[:1] + c.args[1:] for c in fake_scheduler.method_calls]
+    method_names = [c[0] for c in fake_scheduler.method_calls]
+    assert "install_daily" in method_names
+    assert "install_always_on" in method_names
+    daily_call = next(c for c in fake_scheduler.method_calls if c[0] == "install_daily")
+    assert daily_call.args[0] == "com.claude-almanac.digest"
+    assert daily_call.args[2] == 9
+    always_call = next(
+        c for c in fake_scheduler.method_calls if c[0] == "install_always_on"
+    )
+    assert always_call.args[0] == "com.claude-almanac.server"
+
+
+def test_install_skips_units_when_digest_disabled(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr("claude_almanac.cli.setup._probe_embedder", lambda: True)
+    from unittest.mock import MagicMock
+    fake_scheduler = MagicMock()
+    monkeypatch.setattr(
+        "claude_almanac.cli.setup.get_scheduler", lambda: fake_scheduler,
+    )
+    from claude_almanac.cli import setup as cli_setup
+    cli_setup.run(uninstall=False, purge_data=False)
+    method_names = [c[0] for c in fake_scheduler.method_calls]
+    assert "install_daily" not in method_names
+    assert "install_always_on" not in method_names

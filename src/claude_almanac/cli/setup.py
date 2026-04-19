@@ -11,6 +11,7 @@ from claude_almanac.embedders import make_embedder
 from claude_almanac.platform import get_scheduler
 
 DIGEST_UNIT_NAME = "com.claude-almanac.digest"
+DIGEST_SERVER_UNIT_NAME = "com.claude-almanac.server"
 
 
 def _probe_embedder() -> bool:
@@ -42,8 +43,22 @@ def _do_install() -> None:
     if ok:
         print("embedder reachable")
     if cfg.digest.enabled:
-        print("digest subsystem not available in v0.1 — skipping daemon install")
-        print("enable digest in a future release")
+        scheduler = get_scheduler()
+        scheduler.install_daily(
+            DIGEST_UNIT_NAME,
+            [sys.executable, "-m", "claude_almanac.cli.main",
+             "digest", "generate"],
+            cfg.digest.hour,
+        )
+        print(f"installed daily digest unit: {DIGEST_UNIT_NAME}")
+        scheduler.install_always_on(
+            DIGEST_SERVER_UNIT_NAME,
+            [sys.executable, "-m", "claude_almanac.cli.main",
+             "digest", "serve"],
+        )
+        print(f"installed digest server unit: {DIGEST_SERVER_UNIT_NAME}")
+    else:
+        print("digest disabled (set digest.enabled: true in config.yaml to enable)")
     print("setup complete. next: add repos to digest.repos in config.yaml")
 
 
