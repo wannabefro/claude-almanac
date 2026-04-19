@@ -1,0 +1,27 @@
+tests/unit/test_embedders_factory.py
+  8f761abaa2c072a7 1-20
+src/claude_almanac/embedders/__init__.py
+  8f761abaa2c072a7 2-3,5
+src/claude_almanac/embedders/factory.py
+  8f761abaa2c072a7 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "c19775a3f9534ab44501a3c74a798ff472d8c1ff",
+  "prompts": {
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 49,
+      "total_deletions": 1,
+      "accepted_lines": 49,
+      "overriden_lines": 0
+    }
+  }
+}
