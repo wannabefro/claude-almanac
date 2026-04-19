@@ -16,6 +16,11 @@ dependencies = [
   "jinja2>=3.1",
   "pyyaml>=6.0",
   "platformdirs>=4.2",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "sse-starlette>=2.0",
+  "markdown>=3.6",
+  "claude-agent-sdk>=0.1",
 ]
 
 [project.optional-dependencies]
@@ -24,10 +29,12 @@ voyage = ["voyageai>=0.2"]
 dev = [
   "pytest>=8.0",
   "pytest-mock>=3.12",
+  "pytest-asyncio>=0.23",
   "respx>=0.21",
   "ruff>=0.5",
   "mypy>=1.11",
   "types-pyyaml",
+  "types-markdown",
 ]
 
 [project.scripts]
@@ -60,3 +67,4 @@ warn_return_any = true
 testpaths = ["tests"]
 markers = ["integration: requires live Ollama/network (skipped by default)"]
 addopts = "-m 'not integration'"
+asyncio_mode = "auto"
