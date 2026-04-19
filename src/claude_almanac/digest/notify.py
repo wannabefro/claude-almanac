@@ -1,7 +1,7 @@
 """Cross-platform notify shim over `platform.Notifier`."""
 from __future__ import annotations
 
-from ..platform import get_notifier
+from claude_almanac.platform import get_notifier
 
 
 def notify(*, title: str, message: str, open_url: str) -> bool:

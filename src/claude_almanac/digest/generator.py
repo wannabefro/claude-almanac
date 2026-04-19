@@ -8,10 +8,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..core import archive
-from ..core import config as core_config
-from ..core import paths
-from ..embedders import make_embedder
+from claude_almanac.core import archive, paths
+from claude_almanac.core import config as core_config
+from claude_almanac.embedders import make_embedder
+
 from . import notify as digest_notify
 from .activity_db import CommitRecord, init_db, insert_commit, prune_activity
 from .collectors import (
@@ -73,7 +73,7 @@ def generate(
         cutoff_iso=cutoff_iso,
     )
 
-    commits_by_repo: dict[str, list[dict]] = {}
+    commits_by_repo: dict[str, list[dict[str, Any]]] = {}
     commits_inserted = 0
     for entry in rt.repos:
         if repo_filter and entry.name != repo_filter:
@@ -134,10 +134,10 @@ def generate(
     else:
         digest_path.write_text(md)
 
-    if dry_run:
-        pruned = 0
-    else:
-        pruned = prune_activity(activity_db, retention_days=rt.retention_days)
+    pruned = (
+        0 if dry_run
+        else prune_activity(activity_db, retention_days=rt.retention_days)
+    )
 
     notified: bool | None = None
     if notify and rt.notification and not dry_run:

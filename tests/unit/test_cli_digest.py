@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock
 
-import pytest
-
 from claude_almanac.cli import digest as cli_digest
 
 
@@ -39,7 +37,10 @@ def test_serve_prints_friendly_message_when_server_absent(capsys, monkeypatch):
     real_import = builtins.__import__
 
     def _fake_import(name, globals=None, locals=None, fromlist=(), level=0):
-        if level and fromlist and "server" in fromlist:
+        if (
+            fromlist and "server" in fromlist
+            and name == "claude_almanac.digest"
+        ):
             raise ImportError("no server module yet")
         return real_import(name, globals, locals, fromlist, level)
 

@@ -6,16 +6,26 @@ hatch force-include block in pyproject.toml.
 """
 from __future__ import annotations
 
+import asyncio as _asyncio
+import html as _html
 import os
+import re as _re
 import shutil
+from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any, Literal
 
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+import markdown as _md
+from fastapi import FastAPI, Form, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sse_starlette.sse import EventSourceResponse
 
-from ..core import paths
+from claude_almanac.core import paths
+
+from . import generator
+from .qa.api import answer_question
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = PACKAGE_DIR / "templates"
@@ -63,16 +73,11 @@ def serve(
     return 0
 
 
-import re as _re
-
-from fastapi import HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-
 _DATE_RE = _re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _REPO_RE = _re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 
 
-def _list_digests() -> dict:
+def _list_digests() -> dict[str, Any]:
     d = _digests_dir()
     if not d.is_dir():
         return {"daily": [], "by_repo": {}}
@@ -105,7 +110,7 @@ def _validate_date_repo(date: str, repo: str | None) -> None:
         raise HTTPException(status_code=404, detail="invalid repo name")
 
 
-def _latest_overall(listing: dict) -> tuple[str, str | None] | None:
+def _latest_overall(listing: dict[str, Any]) -> tuple[str, str | None] | None:
     best: tuple[str, str | None] | None = None
     if listing["daily"]:
         best = (listing["daily"][-1], None)
@@ -141,7 +146,7 @@ def _preview_text(markdown_body: str, max_chars: int = 240) -> str:
     return text
 
 
-def _recent_entries(listing: dict, limit: int = 5) -> list[dict]:
+def _recent_entries(listing: dict[str, Any], limit: int = 5) -> list[dict[str, Any]]:
     entries: list[tuple[str, str | None]] = [
         (d, None) for d in listing["daily"]
     ]
@@ -158,7 +163,7 @@ def _recent_entries(listing: dict, limit: int = 5) -> list[dict]:
 
 
 @app.get("/", response_class=HTMLResponse)
-def home(request: Request):
+def home(request: Request) -> Response:
     listing = _list_digests()
     latest = _latest_overall(listing)
     preview = ""
@@ -200,7 +205,7 @@ def home(request: Request):
 
 
 @app.get("/today")
-def today(request: Request):
+def today(request: Request) -> Response:
     listing = _list_digests()
     latest = _latest_overall(listing)
     if latest is None:
@@ -210,10 +215,9 @@ def today(request: Request):
     return RedirectResponse(url=url, status_code=307)
 
 
-import markdown as _md
-
-
-def _render_digest_page(request: Request, date: str, repo: str | None):
+def _render_digest_page(
+    request: Request, date: str, repo: str | None
+) -> Response:
     _validate_date_repo(date, repo)
     p = _digest_file_for(date, repo)
     if not p.exists():
@@ -236,7 +240,7 @@ def _render_digest_page(request: Request, date: str, repo: str | None):
 
 
 @app.get("/digests", response_class=HTMLResponse)
-def digests_list(request: Request):
+def digests_list(request: Request) -> Response:
     listing = _list_digests()
     return templates.TemplateResponse(
         request, "history.html",
@@ -251,21 +255,13 @@ def digests_list(request: Request):
 
 
 @app.get("/digest/{date}", response_class=HTMLResponse)
-def digest_page(request: Request, date: str):
+def digest_page(request: Request, date: str) -> Response:
     return _render_digest_page(request, date, None)
 
 
 @app.get("/digest/{repo}/{date}", response_class=HTMLResponse)
-def digest_page_repo(request: Request, repo: str, date: str):
+def digest_page_repo(request: Request, repo: str, date: str) -> Response:
     return _render_digest_page(request, date, repo)
-
-
-import html as _html
-from typing import Literal
-
-from fastapi import Form
-
-from .qa.api import answer_question
 
 
 def _escape(text: str) -> str:
@@ -278,7 +274,7 @@ def ask(
     repo: str | None = None,
     question: str = Form(...),
     mode: Literal["fast", "deep"] = Form("fast"),
-):
+) -> HTMLResponse:
     _validate_date_repo(date, repo)
     p = _digest_file_for(date, repo)
     if not p.exists():
@@ -300,18 +296,13 @@ def ask(
     """)
 
 
-import asyncio as _asyncio
-
-from sse_starlette.sse import EventSourceResponse
-
-
 @app.post("/ask/stream")
 async def ask_stream(
     date: str,
     repo: str | None = None,
     question: str = Form(...),
     mode: Literal["fast", "deep"] = Form("fast"),
-):
+) -> EventSourceResponse:
     _validate_date_repo(date, repo)
     p = _digest_file_for(date, repo)
     if not p.exists():
@@ -319,7 +310,7 @@ async def ask_stream(
         raise HTTPException(status_code=404, detail=f"no digest for {label}")
     digest_md = p.read_text()
 
-    async def event_generator():
+    async def event_generator() -> AsyncIterator[dict[str, str]]:
         loop = _asyncio.get_running_loop()
         try:
             answer = await loop.run_in_executor(
@@ -345,11 +336,8 @@ async def ask_stream(
     return EventSourceResponse(event_generator())
 
 
-from . import generator
-
-
 @app.get("/generate", response_class=HTMLResponse)
-def generate_form(request: Request):
+def generate_form(request: Request) -> Response:
     return templates.TemplateResponse(request, "generate_form.html", {})
 
 
@@ -358,7 +346,7 @@ def generate_post(
     repo: str = Form(""),
     since_hours: int = Form(24),
     date: str = Form(""),
-):
+) -> Response:
     repo_filter = repo.strip() or None
     date_arg: str | None = date.strip() or None
     if date_arg and not _DATE_RE.match(date_arg):

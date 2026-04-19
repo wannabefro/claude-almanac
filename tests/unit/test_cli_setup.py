@@ -56,7 +56,6 @@ def test_install_daily_registers_generator_and_server(tmp_path, monkeypatch):
     )
     from claude_almanac.cli import setup as cli_setup
     cli_setup.run(uninstall=False, purge_data=False)
-    calls = [c.args[:1] + c.args[1:] for c in fake_scheduler.method_calls]
     method_names = [c[0] for c in fake_scheduler.method_calls]
     assert "install_daily" in method_names
     assert "install_always_on" in method_names

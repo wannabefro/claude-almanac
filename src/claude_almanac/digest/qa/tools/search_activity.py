@@ -3,15 +3,14 @@ from __future__ import annotations
 
 import sqlite3
 import struct
-from pathlib import Path
+from typing import Any
 
 import sqlite_vec  # type: ignore[import-untyped]
 
-from ....core import archive
-from ....core import config as core_config
-from ....core import paths
-from ....embedders import make_embedder
-from ..registry import tool
+from claude_almanac.core import archive, paths
+from claude_almanac.core import config as core_config
+from claude_almanac.digest.qa.registry import tool
+from claude_almanac.embedders import make_embedder
 
 
 def _pack(vec: list[float]) -> bytes:
@@ -28,7 +27,7 @@ def search_activity(
     repo: str | None = None,
     since: str | None = None,
     top_k: int = 8,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Return [{repo, sha, subject, snippet, distance}, ...]."""
     db = paths.data_dir() / "activity.db"
     if not db.exists():
@@ -51,7 +50,7 @@ def search_activity(
         conn.enable_load_extension(False)
         k = top_k * 4
         where = ["v.embedding MATCH ?", "k = ?"]
-        params: list = [_pack(vec), k]
+        params: list[Any] = [_pack(vec), k]
         if repo:
             where.append("am.repo = ?")
             params.append(repo)

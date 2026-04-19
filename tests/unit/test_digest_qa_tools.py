@@ -5,7 +5,7 @@ import pytest
 
 from claude_almanac.core import archive
 from claude_almanac.digest.qa import registry
-from claude_almanac.digest.qa.tools import search_activity, git_show
+from claude_almanac.digest.qa.tools import git_show, search_activity
 
 
 def test_search_activity_empty_db_returns_empty_list(tmp_path, monkeypatch):
@@ -87,7 +87,10 @@ def test_git_show_resolves_from_config(monkeypatch, tmp_path):
     subprocess.run(["git", "config", "user.name", "Tester"], cwd=repo, check=True)
     (repo / "a").write_text("hi\n")
     subprocess.run(["git", "add", "a"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-m", "feat: add a"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "feat: add a"],
+        cwd=repo, check=True, capture_output=True,
+    )
     sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
 
     from claude_almanac.core import config as core_config

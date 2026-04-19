@@ -5,6 +5,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 
 def _parse_frontmatter(text: str) -> dict[str, str]:
@@ -21,10 +22,10 @@ def _parse_frontmatter(text: str) -> dict[str, str]:
     return fm
 
 
-def _scan_md_dir(base: Path, scope: str, cutoff_ts: float) -> list[dict]:
+def _scan_md_dir(base: Path, scope: str, cutoff_ts: float) -> list[dict[str, Any]]:
     if not base.exists():
         return []
-    out: list[dict] = []
+    out: list[dict[str, Any]] = []
     for p in sorted(base.glob("*.md")):
         if p.name == "MEMORY.md":
             continue
@@ -49,8 +50,8 @@ def collect_new_memories(
     global_dir: str,
     projects_dir: str,
     cutoff_ts: float,
-) -> list[dict]:
-    results: list[dict] = []
+) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
     results.extend(_scan_md_dir(Path(global_dir), "global", cutoff_ts))
     projects_root = Path(projects_dir)
     if projects_root.is_dir():
@@ -113,7 +114,7 @@ class GitCommit:
     diff_snippet: str
 
 
-def _git(repo_path: str, *args: str) -> subprocess.CompletedProcess:
+def _git(repo_path: str, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
         cwd=repo_path, capture_output=True, text=True,

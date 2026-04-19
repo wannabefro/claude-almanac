@@ -6,8 +6,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from ....core import config as core_config
-from ..registry import tool
+from claude_almanac.core import config as core_config
+from claude_almanac.digest.qa.registry import tool
 
 _SHA_RE = re.compile(r"^[0-9a-f]{4,40}$")
 

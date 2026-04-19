@@ -1,8 +1,5 @@
 import subprocess
 import time
-from pathlib import Path
-
-import pytest
 
 from claude_almanac.digest import collectors
 
@@ -73,7 +70,10 @@ def test_collect_git_activity_returns_commits(tmp_path):
     subprocess.run(["git", "config", "user.name", "Tester"], cwd=repo, check=True)
     (repo / "a.txt").write_text("hello\n")
     subprocess.run(["git", "add", "a.txt"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-m", "feat: add a"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "feat: add a"],
+        cwd=repo, check=True, capture_output=True,
+    )
 
     out = collectors.collect_git_activity(
         repo_path=str(repo), repo_name="repo", since_iso="1970-01-01T00:00:00Z",

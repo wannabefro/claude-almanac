@@ -1,4 +1,3 @@
-import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -39,7 +38,10 @@ def test_generate_writes_markdown_and_inserts_commits(setup_env, tmp_path, monke
     subprocess.run(["git", "config", "user.name", "Tester"], cwd=repo, check=True)
     (repo / "a.txt").write_text("hello\n")
     subprocess.run(["git", "add", "a.txt"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-m", "feat: add a"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "feat: add a"],
+        cwd=repo, check=True, capture_output=True,
+    )
 
     from claude_almanac.core import config as core_config
     cfg = core_config.default_config()
@@ -115,7 +117,10 @@ def test_generate_dry_run_does_not_insert_or_prune(setup_env, tmp_path, monkeypa
     subprocess.run(["git", "config", "user.name", "Tester"], cwd=repo, check=True)
     (repo / "a.txt").write_text("hello\n")
     subprocess.run(["git", "add", "a.txt"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-m", "feat: add a"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "feat: add a"],
+        cwd=repo, check=True, capture_output=True,
+    )
 
     from claude_almanac.core import config as core_config
     cfg = core_config.default_config()
@@ -163,7 +168,10 @@ def test_generate_raises_on_mid_run_embedder_mismatch(setup_env, tmp_path, monke
     subprocess.run(["git", "config", "user.name", "Tester"], cwd=repo, check=True)
     (repo / "a.txt").write_text("hello\n")
     subprocess.run(["git", "add", "a.txt"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-m", "feat: add a"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "feat: add a"],
+        cwd=repo, check=True, capture_output=True,
+    )
 
     from claude_almanac.core import archive
     from claude_almanac.core import config as core_config

@@ -9,8 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..core import config as core_config
-from ..core import paths
+from claude_almanac.core import config as core_config
+from claude_almanac.core import paths
 
 
 class ConfigError(ValueError):

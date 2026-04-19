@@ -1,6 +1,5 @@
 import importlib
 
-import pytest
 from fastapi.testclient import TestClient
 
 import claude_almanac.digest.server as server_mod

@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from ..digest import generator
+from claude_almanac.digest import generator
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -46,7 +46,7 @@ def run(argv: list[str] | None = None) -> int:
         return 0
     if ns.cmd == "serve":
         try:
-            from ..digest import server
+            from claude_almanac.digest import server
         except ImportError:
             print(
                 "digest serve not yet available (ships in the web UI phase)",

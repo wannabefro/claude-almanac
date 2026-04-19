@@ -14,8 +14,8 @@ from pathlib import Path
 
 import sqlite_vec  # type: ignore[import-untyped]
 
-from ..core import archive
-from ..embedders.base import Embedder
+from claude_almanac.core import archive
+from claude_almanac.embedders.base import Embedder
 
 
 def _connect(db: Path) -> sqlite3.Connection:

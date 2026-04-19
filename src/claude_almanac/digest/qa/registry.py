@@ -21,8 +21,9 @@ import pkgutil
 import sys
 import types
 import typing
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Union
+from typing import Any, Union
 
 _PY_TO_JSON = {
     str: "string", int: "integer", float: "number",
@@ -54,7 +55,9 @@ class Registry:
     def __init__(self) -> None:
         self._tools: dict[str, ToolEntry] = {}
 
-    def tool(self, name: str, description: str) -> Callable:
+    def tool(
+        self, name: str, description: str
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
             if name in self._tools:
                 raise ValueError(f"tool '{name}' already registered")
@@ -111,7 +114,9 @@ class Registry:
 REGISTRY = Registry()
 
 
-def tool(name: str, description: str) -> Callable:
+def tool(
+    name: str, description: str
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     return REGISTRY.tool(name, description)
 
 
@@ -127,7 +132,7 @@ def auto_discover(
             pkg = importlib.import_module(package_name)
             for _finder, modname, _ispkg in pkgutil.iter_modules(pkg.__path__):
                 full = f"{package_name}.{modname}"
-                mod = importlib.import_module(full)
+                importlib.import_module(full)
                 # Force re-execution so @tool decorators re-register into the
                 # provided (fresh) registry; without this, cached modules from
                 # a prior import would leave the fresh registry empty.

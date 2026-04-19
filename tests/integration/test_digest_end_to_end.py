@@ -13,7 +13,6 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-
 pytestmark = pytest.mark.integration
 
 
@@ -32,7 +31,10 @@ def test_generate_then_serve_round_trip(tmp_path, monkeypatch):
     subprocess.run(["git", "config", "user.name", "Tester"], cwd=repo, check=True)
     (repo / "file.txt").write_text("hi\n")
     subprocess.run(["git", "add", "file.txt"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-m", "feat: start"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "feat: start"],
+        cwd=repo, check=True, capture_output=True,
+    )
 
     from claude_almanac.core import config as core_config
     cfg = core_config.default_config()
@@ -62,6 +64,7 @@ def test_generate_then_serve_round_trip(tmp_path, monkeypatch):
     assert Path(result["digest_path"]).exists()
 
     import importlib
+
     import claude_almanac.digest.server as server_mod
     importlib.reload(server_mod)
     client = TestClient(server_mod.app)

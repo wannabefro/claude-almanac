@@ -4,15 +4,16 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 from textwrap import dedent
+from typing import Any
 
 
 @dataclass
 class DigestInputs:
     date: str
     window_hours: int
-    new_memories: list[dict]
+    new_memories: list[dict[str, Any]]
     retrievals: dict[str, int]
-    commits_by_repo: dict[str, list[dict]]
+    commits_by_repo: dict[str, list[dict[str, Any]]]
     narratives_by_repo: dict[str, str]
 
 
@@ -29,7 +30,7 @@ def _call_claude_cli(argv: list[str], stdin: str) -> str:
     return out.stdout.strip()
 
 
-def haiku_narrate(*, repo: str, commits: list[dict], model: str) -> str:
+def haiku_narrate(*, repo: str, commits: list[dict[str, Any]], model: str) -> str:
     if not commits:
         return "_no commits in window_"
     commits_text = "\n".join(

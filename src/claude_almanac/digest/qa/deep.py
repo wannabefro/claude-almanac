@@ -21,6 +21,8 @@ from claude_agent_sdk import (
     ToolUseBlock,
     create_sdk_mcp_server,
     query,
+)
+from claude_agent_sdk import (
     tool as sdk_tool,
 )
 
@@ -60,7 +62,7 @@ class DeepResult:
     elapsed_s: float
 
 
-def _wrap_entry_as_sdk_tool(entry: ToolEntry):
+def _wrap_entry_as_sdk_tool(entry: ToolEntry) -> Any:
     props = entry.schema["input_schema"]["properties"]
     sdk_input_schema = {
         name: _JSON_TO_PY.get(spec.get("type", "string"), str)
