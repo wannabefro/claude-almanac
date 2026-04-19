@@ -1,5 +1,10 @@
-"""UserPromptSubmit handler: embed the prompt and surface top-K memories
-from both global and current-project archives."""
+"""UserPromptSubmit handler: embed the prompt once and surface top-K memories
+plus (optionally) top-K code-index hits, using a single embedder instance.
+
+Code-index integration: gated by `config.retrieval.code_autoinject` AND by
+`codeindex.autoinject.should_query(prompt)`. When the per-repo code-index.db
+does not exist the code block is silently omitted.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -41,6 +46,23 @@ def format_hits(hits: list[archive.Hit]) -> str:
     return "\n".join(lines)
 
 
+def _codeindex_block(query_vec: list[float]) -> str:
+    """Return the optional code-index block to append, or '' if not applicable.
+
+    Separated from run() so tests can patch it independently.
+    """
+    try:
+        from claude_almanac.codeindex import search as ci_search
+    except ImportError:
+        return ""
+    ci_db = paths.project_memory_dir() / "code-index.db"
+    if not ci_db.exists():
+        return ""
+    return ci_search.search_and_format(
+        str(ci_db), query_vec=query_vec, sym_k=3, arch_k=2,
+    )
+
+
 def run(prompt: str) -> str:
     """Main entry point. Returns the text to inject as additional context."""
     if not prompt.strip():
@@ -67,4 +89,11 @@ def run(prompt: str) -> str:
 
     hits.sort(key=lambda h: h.distance)
     hits = hits[: cfg.retrieval.top_k]
-    return format_hits(hits)
+    out = format_hits(hits)
+    if cfg.retrieval.code_autoinject:
+        from claude_almanac.codeindex import autoinject
+        if autoinject.should_query(prompt):
+            code_block = _codeindex_block(query_vec)
+            if code_block:
+                out = (out + "\n\n" + code_block) if out else code_block
+    return out
