@@ -31,4 +31,51 @@ jobs:
       # includes the codeindex/ sub-suite added in Plan 2. No explicit path
       # enumeration needed.
       - name: Pytest (unit only)
-        run: pytest tests/unit -v
+        run: pytest tests/unit -v --cov=src/claude_almanac --cov-report=term-missing --cov-report=xml
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+
+  integration:
+    name: Integration tests (Ubuntu, py3.12, live Ollama)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    services:
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
+        options: >-
+          --health-cmd "curl -fsS http://127.0.0.1:11434/api/tags || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install -U pip
+          pip install -e '.[dev,openai,voyage]'
+      - name: Pull bge-m3
+        run: |
+          # Wait for ollama service to be healthy, then pull the model.
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:11434/api/tags > /dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS -X POST http://127.0.0.1:11434/api/pull \
+            -d '{"name": "bge-m3"}' | tail -n 1
+      - name: Verify model
+        run: curl -s http://127.0.0.1:11434/api/tags | grep -q bge-m3
+      - name: Pytest (integration)
+        env:
+          OLLAMA_HOST: http://127.0.0.1:11434
+        run: pytest -m integration -v
