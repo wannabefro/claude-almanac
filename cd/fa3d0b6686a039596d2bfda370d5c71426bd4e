@@ -1,0 +1,75 @@
+pyproject.toml
+  99f8b03e83564c48 7,45
+tests/unit/test_config.py
+  99f8b03e83564c48 41-84
+src/claude_almanac/cli/codeindex.py
+  99f8b03e83564c48 6,19-41,43-63
+tests/unit/test_cli_setup.py
+  99f8b03e83564c48 85-150
+src/claude_almanac/core/config.py
+  99f8b03e83564c48 38-39,60,90-98,111,114,116-131
+src/claude_almanac/cli/main.py
+  99f8b03e83564c48 51-54
+src/claude_almanac/hooks/upgrade.py
+  99f8b03e83564c48 1-100
+hooks/hooks.json
+  99f8b03e83564c48 3-12
+plugin.json
+  99f8b03e83564c48 3
+src/claude_almanac/cli/setup.py
+  99f8b03e83564c48 5,8,17-36,63-64,66,70-72,74,90-108,116
+CHANGELOG.md
+  99f8b03e83564c48 9-21
+tests/unit/test_hooks_upgrade.py
+  99f8b03e83564c48 1-81
+.claude-plugin/marketplace.json
+  99f8b03e83564c48 9,16
+tests/unit/test_cli_codeindex.py
+  99f8b03e83564c48 38-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "cdfa3d0b6686a039596d2bfda370d5c71426bd4e",
+  "prompts": {
+    "99f8b03e83564c48": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cc32cb0c-bda8-48e4-9a33-71b9e8c9a3dc",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 586,
+      "total_deletions": 44,
+      "accepted_lines": 546,
+      "overriden_lines": 0
+    },
+    "b0d1462e1d2e53f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f9d076fa-44e5-4ee9-924f-0f2bcd0062c1",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 2,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    },
+    "fa209c6e67046175": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "261e5890-73dd-4903-b840-93573f91b6a8",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 1,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
