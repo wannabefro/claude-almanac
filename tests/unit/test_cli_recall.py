@@ -138,3 +138,59 @@ def test_recall_forget_with_scope_flag_picks_one_scope(tmp_path, monkeypatch):
     cli_recall.run(["forget", "user_x.md", "--scope", "global"])
     assert not (paths.global_memory_dir() / "user_x.md").exists()
     assert (paths.project_memory_dir() / "user_x.md").exists()
+
+
+def test_recall_export_default_path_concatenates_global_and_project(
+    tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    from claude_almanac.core import paths
+    g = paths.global_memory_dir()
+    g.mkdir(parents=True)
+    p = paths.project_memory_dir()
+    p.mkdir(parents=True)
+    (g / "user_profile.md").write_text("global body")
+    (p / "project_state.md").write_text("project body")
+    cli_recall.run(["export"])
+    exports = list(tmp_path.glob("claude-almanac-export-*.md"))
+    assert len(exports) == 1
+    body = exports[0].read_text()
+    assert "# global/user_profile.md" in body
+    assert "global body" in body
+    assert "# project/project_state.md" in body
+    assert "project body" in body
+
+
+def test_recall_export_custom_path_and_scope_flag(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    from claude_almanac.core import paths
+    g = paths.global_memory_dir()
+    g.mkdir(parents=True)
+    p = paths.project_memory_dir()
+    p.mkdir(parents=True)
+    (g / "user_a.md").write_text("A")
+    (p / "project_b.md").write_text("B")
+    out = tmp_path / "dump.md"
+    cli_recall.run(["export", str(out), "--global"])
+    text = out.read_text()
+    assert "user_a.md" in text
+    assert "project_b.md" not in text
+
+
+def test_recall_export_all_scans_all_project_dirs(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    from claude_almanac.core import paths
+    g = paths.global_memory_dir()
+    g.mkdir(parents=True)
+    (g / "user_a.md").write_text("A")
+    proj_root = paths.projects_memory_dir()
+    (proj_root / "git-aaaa1111").mkdir(parents=True)
+    (proj_root / "git-aaaa1111" / "project_p1.md").write_text("P1")
+    (proj_root / "git-bbbb2222").mkdir(parents=True)
+    (proj_root / "git-bbbb2222" / "project_p2.md").write_text("P2")
+    out = tmp_path / "all.md"
+    cli_recall.run(["export", str(out), "--all"])
+    text = out.read_text()
+    assert "project_p1.md" in text
+    assert "project_p2.md" in text

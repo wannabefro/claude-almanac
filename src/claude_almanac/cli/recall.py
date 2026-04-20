@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 import time as _time
+from datetime import date as _date
 from pathlib import Path
 
 from claude_almanac.core import archive, config, paths
@@ -182,6 +183,55 @@ def _cmd_forget(args: list[str]) -> None:
         print(f"forgot {name}/{slug} -> trash/{dst.name}")
 
 
+def _collect_scope_mds(scope_dir: Path, scope_label: str) -> list[tuple[str, str]]:
+    """Return [(header, body)] for each *.md directly under scope_dir (excludes trash/)."""
+    out: list[tuple[str, str]] = []
+    if not scope_dir.exists():
+        return out
+    for md in sorted(scope_dir.glob("*.md")):
+        header = f"# {scope_label}/{md.name}"
+        out.append((header, md.read_text()))
+    return out
+
+
+def _cmd_export(args: list[str]) -> None:
+    include_global = False
+    include_project = False
+    include_all = False
+    positional: list[str] = []
+    for a in args:
+        if a == "--global":
+            include_global = True
+        elif a == "--project":
+            include_project = True
+        elif a == "--all":
+            include_all = True
+        else:
+            positional.append(a)
+    if not (include_global or include_project or include_all):
+        include_global = include_project = True  # default
+    out_path = (
+        Path(positional[0])
+        if positional
+        else Path.cwd() / f"claude-almanac-export-{_date.today().isoformat()}.md"
+    )
+    sections: list[tuple[str, str]] = []
+    if include_global or include_all:
+        sections.extend(_collect_scope_mds(paths.global_memory_dir(), "global"))
+    if include_project and not include_all:
+        sections.extend(_collect_scope_mds(paths.project_memory_dir(), "project"))
+    if include_all:
+        projs_root = paths.projects_memory_dir()
+        if projs_root.exists():
+            for d in sorted(projs_root.iterdir()):
+                if d.is_dir():
+                    sections.extend(_collect_scope_mds(d, f"project:{d.name}"))
+    body = "\n\n---\n\n".join(f"{h}\n\n{b}" for h, b in sections)
+    out_path.write_text(body)
+    n = len(sections)
+    print(f"exported {n} memor{'y' if n == 1 else 'ies'} to {out_path}")
+
+
 def run(argv: list[str]) -> None:
     if not argv:
         print(USAGE)
@@ -206,14 +256,8 @@ def run(argv: list[str]) -> None:
         _cmd_pin(rest, pinned=False)
     elif cmd == "forget":
         _cmd_forget(rest)
+    elif cmd == "export":
+        _cmd_export(rest)
     else:
-        # export is deferred to v0.2 (Task 4).
-        if cmd == "export":
-            print(
-                f"'{cmd}' is not yet implemented. "
-                f"Track progress at https://github.com/sammctaggart/claude-almanac/issues"
-                f" (label: v0.2)."
-            )
-            return
         print(f"unknown subcommand: {cmd}", file=sys.stderr)
         print(USAGE)
