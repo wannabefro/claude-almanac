@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-04-20
+
+### Added
+
+- Daily code-index refresh job. Set `code_index.daily_refresh: true` in `config.yaml` and run `claude-almanac setup` to register `com.claude-almanac.codeindex-refresh`, a launchd/systemd unit that runs `claude-almanac codeindex refresh --all` at `code_index.refresh_hour` (default 04:00). Walks every repo in `digest.repos`, auto-running `init` on DBs that don't exist yet.
+- `claude-almanac codeindex refresh --all` iterates all configured repos in one shot, skip-continue on per-repo failure (matches digest generator semantics). Replaces the manual "cd each repo, rerun" loop.
+- `SessionStart` hook (`claude-almanac-upgrade-hook`) detects drift between the plugin version and the installed CLI version. By default, prints a one-line notice telling the user how to upgrade. With `auto_upgrade: true` in `config.yaml` (opt-in), background-launches `uv tool upgrade claude-almanac` on drift so `/plugin update claude-almanac` alone keeps both halves in sync. Non-uv installers get the notice path only.
+
+### Changed
+
+- `claude-almanac setup` now materializes any missing config keys with defaults and rewrites `config.yaml` in canonical order, so additive schema changes (like this release's `daily_refresh`, `refresh_hour`, `auto_upgrade`) don't require hand-editing yaml.
+- Setup stamps the installed CLI version at `<data_dir>/.installed_version` so future tooling can detect out-of-band upgrades.
+
 ## [0.1.1] — 2026-04-19
 
 ### Fixed

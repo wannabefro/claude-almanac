@@ -35,3 +35,101 @@ def test_dispatch_arch_passes_global_flag():
         cfg_load.return_value.code_index.send_code_to_llm = True
         cli_main.main(["codeindex", "arch", "--repo", "/tmp/r"])
     m.assert_called_once_with("/tmp/r", global_send_code_to_llm=True)
+
+
+def test_parser_refresh_accepts_all_flag():
+    p = cli_main.build_parser()
+    ns = p.parse_args(["codeindex", "refresh", "--all"])
+    assert ns.ci_cmd == "refresh"
+    assert ns.all_repos is True
+
+
+def test_refresh_all_iterates_configured_repos(tmp_path, monkeypatch):
+    """With --all, the CLI should walk digest.repos, running init for
+    missing DBs and refresh for present ones, and return 0 on success."""
+    from claude_almanac.core import config as core_config
+
+    repo_a = tmp_path / "a"
+    repo_b = tmp_path / "b"
+    for r in (repo_a, repo_b):
+        (r / ".git").mkdir(parents=True)
+
+    cfg = core_config.default_config()
+    cfg.digest.repos = [
+        core_config.RepoCfg(path=str(repo_a), alias="a"),
+        core_config.RepoCfg(path=str(repo_b), alias="b"),
+    ]
+    monkeypatch.setattr("claude_almanac.core.config.load", lambda: cfg)
+
+    init_calls: list[str] = []
+    refresh_calls: list[str] = []
+
+    def fake_init(p: str) -> int:
+        init_calls.append(p)
+        return 0
+
+    def fake_refresh(p: str) -> int:
+        refresh_calls.append(p)
+        return 0
+
+    # Force both repos to look "un-initialized" so init runs for each.
+    monkeypatch.setattr(
+        "claude_almanac.core.paths.project_memory_dir",
+        lambda: tmp_path / "nope",
+    )
+    monkeypatch.setattr("claude_almanac.codeindex.init.main", fake_init)
+    monkeypatch.setattr("claude_almanac.codeindex.refresh.main", fake_refresh)
+
+    cli_main.main(["codeindex", "refresh", "--all"])
+    assert [str(repo_a.resolve()), str(repo_b.resolve())] == init_calls
+    assert [str(repo_a.resolve()), str(repo_b.resolve())] == refresh_calls
+
+
+def test_refresh_all_continues_on_per_repo_failure(tmp_path, monkeypatch, capsys):
+    from claude_almanac.core import config as core_config
+
+    repo_a = tmp_path / "a"
+    repo_b = tmp_path / "b"
+    for r in (repo_a, repo_b):
+        (r / ".git").mkdir(parents=True)
+
+    cfg = core_config.default_config()
+    cfg.digest.repos = [
+        core_config.RepoCfg(path=str(repo_a), alias="a"),
+        core_config.RepoCfg(path=str(repo_b), alias="b"),
+    ]
+    monkeypatch.setattr("claude_almanac.core.config.load", lambda: cfg)
+    # DB exists so refresh runs directly without init.
+    db = tmp_path / "dbdir"
+    db.mkdir()
+    (db / "code-index.db").write_text("")
+    monkeypatch.setattr(
+        "claude_almanac.core.paths.project_memory_dir", lambda: db,
+    )
+
+    refresh_calls: list[str] = []
+
+    def fake_refresh(p: str) -> int:
+        refresh_calls.append(p)
+        if p == str(repo_a.resolve()):
+            raise RuntimeError("boom")
+        return 0
+
+    monkeypatch.setattr("claude_almanac.codeindex.refresh.main", fake_refresh)
+    import pytest
+    with pytest.raises(SystemExit) as e:
+        cli_main.main(["codeindex", "refresh", "--all"])
+    assert e.value.code == 1
+    # Second repo still processed despite first's failure.
+    assert refresh_calls == [str(repo_a.resolve()), str(repo_b.resolve())]
+
+
+def test_refresh_all_errors_when_repos_empty(monkeypatch, capsys):
+    from claude_almanac.core import config as core_config
+    cfg = core_config.default_config()
+    monkeypatch.setattr("claude_almanac.core.config.load", lambda: cfg)
+    import pytest
+    with pytest.raises(SystemExit) as e:
+        cli_main.main(["codeindex", "refresh", "--all"])
+    assert e.value.code == 1
+    assert "digest.repos" in capsys.readouterr().err

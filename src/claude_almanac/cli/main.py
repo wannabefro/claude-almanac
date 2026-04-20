@@ -48,6 +48,10 @@ def build_parser() -> argparse.ArgumentParser:
         sp = ci_sub.add_parser(name, help=help_)
         sp.add_argument("--repo", default=None,
                         help="Repo root; defaults to current working directory")
+        if name == "refresh":
+            sp.add_argument("--all", dest="all_repos", action="store_true",
+                            help="Refresh every repo listed in code_index.repos "
+                                 "(auto-init missing DBs). Overrides --repo.")
 
     return p
 

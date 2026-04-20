@@ -35,6 +35,8 @@ class DigestCfg:
 class CodeIndexCfg:
     enabled: bool = False
     send_code_to_llm: bool = False
+    daily_refresh: bool = False
+    refresh_hour: int = 4
 
 
 @dataclass
@@ -55,6 +57,7 @@ class Config:
     code_index: CodeIndexCfg = field(default_factory=CodeIndexCfg)
     retrieval: RetrievalCfg = field(default_factory=RetrievalCfg)
     thresholds: ThresholdsCfg = field(default_factory=ThresholdsCfg)
+    auto_upgrade: bool = False
 
 
 CONFIG_FILENAME = "config.yaml"
@@ -84,6 +87,15 @@ def save(cfg: Config) -> None:
         yaml.safe_dump(asdict(cfg), f, sort_keys=False)
 
 
+def _code_index_from_dict(raw: dict[str, Any]) -> CodeIndexCfg:
+    return CodeIndexCfg(
+        enabled=raw.get("enabled", False),
+        send_code_to_llm=raw.get("send_code_to_llm", False),
+        daily_refresh=raw.get("daily_refresh", False),
+        refresh_hour=raw.get("refresh_hour", 4),
+    )
+
+
 def _from_dict(raw: dict[str, Any]) -> Config:
     emb = raw.get("embedder", {})
     dig = raw.get("digest", {})
@@ -96,7 +108,24 @@ def _from_dict(raw: dict[str, Any]) -> Config:
             hour=dig.get("hour", 7),
             notify=dig.get("notify", True),
         ),
-        code_index=CodeIndexCfg(**raw.get("code_index", {})),
+        code_index=_code_index_from_dict(raw.get("code_index", {})),
         retrieval=RetrievalCfg(**raw.get("retrieval", {})),
         thresholds=ThresholdsCfg(**raw.get("thresholds", {})),
+        auto_upgrade=raw.get("auto_upgrade", False),
     )
+
+
+def materialize_missing_fields() -> bool:
+    """Load config.yaml and rewrite it with any fields that were missing
+    (filled with defaults). Returns True if the file was modified. Does nothing
+    if the file doesn't exist or is already canonical."""
+    p = config_path()
+    if not p.exists():
+        return False
+    cfg = load()
+    canonical = yaml.safe_dump(asdict(cfg), sort_keys=False)
+    current = p.read_text()
+    if canonical == current:
+        return False
+    p.write_text(canonical)
+    return True
