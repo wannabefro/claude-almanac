@@ -94,13 +94,20 @@ def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
         )
         db = scope_dir / "archive.db"
 
-        if action == "write_md":
-            slug = d.get("slug")
-            text = d.get("text")
+        # The curator prompt calls a memory's filename `name` and its body
+        # `content` (and its category `type`). Tolerate both the prompt's
+        # documented shape and the older `slug`/`text`/`kind` shape so old
+        # tests and any external callers keep working.
+        slug = d.get("slug") or _normalise_slug(d.get("name"))
+        text = d.get("text") or d.get("content")
+        kind = d.get("kind") or d.get("type")
+
+        if action in ("write_md", "update_md"):
             if not slug or not text:
                 LOGGER.warning(
-                    "curator: dropping write_md with missing slug/text: %s",
-                    {k: v for k, v in d.items() if k != "text"},
+                    "curator: dropping %s with missing name/content: %s",
+                    action,
+                    {k: v for k, v in d.items() if k not in ("text", "content")},
                 )
                 continue
             [vec] = embedder.embed([text])
@@ -116,29 +123,38 @@ def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
             archive.insert_entry(
                 db,
                 text=text,
-                kind=d.get("kind", "reference"),
+                kind=kind or "reference",
                 source=f"md:{slug}",
                 pinned=True,
                 embedding=vec,
             )
 
-        elif action == "archive_turn":
-            text = d.get("text")
+        elif action in ("insert_archive", "archive_turn"):
             if not text:
-                LOGGER.warning("curator: dropping archive_turn with missing text")
+                LOGGER.warning("curator: dropping %s with missing content", action)
                 continue
             [vec] = embedder.embed([text])
             archive.insert_entry(
                 db,
                 text=text,
-                kind=d.get("kind", "note"),
+                kind=kind or "note",
                 source=d.get("source", "turn"),
                 pinned=False,
                 embedding=vec,
             )
 
+        elif action == "skip_all":
+            LOGGER.info("curator: skip_all (%s)", d.get("reason", ""))
+
         else:
             LOGGER.info("curator: ignoring decision with action=%r", action)
+
+
+def _normalise_slug(name: str | None) -> str | None:
+    """Ensure a slug ends with `.md`. Haiku returns bare names per the prompt."""
+    if not name:
+        return None
+    return name if name.endswith(".md") else f"{name}.md"
 
 
 def _iter_turns(transcript_path: str) -> Iterator[tuple[str, str]]:
