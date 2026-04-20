@@ -1,0 +1,25 @@
+tests/unit/test_curators_base.py
+  4ea7be7d8768c89a 10
+src/claude_almanac/curators/base.py
+  4ea7be7d8768c89a 15-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "ae49728b9b9e102704a5c3b7be87f471a7ab7355",
+  "prompts": {
+    "4ea7be7d8768c89a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a5ea49aa-62f6-4cad-b257-5a4f7b930988",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 4,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    }
+  }
+}
