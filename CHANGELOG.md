@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-04-20
+
+### Fixed
+
+- CI + release integration job's container health check used `curl`, which the `ollama/ollama:latest` image does not ship, so the service never reported healthy and the job never ran. Health check removed; the "Pull bge-m3" step's retry loop (from the runner host, which has curl) handles readiness. 0.2.0 was tagged but blocked at the PyPI publish gate by this bug; 0.2.1 carries the same code as 0.2.0 plus the workflow fix.
+
 ## [0.2.0] — 2026-04-20
 
 ### Added

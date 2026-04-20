@@ -56,11 +56,9 @@ jobs:
         image: ollama/ollama:latest
         ports:
           - 11434:11434
-        options: >-
-          --health-cmd "curl -fsS http://127.0.0.1:11434/api/tags || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 20
+        # No --health-cmd: the ollama image does not ship with curl/wget,
+        # so any http-based health probe fails on container start. The
+        # "Pull bge-m3" step has its own retry loop from the runner host.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
