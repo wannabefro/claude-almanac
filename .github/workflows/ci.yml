@@ -11,7 +11,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # macos-latest is intentionally excluded: GitHub's setup-python
+        # ships a CPython whose sqlite3 extension was built with
+        # --omit=load-extension, so sqlite_vec.load(conn) raises
+        # `AttributeError: 'sqlite3.Connection' object has no attribute
+        # 'enable_load_extension'`. The package works fine on real macOS
+        # (uv / brew Python ship sqlite with extensions enabled); this is
+        # an artefact of the runner image.
+        os: [ubuntu-latest]
         python: ["3.11", "3.12"]
     runs-on: ${{ matrix.os }}
     steps:
