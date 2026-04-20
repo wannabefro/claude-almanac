@@ -3,12 +3,17 @@ and platform daemons."""
 from __future__ import annotations
 
 import contextlib
+import os
 import shutil
 import sys
 from pathlib import Path
 
+import httpx
+import yaml
+
 from claude_almanac.core import config as core_config
 from claude_almanac.core import paths
+from claude_almanac.core.config import CuratorCfg
 from claude_almanac.embedders import make_embedder
 from claude_almanac.platform import get_scheduler
 
@@ -47,6 +52,79 @@ def _probe_embedder() -> bool:
         return False
 
 
+def _ollama_reachable() -> bool:
+    host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+    try:
+        r = httpx.get(f"{host.rstrip('/')}/api/tags", timeout=3.0)
+        return r.status_code == 200
+    except httpx.HTTPError:
+        return False
+
+
+def _ollama_pull(model: str) -> None:
+    host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+    with httpx.stream(
+        "POST",
+        f"{host.rstrip('/')}/api/pull",
+        json={"name": model},
+        timeout=httpx.Timeout(connect=5.0, read=600.0, write=30.0, pool=30.0),
+    ) as r:
+        for line in r.iter_lines():
+            if not line:
+                continue
+            sys.stdout.write(f"  pull: {line[:120]}\n")
+            sys.stdout.flush()
+
+
+def _migrate_curator_provider() -> None:
+    """Idempotent curator provider configuration.
+
+    - If the YAML has no ``curator:`` block: pick a provider based on env.
+    - If it has one with ``provider=ollama``: re-run pull to self-heal.
+    - Otherwise: leave it alone (user choice wins).
+    """
+    path = core_config.config_path()
+    raw: dict[str, object] = {}
+    if path.exists():
+        raw = yaml.safe_load(path.read_text()) or {}
+    has_block = "curator" in raw
+    cfg = core_config.load()
+
+    if not has_block:
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            cfg.curator = CuratorCfg(
+                provider="anthropic_sdk",
+                model="claude-haiku-4-5-20251001",
+            )
+            print(
+                "curator: anthropic_sdk / claude-haiku-4-5-20251001"
+                " (fast API path, key found in env)"
+            )
+        else:
+            cfg.curator = CuratorCfg(provider="ollama", model="gemma3:4b")
+            if _ollama_reachable():
+                print("curator: ollama / gemma3:4b (local) — pulling model...")
+                try:
+                    _ollama_pull("gemma3:4b")
+                except httpx.HTTPError as e:
+                    print(f"  warning: ollama pull failed: {e}")
+            else:
+                print(
+                    "curator: ollama / gemma3:4b (local) — warning: Ollama"
+                    " unreachable; curator will no-op until Ollama is running"
+                    " and the model is pulled"
+                )
+        core_config.save(cfg)
+        return
+
+    # Block exists — respect user choice, but self-heal ollama pulls.
+    if cfg.curator.provider == "ollama" and _ollama_reachable():
+        try:
+            _ollama_pull(cfg.curator.model)
+        except httpx.HTTPError as e:
+            print(f"  warning: ollama pull failed: {e}")
+
+
 def run(*, uninstall: bool, purge_data: bool) -> None:
     if uninstall:
         _do_uninstall(purge_data=purge_data)
@@ -62,6 +140,7 @@ def _do_install() -> None:
         print(f"wrote default config to {cfg_path}")
     elif core_config.materialize_missing_fields():
         print(f"updated {cfg_path} with new default fields")
+    _migrate_curator_provider()
     cfg = core_config.load()
     _stamp_installed_version()
     ok = _probe_embedder()
