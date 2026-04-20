@@ -52,15 +52,16 @@ def _run_llm(conversation_tail: str) -> str:
     and the transcript is delivered as the user turn (stdin). This is critical:
     without the split, Haiku sees chatty content in the transcript and drifts
     into conversational mode ("I'm Claude Code, memory curator prompts were
-    pasted by mistake") instead of executing the curator task. ``--bare`` keeps
-    Haiku out of the host project's CLAUDE.md / hooks / plugins so its only
-    context is the system prompt + the transcript it's meant to evaluate.
+    pasted by mistake") instead of executing the curator task.
+
+    We deliberately do NOT pass ``--bare`` here. ``--bare`` forces strict auth
+    (``ANTHROPIC_API_KEY`` or ``apiKeyHelper`` via ``--settings``) and skips
+    OAuth/keychain, which breaks the default auth path most users are on.
     """
     try:
         result = subprocess.run(
             [
                 "claude", "-p", "--model", "haiku",
-                "--bare",
                 "--system-prompt", _prompt_template(),
             ],
             input=conversation_tail,

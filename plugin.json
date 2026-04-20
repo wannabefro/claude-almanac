@@ -1,6 +1,6 @@
 {
   "name": "claude-almanac",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Daily intelligence layer for Claude Code — memory + digest + code-index.",
   "hooks": "./hooks/hooks.json",
   "commands": "./commands/",

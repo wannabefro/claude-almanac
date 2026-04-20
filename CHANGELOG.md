@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.7] — 2026-04-20
+
+### Fixed
+
+- **Curator auth broke on 0.2.6** for users on OAuth/keychain auth (the default). 0.2.6 added `--bare` to the curator's `claude` invocation thinking it would keep Haiku out of the host CLAUDE.md, but `--bare` forces strict `ANTHROPIC_API_KEY` / `apiKeyHelper` auth and skips keychain/OAuth. The curator began returning `Not logged in · Please run /login` to every Haiku call, dropping all memories. Drop `--bare`; `--system-prompt` alone carries the conversational-drift fix verified end-to-end: 4 runs against a chatty transcript produced 0 non-JSON warnings and exactly 1 archive row per scope with the rest correctly going to `skip_all`.
+
 ## [0.2.6] — 2026-04-20
 
 ### Fixed
