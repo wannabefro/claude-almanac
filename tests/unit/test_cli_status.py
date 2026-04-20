@@ -114,3 +114,35 @@ def test_status_curator_shows_none_yet_when_no_log(tmp_path, monkeypatch, capsys
 
     out = capsys.readouterr().out
     assert "none yet" in out.lower() or "never" in out.lower()
+
+
+def test_status_shows_memory_and_decay_info(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    from claude_almanac.cli import status
+    from claude_almanac.core import archive, config, paths, versioning
+
+    cfg = config.default_config()
+    config.save(cfg)
+    scope_dir = paths.project_memory_dir()
+    scope_dir.mkdir(parents=True, exist_ok=True)
+    db = scope_dir / "archive.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    versioning.snapshot_then_replace(
+        db, scope_dir=scope_dir, slug="foo.md",
+        new_text="v1", new_kind="reference",
+        new_embedding=[1.0, 0.0], provenance="write_md",
+    )
+    versioning.snapshot_then_replace(
+        db, scope_dir=scope_dir, slug="foo.md",
+        new_text="v2", new_kind="reference",
+        new_embedding=[0.9, 0.1], provenance="update_md",
+    )
+    status.run()
+    out = capsys.readouterr().out
+    assert "memory" in out
+    # 1 live entry + 1 historical version
+    assert "1 entr" in out
+    assert "1 historical" in out or "1 history" in out
+    assert "decay" in out
+    assert "half-life=60" in out

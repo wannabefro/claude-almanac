@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import suppress
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
@@ -108,6 +109,31 @@ def _embedder_mismatch_warnings(cfg_provider: str, cfg_model: str) -> list[str]:
     return warnings
 
 
+def _memory_stats() -> tuple[int, int]:
+    """Return (live_entries_total, historical_versions_total) across global + project scopes."""
+    total_live = 0
+    total_history = 0
+    for scope in (paths.global_memory_dir(), paths.project_memory_dir()):
+        db = scope / "archive.db"
+        if not db.exists():
+            continue
+        conn = None
+        try:
+            conn = sqlite3.connect(str(db))
+            total_live += conn.execute("SELECT COUNT(*) FROM entries").fetchone()[0]
+            with suppress(sqlite3.OperationalError):
+                # older DB without entries_history
+                total_history += conn.execute(
+                    "SELECT COUNT(*) FROM entries_history"
+                ).fetchone()[0]
+        except sqlite3.OperationalError:
+            continue
+        finally:
+            if conn:
+                conn.close()
+    return total_live, total_history
+
+
 def run() -> None:
     cfg = config.load()
     print(f"claude-almanac {_package_version()}")
@@ -145,6 +171,17 @@ def run() -> None:
         print(f"  last invocation: {_format_ts(curator_log.stat().st_mtime)}")
     else:
         print("  last invocation: (none yet)")
+    print()
+    live, hist = _memory_stats()
+    print("memory")
+    print(f"  {live} entries, {hist} historical versions")
+    print()
+    dcfg = cfg.retrieval.decay
+    print("decay")
+    print(
+        f"  enabled={dcfg.enabled}, half-life={dcfg.half_life_days}d, "
+        f"β={dcfg.use_count_exponent}, band={dcfg.band or 'profile-default'}"
+    )
     print()
     warnings = _embedder_mismatch_warnings(cfg.embedder.provider, cfg.embedder.model)
     print("warnings")
