@@ -1,0 +1,40 @@
+pyproject.toml
+  5c09c2abc4dbc99b 7
+CHANGELOG.md
+  5c09c2abc4dbc99b 9-14
+plugin.json
+  5c09c2abc4dbc99b 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "f4c740f88a62434764165f3e168538bc98f39eff",
+  "prompts": {
+    "5c09c2abc4dbc99b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b7e5d561-db12-458d-8089-8f386d664c45",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 498,
+      "overriden_lines": 0
+    },
+    "beda9cef5004854a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cd0924a-bfda-4a32-b77b-6d9f0e58343b",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 6,
+      "overriden_lines": 0
+    }
+  }
+}
