@@ -32,6 +32,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Ollama curator error handling** widened from `(TimeoutException, ConnectError)` to the broader `httpx.RequestError`, covering `RemoteProtocolError` and other transient failures the sibling embedder pattern already handles. The bare `assert isinstance(content, str)` path was replaced with a logged warning + empty-string return to honor the Protocol's "providers never raise" contract.
 - **Anthropic curator error handling** narrowed from `except Exception` to `except anthropic.APIError`, so non-SDK exceptions (`MemoryError`, bugs) propagate instead of being silently swallowed. All SDK-layer failures (connection, timeout, rate, auth, bad request) still yield an empty string.
 
+### Notes
+
+- Default local model is `gemma3:4b` (~3 GB, 4.3 B parameters). `gemma4:e4b` (~8 GB, 8 B) is a viable opt-in via `curator.model: gemma4:e4b` — parity tests pass across all four fixtures, memory bodies are slightly better structured, but per-invocation latency is 3–5× higher and the larger context makes the model more susceptible to bleed from `{{EXISTING_MEMORIES}}` into unrelated decisions. Pick gemma3 for throughput, gemma4 for prose quality.
+
 ### Deferred to 0.3.1+
 
 - §3.1 Session-transcript compression
