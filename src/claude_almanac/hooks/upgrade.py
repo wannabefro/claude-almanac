@@ -10,6 +10,12 @@ Without this hook, a user who only runs `/plugin update` would get new
 commands and hooks.json referencing a possibly-older CLI, leading to confusing
 half-states. The hook keeps both halves in sync without forcing the user to
 remember the second command.
+
+Auto-upgrade flow:
+  1. On drift, look at `upgrade.status.json` first. If the previous attempt
+     for this plugin version failed, surface the failure and DO NOT retry.
+  2. Otherwise spawn `upgrade_runner.py` detached; it runs uv against the
+     public index and writes the status file for the next session to read.
 """
 from __future__ import annotations
 
@@ -17,6 +23,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
@@ -42,6 +49,13 @@ def _plugin_version(plugin_root: str) -> str | None:
 def _detect_uv_install() -> bool:
     """True when the running CLI is installed via `uv tool install`."""
     return "uv/tools/claude-almanac" in sys.executable
+
+
+def _load_status(status_path: Path) -> dict[str, object] | None:
+    try:
+        return json.loads(status_path.read_text())  # type: ignore[no-any-return]
+    except (OSError, json.JSONDecodeError):
+        return None
 
 
 def main() -> None:
@@ -77,13 +91,38 @@ def main() -> None:
         return
 
     log = paths.logs_dir() / "upgrade.log"
+    status_path = paths.logs_dir() / "upgrade.status.json"
+
+    # If a prior auto-upgrade attempt for this exact target failed, surface
+    # the failure and bail — don't spawn another doomed subprocess every
+    # session.
+    prev = _load_status(status_path)
+    if (
+        isinstance(prev, dict)
+        and prev.get("target") == plugin_v
+        and isinstance(prev.get("exit"), int)
+        and prev.get("exit") != 0
+    ):
+        ts_raw = prev.get("ts")
+        ts = ts_raw if isinstance(ts_raw, int) else 0
+        age_hours = max(0, (int(time.time()) - ts) // 3600)
+        sys.stdout.write(
+            f"claude-almanac: last auto-upgrade to v{plugin_v} failed "
+            f"~{age_hours}h ago (exit={prev['exit']}). See {log}. "
+            f"Run manually: "
+            f"`uv tool upgrade --default-index https://pypi.org/simple/ "
+            f"claude-almanac`\n"
+        )
+        return
+
     log.parent.mkdir(parents=True, exist_ok=True)
     try:
-        with log.open("ab") as f:
-            subprocess.Popen(  # noqa: S603,S607 — fixed argv, no shell
-                ["uv", "tool", "upgrade", "claude-almanac"],
-                stdout=f, stderr=f, start_new_session=True,
-            )
+        subprocess.Popen(  # noqa: S603 — fixed argv, no shell
+            [sys.executable, "-m",
+             "claude_almanac.hooks.upgrade_runner", plugin_v],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
     except (OSError, subprocess.SubprocessError) as e:
         sys.stdout.write(
             f"claude-almanac: upgrade launch failed ({e}); "
