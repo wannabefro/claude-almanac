@@ -58,6 +58,7 @@ def init(db: Path, *, embedder_name: str, model: str, dim: int, distance: Distan
                     f"requested {embedder_name} model={model} dim={dim}. "
                     f"Re-index required."
                 )
+            _migrate_schema(conn, dim)
             return
         conn.executemany(
             "INSERT INTO meta(key, value) VALUES (?, ?)",
@@ -84,9 +85,40 @@ def init(db: Path, *, embedder_name: str, model: str, dim: int, distance: Distan
             f"CREATE VIRTUAL TABLE entries_vec USING vec0("
             f"id INTEGER PRIMARY KEY, embedding FLOAT[{dim}])"
         )
+        _create_entries_history(conn)
         conn.commit()
     finally:
         conn.close()
+
+
+def _migrate_schema(conn: sqlite3.Connection, dim: int) -> None:
+    """Bring an existing archive DB up to the v0.3.1 schema idempotently."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(entries)").fetchall()}
+    if "last_used_at" not in cols:
+        conn.execute("ALTER TABLE entries ADD COLUMN last_used_at INTEGER")
+    if "use_count" not in cols:
+        conn.execute("ALTER TABLE entries ADD COLUMN use_count INTEGER NOT NULL DEFAULT 0")
+    _create_entries_history(conn)
+    conn.commit()
+
+
+def _create_entries_history(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS entries_history ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "slug TEXT NOT NULL, "
+        "text TEXT NOT NULL, "
+        "kind TEXT NOT NULL, "
+        "version INTEGER NOT NULL, "
+        "original_created_at INTEGER NOT NULL, "
+        "superseded_at INTEGER NOT NULL, "
+        "provenance TEXT NOT NULL"
+        ")"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_entries_history_slug "
+        "ON entries_history(slug, version)"
+    )
 
 
 def get_meta(db: Path) -> dict[str, str | int]:
