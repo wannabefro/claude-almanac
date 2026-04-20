@@ -299,3 +299,65 @@ def test_recall_correct_opens_editor_when_no_body(tmp_path, monkeypatch):
     cli_recall.run(["correct", "foo.md"])
     chain = versioning.list_versions(db, slug="foo.md")
     assert chain[0].text == "edited-body"
+
+
+def test_recall_correct_editor_respects_multi_token_editor_var(tmp_path, monkeypatch):
+    """$EDITOR with spaces (e.g., 'vim --clean') must tokenize via shlex,
+    not crash trying to exec the full string as a single binary."""
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("EDITOR", "echo --quiet")  # 'echo' exists; swallows args
+    from claude_almanac.cli import recall
+    from claude_almanac.core import archive, config, paths, versioning
+    cfg = config.default_config()
+    config.save(cfg)
+    scope_dir = paths.project_memory_dir()
+    scope_dir.mkdir(parents=True, exist_ok=True)
+    db = scope_dir / "archive.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    versioning.snapshot_then_replace(
+        db, scope_dir=scope_dir, slug="foo.md",
+        new_text="original", new_kind="reference",
+        new_embedding=[1.0, 0.0], provenance="write_md",
+    )
+    # `echo` returns 0 but doesn't modify the tempfile, so the saved body stays
+    # "original" — matching current_text → the "already that body" no-change
+    # branch fires. The point: subprocess.run must NOT raise FileNotFoundError.
+    class FakeEmbedder:
+        name, model, dim, distance = "ollama", "bge-m3", 2, "l2"
+        def embed(self, texts):
+            return [[1.0, 0.0] for _ in texts]
+    monkeypatch.setattr("claude_almanac.cli.recall.make_embedder",
+                        lambda *a, **k: FakeEmbedder())
+    # SystemExit is NOT expected — `echo` exits 0, body unchanged, no-op branch returns cleanly.
+    recall.run(["correct", "foo.md"])
+
+
+def test_recall_correct_editor_missing_binary_exits_cleanly(tmp_path, monkeypatch):
+    """$EDITOR pointing at a nonexistent binary must fail with sys.exit(1),
+    not a raw FileNotFoundError traceback."""
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("EDITOR", "this-editor-does-not-exist-xyz")
+    from claude_almanac.cli import recall
+    from claude_almanac.core import archive, config, paths, versioning
+    cfg = config.default_config()
+    config.save(cfg)
+    scope_dir = paths.project_memory_dir()
+    scope_dir.mkdir(parents=True, exist_ok=True)
+    db = scope_dir / "archive.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    versioning.snapshot_then_replace(
+        db, scope_dir=scope_dir, slug="foo.md",
+        new_text="original", new_kind="reference",
+        new_embedding=[1.0, 0.0], provenance="write_md",
+    )
+    class FakeEmbedder:
+        name, model, dim, distance = "ollama", "bge-m3", 2, "l2"
+        def embed(self, texts):
+            return [[1.0, 0.0] for _ in texts]
+    monkeypatch.setattr("claude_almanac.cli.recall.make_embedder",
+                        lambda *a, **k: FakeEmbedder())
+    with pytest.raises(SystemExit) as exc:
+        recall.run(["correct", "foo.md"])
+    assert exc.value.code == 1

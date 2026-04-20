@@ -129,22 +129,27 @@ def _open_editor_with_text(initial: str) -> str:
     exits nonzero or the user leaves the file empty.
     """
     import os
+    import shlex
     import subprocess
     import tempfile
     editor = os.environ.get("EDITOR", "vi")
     with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as f:
         f.write(initial)
         tmp_path = f.name
+    editor_cmd = shlex.split(editor) + [tmp_path]
     try:
-        result = subprocess.run([editor, tmp_path])
+        try:
+            result = subprocess.run(editor_cmd)
+        except FileNotFoundError:
+            sys.stderr.write(f"correct: editor not found: {editor!r}\n")
+            sys.exit(1)
         if result.returncode != 0:
             sys.stderr.write(f"editor exited with code {result.returncode}\n")
             sys.exit(1)
         with open(tmp_path) as f:
             new_text = f.read()
     finally:
-        import os as _os
-        _os.unlink(tmp_path)
+        os.unlink(tmp_path)
     if not new_text.strip():
         sys.stderr.write("correct: empty body, aborting\n")
         sys.exit(1)
