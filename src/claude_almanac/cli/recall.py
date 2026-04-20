@@ -17,6 +17,7 @@ USAGE = """Usage: claude-almanac recall <subcommand> [args]
   list [type]             list markdown memories (type: user|feedback|project|reference)
   show <slug>             print a memory file body
   history <slug>          print version history of a memory
+  correct <slug> [--body TEXT]   supersede a memory's body (default: open $EDITOR)
 
   pin <id-or-slug>        pin an archive entry (global + project scopes)
   unpin <id-or-slug>      unpin
@@ -116,6 +117,64 @@ def _history(slug: str) -> None:
                 for line in v.text.splitlines():
                     print(f"  {line}")
                 print()
+            return
+    print(f"error: no memory found with slug {slug!r}", file=sys.stderr)
+    sys.exit(1)
+
+
+def _open_editor_with_text(initial: str) -> str:
+    """Open $EDITOR with `initial` as the starting content; return the saved content.
+
+    Falls back to vi if EDITOR is unset. Raises SystemExit(1) if the editor
+    exits nonzero or the user leaves the file empty.
+    """
+    import os
+    import subprocess
+    import tempfile
+    editor = os.environ.get("EDITOR", "vi")
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as f:
+        f.write(initial)
+        tmp_path = f.name
+    try:
+        result = subprocess.run([editor, tmp_path])
+        if result.returncode != 0:
+            sys.stderr.write(f"editor exited with code {result.returncode}\n")
+            sys.exit(1)
+        with open(tmp_path) as f:
+            new_text = f.read()
+    finally:
+        import os as _os
+        _os.unlink(tmp_path)
+    if not new_text.strip():
+        sys.stderr.write("correct: empty body, aborting\n")
+        sys.exit(1)
+    return new_text
+
+
+def _correct(slug: str, *, body: str | None) -> None:
+    from claude_almanac.core import versioning
+    # Locate the slug in project scope first, then global
+    for scope_dir in (paths.project_memory_dir(), paths.global_memory_dir()):
+        db = scope_dir / "archive.db"
+        if not db.exists():
+            continue
+        chain = versioning.list_versions(db, slug=slug)
+        if chain:
+            current_text = chain[0].text
+            current_kind = chain[0].kind
+            new_text = body if body is not None else _open_editor_with_text(current_text)
+            if new_text == current_text:
+                print(f"correct: {slug} is already that body; no change")
+                return
+            cfg = config.load()
+            embedder = make_embedder(cfg.embedder.provider, cfg.embedder.model)
+            [vec] = embedder.embed([new_text])
+            versioning.snapshot_then_replace(
+                db, scope_dir=scope_dir, slug=slug,
+                new_text=new_text, new_kind=current_kind,
+                new_embedding=vec, provenance="correct",
+            )
+            print(f"corrected {slug}")
             return
     print(f"error: no memory found with slug {slug!r}", file=sys.stderr)
     sys.exit(1)
@@ -294,6 +353,19 @@ def run(argv: list[str]) -> None:
             sys.stderr.write("history: missing <slug>\n")
             sys.exit(2)
         _history(rest[0])
+    elif cmd == "correct":
+        if len(rest) < 1:
+            sys.stderr.write("correct: missing <slug>\n")
+            sys.exit(2)
+        slug = rest[0]
+        body: str | None = None
+        if "--body" in rest:
+            idx = rest.index("--body")
+            if idx + 1 >= len(rest):
+                sys.stderr.write("correct: --body needs a value\n")
+                sys.exit(2)
+            body = rest[idx + 1]
+        _correct(slug, body=body)
     elif cmd == "pin":
         _cmd_pin(rest, pinned=True)
     elif cmd == "unpin":

@@ -230,3 +230,72 @@ def test_recall_history_unknown_slug_exits_nonzero(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as exc:
         cli_recall.run(["history", "nonexistent.md"])
     assert exc.value.code != 0
+
+
+def test_recall_correct_with_body_supersedes(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    from claude_almanac.core import archive, config, paths, versioning
+    cfg = config.default_config()
+    config.save(cfg)
+    scope_dir = paths.project_memory_dir()
+    scope_dir.mkdir(parents=True, exist_ok=True)
+    db = scope_dir / "archive.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    versioning.snapshot_then_replace(
+        db, scope_dir=scope_dir, slug="foo.md",
+        new_text="original", new_kind="reference",
+        new_embedding=[1.0, 0.0], provenance="write_md",
+    )
+    # Monkey-patch the embedder factory to avoid requiring Ollama
+    class FakeEmbedder:
+        name, model, dim, distance = "ollama", "bge-m3", 2, "l2"
+        def embed(self, texts):
+            return [[0.9, 0.1] for _ in texts]
+    monkeypatch.setattr("claude_almanac.cli.recall.make_embedder",
+                        lambda *a, **k: FakeEmbedder())
+    cli_recall.run(["correct", "foo.md", "--body", "corrected"])
+    chain = versioning.list_versions(db, slug="foo.md")
+    assert chain[0].text == "corrected"
+    assert chain[0].is_current is True
+    assert chain[1].text == "original"
+    assert chain[1].provenance == "correct"
+
+
+def test_recall_correct_unknown_slug_exits_nonzero(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    with pytest.raises(SystemExit) as exc:
+        cli_recall.run(["correct", "nope.md", "--body", "x"])
+    assert exc.value.code != 0
+
+
+def test_recall_correct_opens_editor_when_no_body(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    from claude_almanac.core import archive, config, paths, versioning
+    cfg = config.default_config()
+    config.save(cfg)
+    scope_dir = paths.project_memory_dir()
+    scope_dir.mkdir(parents=True, exist_ok=True)
+    db = scope_dir / "archive.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    versioning.snapshot_then_replace(
+        db, scope_dir=scope_dir, slug="foo.md",
+        new_text="original", new_kind="reference",
+        new_embedding=[1.0, 0.0], provenance="write_md",
+    )
+    class FakeEmbedder:
+        name, model, dim, distance = "ollama", "bge-m3", 2, "l2"
+        def embed(self, texts):
+            return [[0.9, 0.1] for _ in texts]
+    monkeypatch.setattr("claude_almanac.cli.recall.make_embedder",
+                        lambda *a, **k: FakeEmbedder())
+    # Stub the editor invocation: return "edited-body" as the new content
+    monkeypatch.setattr(
+        "claude_almanac.cli.recall._open_editor_with_text",
+        lambda initial: "edited-body",
+    )
+    cli_recall.run(["correct", "foo.md"])
+    chain = versioning.list_versions(db, slug="foo.md")
+    assert chain[0].text == "edited-body"
