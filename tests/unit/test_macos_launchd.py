@@ -18,6 +18,13 @@ def test_render_always_on_plist_includes_KeepAlive(tmp_path):
     assert "<true/>" in plist
 
 
+def test_render_always_on_plist_sets_ThrottleInterval(tmp_path):
+    s = LaunchdScheduler(agents_dir=tmp_path)
+    plist = s._render_always_on("com.claude-almanac.server", ["echo", "hi"])
+    assert "<key>ThrottleInterval</key>" in plist
+    assert "<integer>30</integer>" in plist
+
+
 def test_install_daily_writes_file_and_calls_launchctl(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr("subprocess.run",
