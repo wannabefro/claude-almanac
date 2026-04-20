@@ -1,0 +1,23 @@
+src/claude_almanac/core/dedup.py
+  2e3459024d90401f 6-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "511d4c20c4113aa79fac7055b0a994d71f41fffe",
+  "prompts": {
+    "2e3459024d90401f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f4c2b2e-0257-4060-aa4b-e19509ead002",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 5,
+      "total_deletions": 4,
+      "accepted_lines": 5,
+      "overriden_lines": 0
+    }
+  }
+}
