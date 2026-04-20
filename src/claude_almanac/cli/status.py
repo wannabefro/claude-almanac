@@ -138,6 +138,14 @@ def run() -> None:
     else:
         print("  reachable: (skipped — not Ollama)")
     print()
+    print("curator:")
+    print(f"  provider: {cfg.curator.provider}/{cfg.curator.model}")
+    curator_log = paths.logs_dir() / "curator.log"
+    if curator_log.exists():
+        print(f"  last invocation: {_format_ts(curator_log.stat().st_mtime)}")
+    else:
+        print("  last invocation: (none yet)")
+    print()
     warnings = _embedder_mismatch_warnings(cfg.embedder.provider, cfg.embedder.model)
     print("warnings")
     if warnings:

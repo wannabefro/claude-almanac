@@ -57,3 +57,60 @@ def test_status_flags_embedder_mismatch(tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "warnings" in out
     assert "mismatch" in out.lower()
+
+
+def test_status_shows_curator_provider_and_model(tmp_path, monkeypatch, capsys):
+    from claude_almanac.cli import status as status_mod
+    from claude_almanac.core import config as cfg_mod
+    from claude_almanac.core.config import Config, CuratorCfg, EmbedderCfg
+
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
+    cfg_mod.save(Config(
+        embedder=EmbedderCfg(provider="ollama", model="bge-m3"),
+        curator=CuratorCfg(provider="ollama", model="gemma3:4b", timeout_s=0),
+    ))
+
+    status_mod.run()
+
+    out = capsys.readouterr().out
+    assert "curator:" in out
+    assert "ollama" in out
+    assert "gemma3:4b" in out
+
+
+def test_status_curator_shows_last_invocation_when_log_exists(tmp_path, monkeypatch, capsys):
+    from claude_almanac.cli import status as status_mod
+    from claude_almanac.core import config as cfg_mod
+    from claude_almanac.core import paths as paths_mod
+    from claude_almanac.core.config import Config, CuratorCfg
+
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
+    cfg_mod.save(Config(curator=CuratorCfg(provider="ollama", model="gemma3:4b")))
+    logs = paths_mod.logs_dir()
+    logs.mkdir(parents=True, exist_ok=True)
+    (logs / "curator.log").write_text("sample\n")
+
+    status_mod.run()
+
+    out = capsys.readouterr().out
+    assert "last invocation" in out.lower()
+    # ISO-ish timestamp (YYYY-MM-DD prefix) should be in the output
+    import re
+    assert re.search(r"\d{4}-\d{2}-\d{2}", out)
+
+
+def test_status_curator_shows_none_yet_when_no_log(tmp_path, monkeypatch, capsys):
+    from claude_almanac.cli import status as status_mod
+    from claude_almanac.core import config as cfg_mod
+    from claude_almanac.core.config import Config, CuratorCfg
+
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
+    cfg_mod.save(Config(curator=CuratorCfg(provider="ollama", model="gemma3:4b")))
+
+    status_mod.run()
+
+    out = capsys.readouterr().out
+    assert "none yet" in out.lower() or "never" in out.lower()
