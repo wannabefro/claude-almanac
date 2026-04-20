@@ -10,3 +10,4 @@ build/
 *.db
 *.log
 .DS_Store
+.worktrees/
