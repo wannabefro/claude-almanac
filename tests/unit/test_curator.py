@@ -52,8 +52,16 @@ def test_apply_decisions_redirects_on_dup(monkeypatch, tmp_path):
         "claude_almanac.core.curator.make_embedder", lambda *a, **kw: fake_embedder
     )
     monkeypatch.setattr("claude_almanac.core.curator.archive.init", lambda *a, **kw: None)
+    snapshot_calls: list[dict] = []
+
+    def _fake_snapshot(db, *, scope_dir, slug, new_text, new_kind, new_embedding, provenance):
+        snapshot_calls.append({"slug": slug, "new_text": new_text, "provenance": provenance})
+        # Simulate the file write so the path assertion works.
+        scope_dir.mkdir(parents=True, exist_ok=True)
+        (scope_dir / slug).write_text(new_text)
+
     monkeypatch.setattr(
-        "claude_almanac.core.curator.archive.insert_entry", lambda *a, **kw: 1
+        "claude_almanac.core.curator.versioning.snapshot_then_replace", _fake_snapshot
     )
     decisions = [
         {
@@ -71,11 +79,17 @@ def test_apply_decisions_redirects_on_dup(monkeypatch, tmp_path):
     # File should be written under the redirected slug, not the original
     assert (p.global_memory_dir() / "existing.md").exists()
     assert not (p.global_memory_dir() / "new.md").exists()
+    # Dedup redirect: provenance should be "dedup"
+    assert len(snapshot_calls) == 1
+    assert snapshot_calls[0]["slug"] == "existing.md"
+    assert snapshot_calls[0]["provenance"] == "dedup"
 
 
 def test_apply_decisions_skips_identical_rewrite(monkeypatch, tmp_path):
     """Re-extraction of a byte-identical memory on a subsequent Stop hook
-    must NOT pile up new archive rows or re-write the md file."""
+    must NOT pile up new archive rows or re-write the md file.
+    snapshot_then_replace owns the no-op logic; we assert it is called exactly
+    once (delegating the no-op to it) with the expected args."""
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
     monkeypatch.setattr(
@@ -91,10 +105,14 @@ def test_apply_decisions_skips_identical_rewrite(monkeypatch, tmp_path):
         "claude_almanac.core.curator.make_embedder", lambda *a, **kw: fake_embedder
     )
     monkeypatch.setattr("claude_almanac.core.curator.archive.init", lambda *a, **kw: None)
-    insert_calls = {"n": 0}
+    snapshot_calls: list[dict] = []
+
+    def _fake_snapshot(db, *, scope_dir, slug, new_text, new_kind, new_embedding, provenance):
+        # Simulate no-op: file already has identical content, don't overwrite.
+        snapshot_calls.append({"slug": slug, "new_text": new_text})
+
     monkeypatch.setattr(
-        "claude_almanac.core.curator.archive.insert_entry",
-        lambda *a, **kw: insert_calls.update(n=insert_calls["n"] + 1) or 1,
+        "claude_almanac.core.curator.versioning.snapshot_then_replace", _fake_snapshot
     )
     from claude_almanac.core import paths as p
     p.ensure_dirs()
@@ -110,14 +128,16 @@ def test_apply_decisions_skips_identical_rewrite(monkeypatch, tmp_path):
         }
     ]
     curator._apply_decisions(decisions)
-    assert insert_calls["n"] == 0  # no new archive row
-    # The file is still there, untouched.
+    # snapshot_then_replace was called once — it owns the no-op check internally.
+    assert len(snapshot_calls) == 1
+    assert snapshot_calls[0]["slug"] == "existing.md"
+    # The file is still there, untouched (our fake snapshot didn't re-write it).
     assert (p.global_memory_dir() / "existing.md").read_text() == "body identical"
 
 
 def test_apply_decisions_overwrites_on_paraphrase_after_redirect(monkeypatch, tmp_path):
     """A paraphrase redirect (same slug, different body) should still
-    overwrite the md file AND add an archive row."""
+    overwrite the md file via snapshot_then_replace."""
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
     monkeypatch.setattr(
@@ -133,10 +153,16 @@ def test_apply_decisions_overwrites_on_paraphrase_after_redirect(monkeypatch, tm
         "claude_almanac.core.curator.make_embedder", lambda *a, **kw: fake_embedder
     )
     monkeypatch.setattr("claude_almanac.core.curator.archive.init", lambda *a, **kw: None)
-    insert_calls = {"n": 0}
+    snapshot_calls: list[dict] = []
+
+    def _fake_snapshot(db, *, scope_dir, slug, new_text, new_kind, new_embedding, provenance):
+        snapshot_calls.append({"slug": slug, "new_text": new_text, "provenance": provenance})
+        # Simulate the file write so path assertions work.
+        scope_dir.mkdir(parents=True, exist_ok=True)
+        (scope_dir / slug).write_text(new_text)
+
     monkeypatch.setattr(
-        "claude_almanac.core.curator.archive.insert_entry",
-        lambda *a, **kw: insert_calls.update(n=insert_calls["n"] + 1) or 1,
+        "claude_almanac.core.curator.versioning.snapshot_then_replace", _fake_snapshot
     )
     from claude_almanac.core import paths as p
     p.ensure_dirs()
@@ -152,7 +178,10 @@ def test_apply_decisions_overwrites_on_paraphrase_after_redirect(monkeypatch, tm
         }
     ]
     curator._apply_decisions(decisions)
-    assert insert_calls["n"] == 1  # row inserted
+    # snapshot_then_replace called once with the dedup slug + dedup provenance
+    assert len(snapshot_calls) == 1
+    assert snapshot_calls[0]["slug"] == "existing.md"
+    assert snapshot_calls[0]["provenance"] == "dedup"
     assert (p.global_memory_dir() / "existing.md").read_text() == "refined phrasing"
 
 
@@ -214,14 +243,15 @@ def test_apply_decisions_accepts_prompt_shape_name_content_type(monkeypatch, tmp
         "claude_almanac.core.curator.make_embedder", lambda *a, **kw: fake_embedder
     )
     monkeypatch.setattr("claude_almanac.core.curator.archive.init", lambda *a, **kw: None)
-    inserts: list[dict] = []
+    snapshots: list[dict] = []
 
-    def _capture_insert(_db, **kw):
-        inserts.append(kw)
-        return 1
+    def _capture_snapshot(db, *, scope_dir, slug, new_text, new_kind, new_embedding, provenance):
+        snapshots.append({"slug": slug, "new_kind": new_kind, "provenance": provenance})
+        scope_dir.mkdir(parents=True, exist_ok=True)
+        (scope_dir / slug).write_text(new_text)
 
     monkeypatch.setattr(
-        "claude_almanac.core.curator.archive.insert_entry", _capture_insert
+        "claude_almanac.core.curator.versioning.snapshot_then_replace", _capture_snapshot
     )
     from claude_almanac.core import paths as p
     p.ensure_dirs()
@@ -237,11 +267,11 @@ def test_apply_decisions_accepts_prompt_shape_name_content_type(monkeypatch, tmp
     curator._apply_decisions(decisions)
     # File landed with the .md suffix auto-appended.
     assert (p.global_memory_dir() / "reference_xcode_select_git_workaround.md").exists()
-    # Archive row inserted with pinned=True and kind=reference.
-    assert len(inserts) == 1
-    assert inserts[0]["pinned"] is True
-    assert inserts[0]["kind"] == "reference"
-    assert inserts[0]["source"] == "md:reference_xcode_select_git_workaround.md"
+    # snapshot_then_replace called with correct slug and kind.
+    assert len(snapshots) == 1
+    assert snapshots[0]["slug"] == "reference_xcode_select_git_workaround.md"
+    assert snapshots[0]["new_kind"] == "reference"
+    assert snapshots[0]["provenance"] == "write_md"
 
 
 def test_apply_decisions_update_md_routes_through_write_path(monkeypatch, tmp_path):
@@ -260,13 +290,17 @@ def test_apply_decisions_update_md_routes_through_write_path(monkeypatch, tmp_pa
         "claude_almanac.core.curator.make_embedder", lambda *a, **kw: fake_embedder
     )
     monkeypatch.setattr("claude_almanac.core.curator.archive.init", lambda *a, **kw: None)
+
+    def _fake_snapshot(db, *, scope_dir, slug, new_text, new_kind, new_embedding, provenance):
+        scope_dir.mkdir(parents=True, exist_ok=True)
+        (scope_dir / slug).write_text(new_text)
+
     monkeypatch.setattr(
-        "claude_almanac.core.curator.archive.insert_entry",
-        lambda *a, **kw: 1,
+        "claude_almanac.core.curator.versioning.snapshot_then_replace", _fake_snapshot
     )
     from claude_almanac.core import paths as p
     p.ensure_dirs()
-    # Pre-existing file — update_md should overwrite it in place.
+    # Pre-existing file — update_md should overwrite it in place via snapshot_then_replace.
     existing = p.global_memory_dir() / "project_foo.md"
     existing.write_text("old body")
     decisions = [
@@ -412,3 +446,53 @@ def test_run_llm_swallows_provider_exceptions(monkeypatch, caplog):
     out = curator._run_llm("tail")
     assert out == "{}"
     assert "provider" in caplog.text.lower() or "unavailable" in caplog.text.lower()
+
+
+def test_apply_decisions_dedup_writes_history(tmp_path, monkeypatch):
+    """When dedup redirects to an existing slug with different content, the
+    prior body is snapshotted to entries_history with provenance='dedup'."""
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    from claude_almanac.core import config, curator, paths, versioning
+
+    cfg = config.default_config()
+    config.save(cfg)
+    # Seed: write 'foo.md' with body-1 via the curator write path
+    scope_dir = paths.project_memory_dir()
+    scope_dir.mkdir(parents=True, exist_ok=True)
+    db = scope_dir / "archive.db"
+
+    class FakeEmbedder:
+        name, model, dim, distance = "ollama", "bge-m3", 2, "l2"
+
+        def embed(self, texts):
+            return [[1.0, 0.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "claude_almanac.core.curator.make_embedder", lambda *a, **k: FakeEmbedder()
+    )
+    # Stub dedup: no dup on first call, redirect to seeded slug on second.
+    calls = {"n": 0}
+
+    def fake_find(db, embedding, threshold):
+        calls["n"] += 1
+        return (None, 1.0) if calls["n"] == 1 else ("foo.md", 0.1)
+
+    monkeypatch.setattr(
+        "claude_almanac.core.dedup.find_dup_slug",
+        lambda *, db, embedding, threshold: fake_find(db, embedding, threshold),
+    )
+    # First decision: write_md body-1
+    curator._apply_decisions([
+        {"action": "write_md", "name": "foo", "content": "body-1", "type": "reference"},
+    ])
+    assert (scope_dir / "foo.md").read_text() == "body-1"
+    # Second decision: write_md body-2 that dedups to foo.md
+    curator._apply_decisions([
+        {"action": "write_md", "name": "bar", "content": "body-2", "type": "reference"},
+    ])
+    chain = versioning.list_versions(db, slug="foo.md")
+    assert chain[0].text == "body-2"
+    assert chain[0].is_current is True
+    assert chain[1].text == "body-1"
+    assert chain[1].provenance == "dedup"

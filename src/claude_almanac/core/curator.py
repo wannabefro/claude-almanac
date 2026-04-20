@@ -25,7 +25,7 @@ from typing import Any
 from claude_almanac.curators import make_curator
 from claude_almanac.embedders import get_profile, make_embedder
 
-from . import archive, config, dedup, paths
+from . import archive, config, dedup, paths, versioning
 
 LOGGER = logging.getLogger("claude_almanac.curator")
 
@@ -138,25 +138,14 @@ def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
             if dup_slug:
                 LOGGER.info("dedup: %r -> %r (distance=%.3f)", slug, dup_slug, dist)
                 slug = dup_slug
+                provenance: versioning.Provenance = "dedup"
             else:
                 LOGGER.info("dedup-miss: nearest md distance=%s", dist)
-            target = scope_dir / slug
-            target.parent.mkdir(parents=True, exist_ok=True)
-            # Skip re-insert + re-write when the on-disk body matches byte-for-byte.
-            # Haiku re-extracts the same durable memories on every Stop hook, so
-            # without this the archive accumulates one extra row per re-run even
-            # though nothing changed.
-            if target.exists() and target.read_text() == text:
-                LOGGER.info("curator: skip identical re-write of %r", slug)
-                continue
-            target.write_text(text)
-            archive.insert_entry(
-                db,
-                text=text,
-                kind=kind or "reference",
-                source=f"md:{slug}",
-                pinned=True,
-                embedding=vec,
+                provenance = action  # "write_md" or "update_md"
+            versioning.snapshot_then_replace(
+                db, scope_dir=scope_dir, slug=slug,
+                new_text=text, new_kind=kind or "reference",
+                new_embedding=vec, provenance=provenance,
             )
 
         elif action in ("insert_archive", "archive_turn"):
