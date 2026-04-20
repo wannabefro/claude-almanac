@@ -1,0 +1,36 @@
+.gitignore
+  4ea7be7d8768c89a 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "a460a25b7722434081764ea19d9545a21e8064e2",
+  "prompts": {
+    "4ea7be7d8768c89a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a5ea49aa-62f6-4cad-b257-5a4f7b930988",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    },
+    "5c09c2abc4dbc99b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b7e5d561-db12-458d-8089-8f386d664c45",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    }
+  }
+}
