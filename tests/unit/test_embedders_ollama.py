@@ -28,3 +28,25 @@ def test_ollama_attrs():
     assert e.name == "ollama"
     assert e.dim == 1024
     assert e.distance == "l2"
+
+
+def test_ollama_uses_split_timeouts_by_default():
+    e = OllamaEmbedder(model="bge-m3", dim=1024)
+    t = e._client.timeout
+    # Connect must stay tight to surface unreachable hosts fast;
+    # read must be generous to tolerate bge-m3 cold-load.
+    assert t.connect == 5.0
+    assert t.read == 120.0
+
+
+def test_ollama_timeout_overrides_are_honored():
+    e = OllamaEmbedder(
+        model="bge-m3", dim=1024,
+        connect_timeout=1.5, read_timeout=45.0,
+        write_timeout=10.0, pool_timeout=10.0,
+    )
+    t = e._client.timeout
+    assert t.connect == 1.5
+    assert t.read == 45.0
+    assert t.write == 10.0
+    assert t.pool == 10.0

@@ -18,12 +18,23 @@ class OllamaEmbedder:
         model: str = "bge-m3",
         dim: int = 1024,
         host: str | None = None,
-        timeout: float = 30.0,
+        *,
+        connect_timeout: float = 5.0,
+        read_timeout: float = 120.0,
+        write_timeout: float = 30.0,
+        pool_timeout: float = 30.0,
     ):
         self.model = model
         self.dim = dim
         self.host = host or os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-        self._client = httpx.Client(timeout=timeout)
+        # Split timeouts: bge-m3 cold-load can exceed a minute, so read is
+        # generous, while connect stays tight to surface unreachable hosts fast.
+        self._client = httpx.Client(timeout=httpx.Timeout(
+            connect=connect_timeout,
+            read=read_timeout,
+            write=write_timeout,
+            pool=pool_timeout,
+        ))
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
