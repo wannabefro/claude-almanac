@@ -271,6 +271,30 @@ def delete_by_slug(db: Path, *, slug: str) -> int:
         conn.close()
 
 
+def reinforce(db: Path, *, ids: list[int], now: int | None = None) -> int:
+    """Bump use_count and set last_used_at for each id. Returns rows updated.
+
+    Empty `ids` is a no-op. Callers SHOULD pass only the ids they actually
+    surfaced to the user — this is the reinforcement signal, not a warm-up.
+    """
+    if not ids:
+        return 0
+    ts = now if now is not None else int(time.time())
+    conn = _connect(db)
+    try:
+        placeholders = ",".join("?" * len(ids))
+        cur = conn.execute(
+            f"UPDATE entries "
+            f"SET use_count = use_count + 1, last_used_at = ? "
+            f"WHERE id IN ({placeholders})",
+            (ts, *ids),
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
 def prune(db: Path, *, days: int) -> int:
     """Delete unpinned entries older than `days` days. Returns count removed."""
     conn = _connect(db)
