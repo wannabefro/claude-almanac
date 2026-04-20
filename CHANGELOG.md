@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.1 — 2026-04-20
+
+### Added
+- **Temporal decay ranking** (`retrieval.decay.enabled`, default on). Reorders
+  tied-distance hits by usage recency using Ebbinghaus-style
+  `(use_count + 1)^β · exp(-λ · Δt)`. Gated; flip `enabled: false` to restore
+  v0.3.0 pure-distance sort.
+- **Reinforcement on auto-inject**: `use_count` increments and `last_used_at`
+  updates for every memory actually surfaced by the UserPromptSubmit hook.
+- **Memory versioning**: dedup redirect and `update_md` decisions now snapshot
+  the prior body to a new `entries_history` table. One live `entries` row per
+  slug. Append-only; no destructive overwrites.
+- **`claude-almanac recall history <slug>`** — print the version chain.
+- **`claude-almanac recall correct <slug> [--body TEXT]`** — explicitly supersede
+  a memory. Opens `$EDITOR` when `--body` is not supplied.
+- **`/almanac status`** now shows live entry count, historical-version count,
+  and current decay parameters.
+
+### Changed
+- **`archive.prune()`** now evicts based on decay score below
+  `retrieval.decay.prune_threshold` (default 0.05), with a 30-day safety floor
+  (`retrieval.decay.prune_min_age_days`). Pinned memories remain immune. Note:
+  `archive.prune()` is still a library function with no automatic caller —
+  users invoke it manually.
+
+### Schema (idempotent, auto-migrated by `archive.init()`)
+- `entries.last_used_at INTEGER` (nullable)
+- `entries.use_count INTEGER NOT NULL DEFAULT 0`
+- New `entries_history` table (slug, text, kind, version, original_created_at,
+  superseded_at, provenance) + index on `(slug, version)`.
+
 ## [0.3.0] — 2026-04-20 — Curator provider switch (v0.3 §3.0)
 
 ### Added
