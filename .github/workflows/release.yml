@@ -76,9 +76,18 @@ jobs:
           done
           curl -fsS -X POST http://127.0.0.1:11434/api/pull \
             -d '{"name": "bge-m3"}' | tail -n 1
+      - name: Pull gemma3:4b
+        run: |
+          curl -fsS -X POST http://127.0.0.1:11434/api/pull \
+            -d '{"name": "gemma3:4b"}' | tail -n 1
+      - name: Verify models
+        run: |
+          curl -s http://127.0.0.1:11434/api/tags | grep -q bge-m3
+          curl -s http://127.0.0.1:11434/api/tags | grep -q gemma3
       - name: Pytest (integration)
         env:
           OLLAMA_HOST: http://127.0.0.1:11434
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: pytest -m integration -v
 
   publish:
