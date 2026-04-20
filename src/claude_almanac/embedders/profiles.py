@@ -21,6 +21,8 @@ _PROFILES: dict[tuple[str, str], EmbedderProfile] = {
         # dedup check fired and redirected every write to the first
         # existing slug. Fixed in 0.2.5.
         dedup_distance=0.5,
+        # Typical L2 range on normalized bge-m3 is 0-1.414; 0.1 is ~7% of ceiling.
+        rank_band=0.1,
     ),
     # Cloud embedders return normalized vectors; distances are tighter.
     # Values are placeholders pending calibration harness run in Task 19;
@@ -28,10 +30,13 @@ _PROFILES: dict[tuple[str, str], EmbedderProfile] = {
     ("openai", "text-embedding-3-small"): EmbedderProfile(
         provider="openai", model="text-embedding-3-small", dim=1536, distance="cosine",
         dedup_distance=0.25,
+        # Cosine distance in [0, 2]; 0.05 is a conservative tiebreak width.
+        rank_band=0.05,
     ),
     ("voyage", "voyage-3-large"): EmbedderProfile(
         provider="voyage", model="voyage-3-large", dim=1024, distance="cosine",
         dedup_distance=0.22,
+        rank_band=0.05,
     ),
 }
 

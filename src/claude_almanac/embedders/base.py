@@ -25,3 +25,8 @@ class EmbedderProfile:
     distance: Distance
     dedup_distance: float
     """Calibrated distance threshold below which two vectors are duplicates."""
+    rank_band: float = 0.0
+    """Distance-band width for decay-aware ranking: hits within the same band
+    are tie-broken by decay score. 0.0 disables banding (pure distance sort).
+    Rule-of-thumb: roughly 5–15% of the provider's typical distance range.
+    """
