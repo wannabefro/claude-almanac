@@ -184,6 +184,7 @@ def nearest(db: Path, *, query_embedding: list[float], source_prefix: str) -> Hi
 
 
 def set_pinned(db: Path, *, row_id: int, pinned: bool) -> int:
+    """Set the pinned flag on the entry with id=row_id. Returns rows affected (0 or 1)."""
     conn = _connect(db)
     try:
         cur = conn.execute(

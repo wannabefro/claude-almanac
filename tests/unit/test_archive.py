@@ -110,6 +110,8 @@ def test_set_pinned_by_slug_matches_source_column(tmp_path):
     )
     count = archive.set_pinned_by_slug(db, slug="project_foo.md", pinned=True)
     assert count == 1
+    hits = archive.search(db, query_embedding=[0.0, 1.0], top_k=5)
+    assert hits[0].pinned is True
 
 
 def test_delete_by_slug_removes_entries_and_vectors(tmp_path):
