@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-04-20
+
+### Fixed
+
+- Curator silently dropped decisions when Haiku returned a bare JSON array (`[{...}]` instead of `{"decisions": [...]}`) or when it wrapped the payload in a ```json ... ``` markdown fence. Both shapes are now accepted alongside the documented envelope via a new `_parse_decisions` helper that strips fences and tolerates list-or-dict roots. Previously, bare-list responses raised `AttributeError` inside the outer try/except and bare-fenced responses hit `JSONDecodeError`; both dropped the turn's memories even when the LLM had made valid write decisions.
+
 ## [0.2.1] — 2026-04-20
 
 ### Fixed
