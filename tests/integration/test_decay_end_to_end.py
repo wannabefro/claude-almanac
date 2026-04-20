@@ -12,13 +12,15 @@ from claude_almanac.core import archive, config, paths, retrieve
 pytestmark = pytest.mark.integration
 
 
-def test_reinforced_memory_outranks_stale_on_tied_distance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_reinforced_outranks_stale_on_tied_distance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
     cfg = config.default_config()
     cfg.retrieval.top_k = 2
     cfg.retrieval.decay.enabled = True
-    cfg.retrieval.decay.band = 0.3  # wide enough to band any near-tied distances
+    cfg.retrieval.decay.band = 0.3  # wide band to catch near-tied distances
     config.save(cfg)
 
     from claude_almanac.embedders import make_embedder
@@ -43,5 +45,14 @@ def test_reinforced_memory_outranks_stale_on_tied_distance(tmp_path: Path, monke
     archive.reinforce(db, ids=[fresh_id], now=int(time.time()))
 
     out = retrieve.run("decay scoring formula")
-    assert "FRESH" in out and "STALE" in out
-    assert out.index("FRESH") < out.index("STALE")
+    # Extract lines containing FRESH or STALE (the actual hit rows)
+    hit_lines = [
+        line for line in out.splitlines()
+        if "FRESH" in line or "STALE" in line
+    ]
+    assert len(hit_lines) >= 2, (
+        f"expected both hits, got {len(hit_lines)}: {hit_lines!r}"
+    )
+    assert "FRESH" in hit_lines[0], (
+        f"expected FRESH ranked first, got {hit_lines!r}"
+    )
