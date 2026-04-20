@@ -1,0 +1,25 @@
+src/claude_almanac/core/versioning.py
+  2e3459024d90401f 1-154
+tests/unit/test_versioning.py
+  2e3459024d90401f 1-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "1cfcf70b0f062d5853b07b12b59c28370d9ec0fb",
+  "prompts": {
+    "2e3459024d90401f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f4c2b2e-0257-4060-aa4b-e19509ead002",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 280,
+      "total_deletions": 5,
+      "accepted_lines": 275,
+      "overriden_lines": 0
+    }
+  }
+}
