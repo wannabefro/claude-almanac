@@ -71,3 +71,65 @@ def test_apply_decisions_redirects_on_dup(monkeypatch, tmp_path):
     # File should be written under the redirected slug, not the original
     assert (p.global_memory_dir() / "existing.md").exists()
     assert not (p.global_memory_dir() / "new.md").exists()
+
+
+def test_parse_decisions_accepts_documented_envelope():
+    out = curator._parse_decisions(
+        '{"decisions": [{"action": "archive_turn", "text": "x"}]}'
+    )
+    assert out == [{"action": "archive_turn", "text": "x"}]
+
+
+def test_parse_decisions_accepts_bare_list():
+    out = curator._parse_decisions(
+        '[{"action": "skip_all", "reason": "nothing durable"}]'
+    )
+    assert out == [{"action": "skip_all", "reason": "nothing durable"}]
+
+
+def test_parse_decisions_strips_markdown_fence():
+    out = curator._parse_decisions(
+        '```json\n[{"action": "write_md", "slug": "a.md", "text": "x"}]\n```'
+    )
+    assert out == [{"action": "write_md", "slug": "a.md", "text": "x"}]
+
+
+def test_parse_decisions_strips_fence_with_envelope():
+    out = curator._parse_decisions(
+        '```json\n{"decisions": [{"action": "archive_turn", "text": "y"}]}\n```'
+    )
+    assert out == [{"action": "archive_turn", "text": "y"}]
+
+
+def test_parse_decisions_returns_empty_on_junk():
+    assert curator._parse_decisions("not json at all") == []
+    assert curator._parse_decisions("") == []
+    assert curator._parse_decisions("   ") == []
+
+
+def test_parse_decisions_returns_empty_on_unexpected_shape():
+    # A bare string or number is legal JSON but has no decisions to extract.
+    assert curator._parse_decisions('"just a string"') == []
+    assert curator._parse_decisions("42") == []
+
+
+def test_main_tolerates_bare_list_response(monkeypatch, tmp_path):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    transcript = tmp_path / "t.jsonl"
+    transcript.write_text(
+        json.dumps({"message": {"role": "user", "content": "hi"}}) + "\n"
+    )
+    monkeypatch.setenv("CLAUDE_ALMANAC_TRANSCRIPT", str(transcript))
+    monkeypatch.setattr(
+        "claude_almanac.core.curator._run_llm",
+        lambda *a, **kw: '[{"action": "archive_turn", "text": "y"}]',
+    )
+    called = {"n": 0}
+
+    def _count(decisions):
+        called["n"] = len(decisions)
+
+    monkeypatch.setattr("claude_almanac.core.curator._apply_decisions", _count)
+    curator.main()
+    assert called["n"] == 1

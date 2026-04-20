@@ -214,6 +214,56 @@ def _read_conversation_tail() -> str:
     return ""
 
 
+def _strip_json_fence(raw: str) -> str:
+    """Strip a ```json ... ``` (or bare ```) markdown fence from Haiku output.
+
+    Haiku occasionally wraps its JSON decision payload in a code fence even
+    when the prompt asks for raw JSON. Stripping here lets the parser accept
+    the fenced form without losing the payload.
+    """
+    s = raw.strip()
+    if not s.startswith("```"):
+        return s
+    # Drop opening fence line (```json / ```)
+    first_newline = s.find("\n")
+    if first_newline == -1:
+        return s
+    inner = s[first_newline + 1 :]
+    if inner.rstrip().endswith("```"):
+        inner = inner.rstrip()
+        inner = inner[: -len("```")]
+    return inner.strip()
+
+
+def _parse_decisions(raw: str) -> list[dict[str, Any]]:
+    """Parse Haiku's decision payload, tolerating three observed shapes.
+
+    Haiku has been seen to return any of:
+      - `{"decisions": [ ... ]}` — the documented contract
+      - `[ ... ]`                — a bare list of decisions
+      - ````json\n...\n````      — any of the above wrapped in a code fence
+
+    Returns the decision list, or [] if the payload is unparseable or empty.
+    Never raises — caller (main) relies on a clean list contract.
+    """
+    cleaned = _strip_json_fence(raw)
+    if not cleaned:
+        return []
+    try:
+        payload = json.loads(cleaned)
+    except json.JSONDecodeError:
+        LOGGER.warning("curator: LLM returned non-JSON: %.200s", raw)
+        return []
+    if isinstance(payload, list):
+        return [d for d in payload if isinstance(d, dict)]
+    if isinstance(payload, dict):
+        decisions = payload.get("decisions", [])
+        if isinstance(decisions, list):
+            return [d for d in decisions if isinstance(d, dict)]
+    LOGGER.warning("curator: unexpected payload shape: %s", type(payload).__name__)
+    return []
+
+
 def main() -> None:
     _setup_logging()
     tail = _read_conversation_tail()
@@ -222,12 +272,7 @@ def main() -> None:
         return
     try:
         raw = _run_llm(tail)
-        try:
-            payload = json.loads(raw) if raw.strip() else {}
-        except json.JSONDecodeError:
-            LOGGER.warning("curator: LLM returned non-JSON: %.200s", raw)
-            return
-        decisions = payload.get("decisions", [])
+        decisions = _parse_decisions(raw)
         if decisions:
             _apply_decisions(decisions)
     except Exception:
