@@ -164,7 +164,7 @@ def test_reinforce_bumps_use_count_and_last_used_at(tmp_path):
     id1 = archive.insert_entry(
         db, text="a", kind="note", source="t", pinned=False, embedding=[1.0, 0.0],
     )
-    id2 = archive.insert_entry(
+    archive.insert_entry(
         db, text="b", kind="note", source="t", pinned=False, embedding=[0.0, 1.0],
     )
     before = int(time.time())
@@ -176,7 +176,7 @@ def test_reinforce_bumps_use_count_and_last_used_at(tmp_path):
     assert hits1[0].use_count == 1
     assert hits1[0].last_used_at is not None
     assert before <= hits1[0].last_used_at <= after
-    # id2 untouched
+    # second entry untouched
     assert hits2[0].use_count == 0
     assert hits2[0].last_used_at is None
 
@@ -185,3 +185,22 @@ def test_reinforce_empty_list_is_noop(tmp_path):
     db = tmp_path / "a.db"
     archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
     archive.reinforce(db, ids=[])  # must not raise
+
+
+def test_reinforce_multiple_ids(tmp_path):
+    db = tmp_path / "a.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    id1 = archive.insert_entry(
+        db, text="a", kind="note", source="t", pinned=False, embedding=[1.0, 0.0],
+    )
+    id2 = archive.insert_entry(
+        db, text="b", kind="note", source="t", pinned=False, embedding=[0.0, 1.0],
+    )
+    count = archive.reinforce(db, ids=[id1, id2], now=5000)
+    assert count == 2
+    h1 = archive.search(db, query_embedding=[1.0, 0.0], top_k=1)[0]
+    h2 = archive.search(db, query_embedding=[0.0, 1.0], top_k=1)[0]
+    assert h1.use_count == 1
+    assert h1.last_used_at == 5000
+    assert h2.use_count == 1
+    assert h2.last_used_at == 5000
