@@ -11,7 +11,7 @@ from .base import Distance
 
 class OllamaEmbedder:
     name: str = "ollama"
-    distance: Distance = "l2"  # bge-m3 unnormalized vectors
+    distance: Distance = "l2"  # bge-m3 returns unit-normalized vectors via /api/embed
 
     def __init__(
         self,

@@ -7,8 +7,20 @@ from .base import EmbedderProfile
 _PROFILES: dict[tuple[str, str], EmbedderProfile] = {
     ("ollama", "bge-m3"): EmbedderProfile(
         provider="ollama", model="bge-m3", dim=1024, distance="l2",
-        # Calibrated against real archive workload: duplicates 14-16, same-topic 21-22.
-        dedup_distance=17.0,
+        # Ollama's /api/embed returns *unit-normalized* vectors for bge-m3.
+        # L2 distances land in [0, sqrt(2)]. Calibrated pairs:
+        #   exact dup:       L2=0.00
+        #   paraphrase dup:  L2=~0.67
+        #   same-topic:      L2=~1.03
+        #   unrelated:       L2=~1.07
+        # 0.5 catches exact + near-paraphrase dups, rejects same-topic+.
+        #
+        # Historical note: pre-0.2.5 profile used 17.0, calibrated against
+        # UNnormalized vectors that Ollama used to return. That threshold
+        # is unreachable with normalized vectors (max L2 ≈ 1.414), so every
+        # dedup check fired and redirected every write to the first
+        # existing slug. Fixed in 0.2.5.
+        dedup_distance=0.5,
     ),
     # Cloud embedders return normalized vectors; distances are tighter.
     # Values are placeholders pending calibration harness run in Task 19;

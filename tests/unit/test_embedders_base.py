@@ -6,7 +6,10 @@ from claude_almanac.embedders.base import Embedder
 
 def test_profile_has_ollama_bge_m3_threshold():
     p = profiles.get("ollama", "bge-m3")
-    assert p.dedup_distance == 17.0
+    # 0.5 L2 for unit-normalized bge-m3 via Ollama — catches exact + paraphrase
+    # dups while rejecting same-topic-but-distinct memories. See profiles.py
+    # for calibration notes.
+    assert p.dedup_distance == 0.5
     assert p.dim == 1024
     assert p.distance == "l2"
 
