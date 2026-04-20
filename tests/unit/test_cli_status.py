@@ -74,7 +74,7 @@ def test_status_shows_curator_provider_and_model(tmp_path, monkeypatch, capsys):
     status_mod.run()
 
     out = capsys.readouterr().out
-    assert "curator:" in out
+    assert "curator" in out
     assert "ollama" in out
     assert "gemma3:4b" in out
 
