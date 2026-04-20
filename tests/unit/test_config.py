@@ -154,3 +154,41 @@ def test_decay_config_defaults():
     assert cfg.retrieval.decay.band == 0.0
     assert cfg.retrieval.decay.prune_threshold == 0.05
     assert cfg.retrieval.decay.prune_min_age_days == 30
+
+
+def test_decay_defaults_when_retrieval_present_but_decay_absent(tmp_path, monkeypatch):
+    """Upgrading from v0.3.0 YAML: `retrieval:` exists with fields but no `decay:` subkey.
+    Load should fill in DecayCfg defaults without error."""
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("retrieval:\n  top_k: 3\n  code_autoinject: false\n")
+    from claude_almanac.core import config
+    loaded = config.load()
+    assert loaded.retrieval.top_k == 3
+    assert loaded.retrieval.code_autoinject is False
+    # Decay defaults must fill in even though YAML has no decay: block
+    assert loaded.retrieval.decay.enabled is True
+    assert loaded.retrieval.decay.half_life_days == 60
+    assert loaded.retrieval.decay.use_count_exponent == 0.6
+
+
+def test_decay_defaults_when_retrieval_null(tmp_path, monkeypatch):
+    """`retrieval: null` is a legal YAML value; should not crash."""
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("retrieval: null\n")
+    from claude_almanac.core import config
+    loaded = config.load()
+    assert loaded.retrieval.decay.enabled is True
+    assert loaded.retrieval.top_k == 5  # RetrievalCfg default
+
+
+def test_decay_defaults_when_decay_null(tmp_path, monkeypatch):
+    """`decay: null` under `retrieval:` must not crash."""
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("retrieval:\n  top_k: 2\n  decay: null\n")
+    from claude_almanac.core import config
+    loaded = config.load()
+    assert loaded.retrieval.top_k == 2
+    assert loaded.retrieval.decay.half_life_days == 60

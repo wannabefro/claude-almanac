@@ -125,8 +125,8 @@ def _from_dict(raw: dict[str, Any]) -> Config:
         model=curator_raw.get("model", "gemma3:4b"),
         timeout_s=curator_raw.get("timeout_s", 0),
     )
-    retrieval_raw = raw.get("retrieval", {})
-    decay_raw = retrieval_raw.get("decay", {})
+    retrieval_raw = raw.get("retrieval") or {}
+    decay_raw = retrieval_raw.get("decay") or {}
     retrieval = RetrievalCfg(
         top_k=retrieval_raw.get("top_k", 5),
         code_autoinject=retrieval_raw.get("code_autoinject", True),
