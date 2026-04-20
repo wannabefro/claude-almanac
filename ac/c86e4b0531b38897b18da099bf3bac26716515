@@ -1,0 +1,25 @@
+tests/unit/test_macos_launchd.py
+  5c09c2abc4dbc99b 21-27
+src/claude_almanac/platform/templates/launchd_always_on.plist.j2
+  5c09c2abc4dbc99b 15-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "acc86e4b0531b38897b18da099bf3bac26716515",
+  "prompts": {
+    "5c09c2abc4dbc99b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b7e5d561-db12-458d-8089-8f386d664c45",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 9,
+      "overriden_lines": 0
+    }
+  }
+}
