@@ -129,6 +129,47 @@ def _is_git_repo(path: str) -> bool:
     return out.returncode == 0
 
 
+def _primary_branch(repo_path: str) -> str:
+    """Resolve the primary branch.
+
+    origin/HEAD → main → master → current HEAD. Using HEAD directly is unsafe
+    because users often check out feature branches in the primary worktree.
+    """
+    origin = _git(repo_path, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+    if origin.returncode == 0:
+        ref = origin.stdout.strip()
+        branch = ref.split("/", 1)[1] if "/" in ref else ref
+        if branch:
+            return branch
+    for candidate in ("main", "master"):
+        if _git(
+            repo_path, "show-ref", "--verify", "--quiet",
+            f"refs/heads/{candidate}",
+        ).returncode == 0:
+            return candidate
+    return _git(repo_path, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() or "HEAD"
+
+
+def _fetch_origin(repo_path: str) -> None:
+    """Refresh `origin/*` refs. Non-fatal on network/auth errors.
+
+    We scan `origin/<primary>` rather than the local primary so a stale clone
+    still reports accurately; fetching keeps those refs current.
+    """
+    _git(repo_path, "fetch", "--quiet", "--no-tags", "origin")
+
+
+def _log_ref(repo_path: str, branch: str) -> str:
+    """Prefer `origin/<branch>` (authoritative for what landed remotely)
+    and fall back to the local branch when no remote tracking ref exists."""
+    origin_ref = f"origin/{branch}"
+    exists = _git(
+        repo_path, "show-ref", "--verify", "--quiet",
+        f"refs/remotes/{origin_ref}",
+    )
+    return origin_ref if exists.returncode == 0 else branch
+
+
 def _commit_stats(repo_path: str, sha: str) -> tuple[int, int, int, str]:
     show = _git(repo_path, "show", "--stat", "--format=", sha)
     files = insertions = deletions = 0
@@ -155,9 +196,11 @@ def collect_git_activity(
 ) -> list[GitCommit]:
     if not _is_git_repo(repo_path):
         return []
+    _fetch_origin(repo_path)
     fmt = "%H%x1f%s%x1f%b%x1f%an%x1f%cI"
+    branch = _primary_branch(repo_path)
     log = _git(
-        repo_path, "log",
+        repo_path, "log", _log_ref(repo_path, branch),
         f"--since={since_iso}",
         f"--pretty=format:{fmt}%x1e",
     )
