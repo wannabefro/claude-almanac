@@ -47,9 +47,20 @@ class CodeIndexCfg:
 
 
 @dataclass
+class DecayCfg:
+    enabled: bool = True
+    half_life_days: int = 60
+    use_count_exponent: float = 0.6
+    band: float = 0.0
+    prune_threshold: float = 0.05
+    prune_min_age_days: int = 30
+
+
+@dataclass
 class RetrievalCfg:
     top_k: int = 5
     code_autoinject: bool = True
+    decay: DecayCfg = field(default_factory=DecayCfg)
 
 
 @dataclass
@@ -114,6 +125,20 @@ def _from_dict(raw: dict[str, Any]) -> Config:
         model=curator_raw.get("model", "gemma3:4b"),
         timeout_s=curator_raw.get("timeout_s", 0),
     )
+    retrieval_raw = raw.get("retrieval", {})
+    decay_raw = retrieval_raw.get("decay", {})
+    retrieval = RetrievalCfg(
+        top_k=retrieval_raw.get("top_k", 5),
+        code_autoinject=retrieval_raw.get("code_autoinject", True),
+        decay=DecayCfg(
+            enabled=decay_raw.get("enabled", True),
+            half_life_days=decay_raw.get("half_life_days", 60),
+            use_count_exponent=decay_raw.get("use_count_exponent", 0.6),
+            band=decay_raw.get("band", 0.0),
+            prune_threshold=decay_raw.get("prune_threshold", 0.05),
+            prune_min_age_days=decay_raw.get("prune_min_age_days", 30),
+        ),
+    )
     return Config(
         embedder=EmbedderCfg(**emb),
         curator=curator,
@@ -124,7 +149,7 @@ def _from_dict(raw: dict[str, Any]) -> Config:
             notify=dig.get("notify", True),
         ),
         code_index=_code_index_from_dict(raw.get("code_index", {})),
-        retrieval=RetrievalCfg(**raw.get("retrieval", {})),
+        retrieval=retrieval,
         thresholds=ThresholdsCfg(**raw.get("thresholds", {})),
         auto_upgrade=raw.get("auto_upgrade", False),
     )

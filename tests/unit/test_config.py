@@ -123,3 +123,34 @@ def test_curator_absent_from_yaml_loads_with_defaults(tmp_path, monkeypatch) -> 
     reloaded = cfg_mod.load()
     assert reloaded.curator.provider == "ollama"
     assert reloaded.curator.model == "gemma3:4b"
+
+
+def test_decay_config_roundtrip(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    from claude_almanac.core import config
+    cfg = config.default_config()
+    cfg.retrieval.decay.half_life_days = 30
+    cfg.retrieval.decay.use_count_exponent = 0.5
+    cfg.retrieval.decay.band = 0.2
+    cfg.retrieval.decay.prune_threshold = 0.1
+    cfg.retrieval.decay.prune_min_age_days = 14
+    cfg.retrieval.decay.enabled = False
+    config.save(cfg)
+    loaded = config.load()
+    assert loaded.retrieval.decay.enabled is False
+    assert loaded.retrieval.decay.half_life_days == 30
+    assert loaded.retrieval.decay.use_count_exponent == 0.5
+    assert loaded.retrieval.decay.band == 0.2
+    assert loaded.retrieval.decay.prune_threshold == 0.1
+    assert loaded.retrieval.decay.prune_min_age_days == 14
+
+
+def test_decay_config_defaults():
+    from claude_almanac.core import config
+    cfg = config.default_config()
+    assert cfg.retrieval.decay.enabled is True
+    assert cfg.retrieval.decay.half_life_days == 60
+    assert cfg.retrieval.decay.use_count_exponent == 0.6
+    assert cfg.retrieval.decay.band == 0.0
+    assert cfg.retrieval.decay.prune_threshold == 0.05
+    assert cfg.retrieval.decay.prune_min_age_days == 30
