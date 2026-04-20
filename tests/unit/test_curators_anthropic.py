@@ -4,6 +4,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import anthropic
 import pytest
 
 from claude_almanac.curators.anthropic_sdk import AnthropicCurator
@@ -38,14 +39,16 @@ def test_invoke_passes_system_and_user_and_returns_text(monkeypatch) -> None:
     assert kwargs["messages"] == [{"role": "user", "content": "USER TAIL"}]
     assert kwargs["max_tokens"] == 2048
     assert kwargs["temperature"] == 0
+    assert kwargs["timeout"] == 10
 
 
 def test_invoke_returns_empty_on_api_error(monkeypatch, caplog) -> None:
-    class _Boom(Exception):
-        pass
-
     mock_messages = MagicMock()
-    mock_messages.create.side_effect = _Boom("network down")
+    # Any anthropic.APIError subclass reaches the impl's except clause.
+    # APIConnectionError is the canonical "network layer failure" case.
+    mock_messages.create.side_effect = anthropic.APIConnectionError(
+        request=MagicMock()
+    )
     mock_client = SimpleNamespace(messages=mock_messages)
     monkeypatch.setattr(
         "claude_almanac.curators.anthropic_sdk.anthropic.Anthropic",

@@ -37,7 +37,10 @@ class AnthropicCurator:
                 temperature=0,
                 timeout=self.timeout_s,
             )
-        except Exception as e:
+        except anthropic.APIError as e:
+            # Covers APIConnectionError, APITimeoutError, RateLimitError,
+            # AuthenticationError, BadRequestError, and every other SDK-layer
+            # failure. MemoryError / KeyboardInterrupt / bugs propagate.
             LOGGER.warning("anthropic curator %s: %s", type(e).__name__, e)
             return ""
         blocks = getattr(resp, "content", None) or []
