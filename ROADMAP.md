@@ -33,14 +33,14 @@ These are the axes every roadmap item is evaluated against. A proposal that viol
 
 ### Commitments
 
-- [ ] **Recall pin/unpin/forget/export** — currently stubbed with "deferred to v0.2" messaging. Implement each subcommand end-to-end with tests. Pin state lives in the archive DB (`pinned` column already exists). Forget moves the markdown to a trash dir + removes archive rows. Export writes a single concatenated markdown file suitable for backup or migration.
-- [ ] **Curator transcript port completeness** — the 0.1.1 JSONL parser covers the Claude Code session transcript format. Verify it handles: tool-use messages, multi-part content blocks, summarisation/compaction events, interrupted turns, and the `SubagentStop` surface when Claude Code delivers one.
-- [ ] **`/almanac status` richer output** — surface archive entry counts, last curator run, last digest run, daemon status, Ollama reachability, and any `EmbedderMismatch` warnings in a single command.
-- [ ] **Integration tests in CI** — the live-Ollama job exists; populate it with the three smoke tests we have locally (retrieve/curate/recall + code-index init→search + digest generator→server round trip). Gate releases on these passing.
-- [ ] **Calibration harness CLI wrapper** — add `claude-almanac calibrate <provider> <model> <fixture-dir>` so new embedder adapters can be onboarded without users reaching for `python -m claude_almanac.embedders.calibrate`.
-- [ ] **Observability aggregator** — `claude-almanac tail` that interleaves `curator.log`, `code-index.log`, `com.claude-almanac.digest.log`, `com.claude-almanac.server.log` with timestamps so debugging doesn't mean opening four tail windows. Lands before v0.3 since v0.3 adds more silent channels.
-- [ ] **Refresh daemon for code-index** — the scheduler hooks exist but aren't wired into `setup`. When `code_index.enabled: true` and repos have indexes, install a nightly `launchd`/`systemd` unit that runs `claude-almanac codeindex refresh` across all registered repos.
-- [ ] **Windows support** — the Python package is already cross-platform; we need a Windows scheduler adapter (Task Scheduler via `schtasks` or a lightweight in-process scheduler), Windows notifier (PowerShell `BurntToast` or `New-BurntToastNotification`), and path-resolution fixes for backslash+UNC edge cases. Out of scope for v0.2 unless a contributor picks it up.
+- [x] **Recall pin/unpin/forget/export** — shipped in 0.2.0. Pin/unpin flip `entries.pinned` across both scopes by row-id or slug. `forget` moves md to `<scope>/trash/<slug>.<ts>` and drops archive rows (requires `--scope` on cross-scope slug collisions). `export` concatenates `# scope/slug` blocks; `--global`, `--project`, `--all` scope flags.
+- [x] **Curator transcript port completeness** — verified + extended in 0.2.0. Tool-use, multi-part, interrupted turns already worked; compaction (`{"type": "summary"}`) and `subagent_stop` events now surface as their own pseudo-turn types instead of being silently dropped.
+- [x] **`/almanac status` richer output** — shipped in 0.2.0. Archive counts (total + pinned per scope), last digest mtime, launchd/systemd unit status for digest/server/codeindex-refresh, Ollama reachability probe, and `EmbedderMismatch` warnings.
+- [x] **Integration tests in CI** — shipped in 0.2.0. Three smoke tests (retrieve↔curate↔recall, codeindex init→search, digest generate→serve) run against live Ollama on every PR targeting `release/*`, and `release.yml::publish` now `needs: [build, integration]` so PyPI cannot ship a broken integration gate.
+- [x] **Calibration harness CLI wrapper** — shipped in 0.2.0 as `claude-almanac calibrate <provider> <model> <fixture.jsonl>` with histogram + `max × 1.2` threshold suggestion. `add-embedder` skill now points here instead of the `python -m` entrypoint.
+- [x] **Observability aggregator** — shipped in 0.2.0 as `claude-almanac tail`. Interleaves the four known log files with `[source ts]` prefixes and continuation-line labelling; `--follow/--no-follow`, `--lines`, `--since`, `--source` flags.
+- [x] **Refresh daemon for code-index** — shipped earlier in 0.1.2 via the `code_index.daily_refresh` setup wiring.
+- [ ] **Windows support** — deferred to v0.3+. Nothing in 0.2.0 blocks it; contributors welcome.
 
 ### Success criteria
 

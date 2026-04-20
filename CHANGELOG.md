@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-04-20
+
+### Added
+
+- `recall pin`, `recall unpin`, `recall forget`, `recall export` land end-to-end (no more v0.1 "deferred" stubs). `forget` moves memories to a `trash/` dir rather than deleting; `export` concatenates scope markdown with `# scope/slug` headers.
+- `claude-almanac status` now surfaces archive counts + pinned counts, last digest mtime, scheduler unit state (digest / server / codeindex-refresh), Ollama reachability, and `EmbedderMismatch` warnings across both scope DBs.
+- `claude-almanac calibrate <provider> <model> <fixture.jsonl>` — first-class wrapper around the embedder calibration harness with ASCII histogram + `max × 1.2` threshold suggestion.
+- `claude-almanac tail` interleaves `curator.log`, `code-index.log`, `com.claude-almanac.digest.log`, and `com.claude-almanac.server.log` with `[source ts]` prefixes; supports `--follow/--no-follow`, `--lines`, `--since`, `--source`.
+- Integration smoke suite: retrieve→curate→recall round trip, codeindex init→search, digest generate→serve round trip. Runs on PRs targeting `release/*` branches; PyPI publish now `needs: [build, integration]`.
+
+### Changed
+
+- Curator transcript parser surfaces `{"type": "summary"}` (compaction) and `{"type": "subagent_stop"}` events as their own pseudo-turns instead of silently dropping them.
+- Digest reads commits from the repo's primary branch (`origin/HEAD` → `main` → `master` → HEAD fallback) and fetches `origin/*` before scanning, so feature-branch checkouts no longer cause the digest to miss mainline work.
+- Ollama embedder uses split timeouts (`connect=5s`, `read=120s`, `write=30s`, `pool=30s`) so unreachable hosts fail fast while cold-loads of `bge-m3` don't time out.
+
+### Fixed
+
+- launchd always-on units ship with `ThrottleInterval=30` to cap runaway respawn loops.
+
 ## [0.1.2] — 2026-04-20
 
 ### Added
