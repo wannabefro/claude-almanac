@@ -18,6 +18,13 @@ class EmbedderCfg:
 
 
 @dataclass
+class CuratorCfg:
+    provider: str = "ollama"              # "ollama" | "anthropic_sdk"
+    model: str = "gemma3:4b"               # or "claude-haiku-4-5-20251001"
+    timeout_s: int = 0                     # 0 -> provider default
+
+
+@dataclass
 class RepoCfg:
     path: str
     alias: str
@@ -53,6 +60,7 @@ class ThresholdsCfg:
 @dataclass
 class Config:
     embedder: EmbedderCfg = field(default_factory=EmbedderCfg)
+    curator: CuratorCfg = field(default_factory=CuratorCfg)
     digest: DigestCfg = field(default_factory=DigestCfg)
     code_index: CodeIndexCfg = field(default_factory=CodeIndexCfg)
     retrieval: RetrievalCfg = field(default_factory=RetrievalCfg)
@@ -100,8 +108,15 @@ def _from_dict(raw: dict[str, Any]) -> Config:
     emb = raw.get("embedder", {})
     dig = raw.get("digest", {})
     repos = [RepoCfg(**r) for r in dig.get("repos", [])]
+    curator_raw = raw.get("curator", {})
+    curator = CuratorCfg(
+        provider=curator_raw.get("provider", "ollama"),
+        model=curator_raw.get("model", "gemma3:4b"),
+        timeout_s=curator_raw.get("timeout_s", 0),
+    )
     return Config(
         embedder=EmbedderCfg(**emb),
+        curator=curator,
         digest=DigestCfg(
             enabled=dig.get("enabled", False),
             repos=repos,

@@ -82,3 +82,44 @@ def test_materialize_missing_fields_noop_when_canonical(tmp_path, monkeypatch):
     config.save(c)
     # Saving writes the canonical form, so a follow-up materialize is a no-op.
     assert config.materialize_missing_fields() is False
+
+
+def test_curator_cfg_defaults_to_ollama_gemma3() -> None:
+    from claude_almanac.core.config import Config, CuratorCfg
+    cfg = Config()
+    assert isinstance(cfg.curator, CuratorCfg)
+    assert cfg.curator.provider == "ollama"
+    assert cfg.curator.model == "gemma3:4b"
+    assert cfg.curator.timeout_s == 0
+
+
+def test_curator_cfg_roundtrips_through_yaml(tmp_path, monkeypatch) -> None:
+    import yaml
+
+    from claude_almanac.core import config as cfg_mod
+    from claude_almanac.core.config import Config, CuratorCfg
+
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    cfg = Config(curator=CuratorCfg(
+        provider="anthropic_sdk", model="claude-haiku-4-5-20251001", timeout_s=20,
+    ))
+    cfg_mod.save(cfg)
+    raw = yaml.safe_load((tmp_path / "config.yaml").read_text())
+    assert raw["curator"] == {
+        "provider": "anthropic_sdk",
+        "model": "claude-haiku-4-5-20251001",
+        "timeout_s": 20,
+    }
+    reloaded = cfg_mod.load()
+    assert reloaded.curator == cfg.curator
+
+
+def test_curator_absent_from_yaml_loads_with_defaults(tmp_path, monkeypatch) -> None:
+    """Upgrade path: 0.2.x YAML has no `curator:` block. Load must still work."""
+    from claude_almanac.core import config as cfg_mod
+
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    (tmp_path / "config.yaml").write_text("embedder:\n  provider: ollama\n  model: bge-m3\n")
+    reloaded = cfg_mod.load()
+    assert reloaded.curator.provider == "ollama"
+    assert reloaded.curator.model == "gemma3:4b"
