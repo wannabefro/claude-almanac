@@ -57,7 +57,18 @@ def build_parser() -> argparse.ArgumentParser:
     s_cal.add_argument("args", nargs="*")
 
     s_tail = sub.add_parser("tail", help="Stream merged logs across subsystems")
-    s_tail.add_argument("args", nargs="*")
+    follow = s_tail.add_mutually_exclusive_group()
+    follow.add_argument("--follow", dest="follow", action="store_true",
+                        default=True, help="Keep tailing after backfill (default)")
+    follow.add_argument("--no-follow", dest="follow", action="store_false",
+                        help="Print backfill lines and exit")
+    s_tail.add_argument("--lines", type=int, default=50,
+                        help="Max lines to backfill per source (default 50)")
+    s_tail.add_argument("--since", default=None,
+                        help="Time window for backfill, e.g. 10m|1h|2d")
+    s_tail.add_argument("--source", action="append", default=None,
+                        choices=("curator", "code-index", "digest", "server"),
+                        help="Restrict to one or more sources (repeatable)")
 
     return p
 
@@ -94,7 +105,14 @@ def cmd_calibrate(args: argparse.Namespace) -> None:
 
 def cmd_tail(args: argparse.Namespace) -> None:
     from . import tail as _tail
-    _tail.run(list(args.args))
+    argv: list[str] = []
+    argv.append("--follow" if args.follow else "--no-follow")
+    argv += ["--lines", str(args.lines)]
+    if args.since:
+        argv += ["--since", args.since]
+    for s in args.source or []:
+        argv += ["--source", s]
+    _tail.run(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
