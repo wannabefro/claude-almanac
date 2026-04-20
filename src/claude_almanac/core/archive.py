@@ -58,7 +58,7 @@ def init(db: Path, *, embedder_name: str, model: str, dim: int, distance: Distan
                     f"requested {embedder_name} model={model} dim={dim}. "
                     f"Re-index required."
                 )
-            _migrate_schema(conn, dim)
+            _migrate_schema(conn)
             return
         conn.executemany(
             "INSERT INTO meta(key, value) VALUES (?, ?)",
@@ -91,7 +91,7 @@ def init(db: Path, *, embedder_name: str, model: str, dim: int, distance: Distan
         conn.close()
 
 
-def _migrate_schema(conn: sqlite3.Connection, dim: int) -> None:
+def _migrate_schema(conn: sqlite3.Connection) -> None:
     """Bring an existing archive DB up to the v0.3.1 schema idempotently."""
     cols = {row[1] for row in conn.execute("PRAGMA table_info(entries)").fetchall()}
     if "last_used_at" not in cols:
@@ -99,10 +99,12 @@ def _migrate_schema(conn: sqlite3.Connection, dim: int) -> None:
     if "use_count" not in cols:
         conn.execute("ALTER TABLE entries ADD COLUMN use_count INTEGER NOT NULL DEFAULT 0")
     _create_entries_history(conn)
+    # DDL auto-commits in sqlite3 legacy mode; this commit ensures a clean close state.
     conn.commit()
 
 
 def _create_entries_history(conn: sqlite3.Connection) -> None:
+    """Create the entries_history table and slug index, idempotent via IF NOT EXISTS."""
     conn.execute(
         "CREATE TABLE IF NOT EXISTS entries_history ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "

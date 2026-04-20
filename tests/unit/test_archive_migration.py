@@ -83,8 +83,26 @@ def test_migration_adds_columns_and_history(tmp_path):
     conn.close()
 
 
-def test_migration_is_idempotent(tmp_path):
+def test_init_is_idempotent_on_fresh_db(tmp_path):
     db = tmp_path / "a.db"
     archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
     # Second init should not raise
     archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+
+
+def test_migration_is_idempotent_on_v030_db(tmp_path):
+    db = tmp_path / "a.db"
+    _v030_init(db)
+    # First migration
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    # Second migration must be a no-op (no exception, no duplicate-column error)
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    # Schema still correct
+    conn = sqlite3.connect(str(db))
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(entries)").fetchall()}
+    assert "last_used_at" in cols
+    assert "use_count" in cols
+    # entries_history still present and has index
+    idxs = {r[1] for r in conn.execute("PRAGMA index_list(entries_history)").fetchall()}
+    assert "idx_entries_history_slug" in idxs
+    conn.close()
