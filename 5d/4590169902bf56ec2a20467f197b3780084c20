@@ -1,0 +1,25 @@
+src/claude_almanac/cli/recall.py
+  5c09c2abc4dbc99b 11-20,99-130,149-152,154-155,157
+tests/unit/test_cli_recall.py
+  5c09c2abc4dbc99b 47-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "5d4590169902bf56ec2a20467f197b3780084c20",
+  "prompts": {
+    "5c09c2abc4dbc99b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b7e5d561-db12-458d-8089-8f386d664c45",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 97,
+      "total_deletions": 21,
+      "accepted_lines": 96,
+      "overriden_lines": 0
+    }
+  }
+}
