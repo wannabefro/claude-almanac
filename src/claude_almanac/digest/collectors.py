@@ -114,12 +114,22 @@ class GitCommit:
     diff_snippet: str
 
 
-def _git(repo_path: str, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args],
-        cwd=repo_path, capture_output=True, text=True,
-        timeout=30, check=False,
-    )
+def _git(
+    repo_path: str, *args: str, timeout: int = 30,
+) -> subprocess.CompletedProcess[str]:
+    """Run git; on TimeoutExpired return a synthetic completed process with
+    returncode=124 so callers see a failure rather than crashing the digest."""
+    try:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo_path, capture_output=True, text=True,
+            timeout=timeout, check=False,
+        )
+    except subprocess.TimeoutExpired as e:
+        return subprocess.CompletedProcess(
+            args=e.cmd, returncode=124, stdout="",
+            stderr=f"timed out after {timeout}s",
+        )
 
 
 def _is_git_repo(path: str) -> bool:
@@ -151,12 +161,14 @@ def _primary_branch(repo_path: str) -> str:
 
 
 def _fetch_origin(repo_path: str) -> None:
-    """Refresh `origin/*` refs. Non-fatal on network/auth errors.
+    """Refresh `origin/*` refs. Non-fatal on network/auth/timeout errors.
 
     We scan `origin/<primary>` rather than the local primary so a stale clone
-    still reports accurately; fetching keeps those refs current.
+    still reports accurately; fetching keeps those refs current. A longer
+    timeout (120s) accommodates large Klaviyo-scale repos where the
+    first-fetch-of-the-day can take ~1 minute on cold VPN connections.
     """
-    _git(repo_path, "fetch", "--quiet", "--no-tags", "origin")
+    _git(repo_path, "fetch", "--quiet", "--no-tags", "origin", timeout=120)
 
 
 def _log_ref(repo_path: str, branch: str) -> str:
