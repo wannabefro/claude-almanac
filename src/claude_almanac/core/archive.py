@@ -183,6 +183,52 @@ def nearest(db: Path, *, query_embedding: list[float], source_prefix: str) -> Hi
         conn.close()
 
 
+def set_pinned(db: Path, *, row_id: int, pinned: bool) -> int:
+    conn = _connect(db)
+    try:
+        cur = conn.execute(
+            "UPDATE entries SET pinned = ? WHERE id = ?",
+            (int(pinned), row_id),
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def set_pinned_by_slug(db: Path, *, slug: str, pinned: bool) -> int:
+    """Set pinned on every row whose source is 'md:<slug>'. Returns rows affected."""
+    conn = _connect(db)
+    try:
+        cur = conn.execute(
+            "UPDATE entries SET pinned = ? WHERE source = ?",
+            (int(pinned), f"md:{slug}"),
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def delete_by_slug(db: Path, *, slug: str) -> int:
+    """Delete every row whose source is 'md:<slug>' from entries + entries_vec.
+    Returns rows removed."""
+    conn = _connect(db)
+    try:
+        ids = [r[0] for r in conn.execute(
+            "SELECT id FROM entries WHERE source = ?", (f"md:{slug}",)
+        ).fetchall()]
+        if not ids:
+            return 0
+        placeholders = ",".join("?" * len(ids))
+        conn.execute(f"DELETE FROM entries WHERE id IN ({placeholders})", ids)
+        conn.execute(f"DELETE FROM entries_vec WHERE id IN ({placeholders})", ids)
+        conn.commit()
+        return len(ids)
+    finally:
+        conn.close()
+
+
 def prune(db: Path, *, days: int) -> int:
     """Delete unpinned entries older than `days` days. Returns count removed."""
     conn = _connect(db)

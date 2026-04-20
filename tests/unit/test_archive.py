@@ -82,3 +82,48 @@ def test_prune_old_unpinned(tmp_path):
     )
     removed = archive.prune(db, days=180)
     assert removed == 1
+
+
+def test_set_pinned_flips_flag(tmp_path):
+    db = tmp_path / "a.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    rowid = archive.insert_entry(
+        db, text="t", kind="note", source="md:foo.md",
+        pinned=False, embedding=[0.0, 1.0],
+    )
+    archive.set_pinned(db, row_id=rowid, pinned=True)
+    meta = [r for r in archive.search(
+        db, query_embedding=[0.0, 1.0], top_k=5)]
+    assert meta[0].pinned is True
+    archive.set_pinned(db, row_id=rowid, pinned=False)
+    meta = [r for r in archive.search(
+        db, query_embedding=[0.0, 1.0], top_k=5)]
+    assert meta[0].pinned is False
+
+
+def test_set_pinned_by_slug_matches_source_column(tmp_path):
+    db = tmp_path / "a.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    archive.insert_entry(
+        db, text="t", kind="note", source="md:project_foo.md",
+        pinned=False, embedding=[0.0, 1.0],
+    )
+    count = archive.set_pinned_by_slug(db, slug="project_foo.md", pinned=True)
+    assert count == 1
+
+
+def test_delete_by_slug_removes_entries_and_vectors(tmp_path):
+    db = tmp_path / "a.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    archive.insert_entry(
+        db, text="keep", kind="note", source="md:keep.md",
+        pinned=False, embedding=[1.0, 0.0],
+    )
+    archive.insert_entry(
+        db, text="drop", kind="note", source="md:drop.md",
+        pinned=False, embedding=[0.0, 1.0],
+    )
+    removed = archive.delete_by_slug(db, slug="drop.md")
+    assert removed == 1
+    hits = archive.search(db, query_embedding=[0.0, 1.0], top_k=5)
+    assert [h.source for h in hits] == ["md:keep.md"]
