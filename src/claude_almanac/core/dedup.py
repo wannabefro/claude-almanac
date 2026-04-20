@@ -3,10 +3,11 @@
 Contract: distance < threshold means 'duplicate of existing file'.
 Threshold is per-embedder (loaded from profiles or config override).
 
-Calibration note: bge-m3 via Ollama returns unnormalized vectors; sqlite-vec
-L2 distance lives in ~14-29 range. 17.0 sits between duplicate-ceiling (~16)
-and same-topic floor (~21). Cloud embedders use cosine distance and need
-their own calibrated threshold.
+Calibration note: Ollama bge-m3 now returns unit-normalized vectors;
+sqlite-vec L2 distance lives in ~[0, 1.414]. Default dedup threshold
+for this profile is 0.5, which catches exact + near-paraphrase dups
+while rejecting same-topic pairs (~1.03). Cloud embedders use cosine
+distance in ~[0, 2]; see embedders/profiles.py for current thresholds.
 """
 from __future__ import annotations
 
