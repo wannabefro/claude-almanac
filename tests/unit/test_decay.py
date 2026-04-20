@@ -1,6 +1,8 @@
 """Pure scoring function for temporal decay ranking."""
 import math
 
+import pytest
+
 from claude_almanac.core import decay
 
 
@@ -61,3 +63,19 @@ def test_negative_dt_clamped():
         half_life_days=60, use_count_exponent=0.6,
     )
     assert math.isclose(score, 1.0, rel_tol=1e-6)
+
+
+def test_zero_half_life_raises():
+    with pytest.raises(ValueError, match="half_life_days must be positive"):
+        decay.decay_score(
+            created_at=0, last_used_at=None, use_count=0, now=1000,
+            half_life_days=0, use_count_exponent=0.6,
+        )
+
+
+def test_negative_half_life_raises():
+    with pytest.raises(ValueError, match="half_life_days must be positive"):
+        decay.decay_score(
+            created_at=0, last_used_at=None, use_count=0, now=1000,
+            half_life_days=-1, use_count_exponent=0.6,
+        )

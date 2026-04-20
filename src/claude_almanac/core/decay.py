@@ -26,8 +26,10 @@ def decay_score(
     Pinned memories should not call this; upstream code assigns score=1.0 to
     pinned hits directly.
     """
+    if half_life_days <= 0:
+        raise ValueError(f"half_life_days must be positive, got {half_life_days}")
     reference_ts = last_used_at if last_used_at is not None else created_at
     dt_seconds = max(0, now - reference_ts)
     lam = math.log(2) / (half_life_days * 86400)
-    use_factor = (use_count + 1) ** use_count_exponent
-    return float(use_factor * math.exp(-lam * dt_seconds))
+    use_factor: float = (use_count + 1) ** use_count_exponent
+    return use_factor * math.exp(-lam * dt_seconds)
