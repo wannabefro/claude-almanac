@@ -1,0 +1,4 @@
+{"message": {"role": "user", "content": "hey, how's it going?"}}
+{"message": {"role": "assistant", "content": "Hi! I'm doing well. What can I help with today?"}}
+{"message": {"role": "user", "content": "just checking. nothing specific."}}
+{"message": {"role": "assistant", "content": "Got it. Ping me when you have something."}}

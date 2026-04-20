@@ -1,0 +1,4 @@
+{"message": {"role": "user", "content": "can you summarize what we just talked about?"}}
+{"message": {"role": "assistant", "content": "We didn't discuss anything substantive yet — waiting for your next question."}}
+{"message": {"role": "user", "content": "fair enough, thanks"}}
+{"message": {"role": "assistant", "content": "Anytime."}}

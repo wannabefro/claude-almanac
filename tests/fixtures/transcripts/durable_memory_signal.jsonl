@@ -1,0 +1,3 @@
+{"message": {"role": "user", "content": "Just so you know for future sessions: in this project, integration tests always run against live Ollama and never mock the embedder. We got burned last year when mocked tests passed but the prod migration didn't. Never mock the embedder in integration tests here."}}
+{"message": {"role": "assistant", "content": "Understood. I'll treat integration tests in this project as live-Ollama only — no embedder mocks."}}
+{"message": {"role": "user", "content": "yes, thanks"}}
