@@ -40,7 +40,10 @@ def _invoke(provider_cfg: CuratorCfg, tail: str) -> list[dict]:
 
 @pytest.fixture
 def ollama_cfg() -> CuratorCfg:
-    return CuratorCfg(provider="ollama", model="gemma3:4b", timeout_s=45)
+    # 240s chosen for CPU-only GitHub runners: gemma3:4b cold-inference on CPU
+    # can take ~2 minutes for the first token on longer transcripts. The local
+    # warm path returns in <5s regardless of this ceiling.
+    return CuratorCfg(provider="ollama", model="gemma3:4b", timeout_s=240)
 
 
 @pytest.fixture

@@ -84,6 +84,13 @@ jobs:
         run: |
           curl -s http://127.0.0.1:11434/api/tags | grep -q bge-m3
           curl -s http://127.0.0.1:11434/api/tags | grep -q gemma3
+      - name: Warm gemma3:4b
+        run: |
+          # CPU-only runners take ~1-2 minutes for the first inference.
+          # Warm the model so the first real test doesn't absorb the cold load.
+          curl -fsS -X POST http://127.0.0.1:11434/api/generate \
+            -d '{"model":"gemma3:4b","prompt":"hi","stream":false,"options":{"num_predict":1}}' \
+            --max-time 300 | tail -c 200 || true
       - name: Pytest (integration)
         env:
           OLLAMA_HOST: http://127.0.0.1:11434
