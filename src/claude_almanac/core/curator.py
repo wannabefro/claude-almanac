@@ -95,8 +95,14 @@ def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
         db = scope_dir / "archive.db"
 
         if action == "write_md":
-            slug = d["slug"]
-            text = d["text"]
+            slug = d.get("slug")
+            text = d.get("text")
+            if not slug or not text:
+                LOGGER.warning(
+                    "curator: dropping write_md with missing slug/text: %s",
+                    {k: v for k, v in d.items() if k != "text"},
+                )
+                continue
             [vec] = embedder.embed([text])
             dup_slug, dist = dedup.find_dup_slug(db=db, embedding=vec, threshold=threshold)
             if dup_slug:
@@ -117,7 +123,10 @@ def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
             )
 
         elif action == "archive_turn":
-            text = d["text"]
+            text = d.get("text")
+            if not text:
+                LOGGER.warning("curator: dropping archive_turn with missing text")
+                continue
             [vec] = embedder.embed([text])
             archive.insert_entry(
                 db,
@@ -127,6 +136,9 @@ def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
                 pinned=False,
                 embedding=vec,
             )
+
+        else:
+            LOGGER.info("curator: ignoring decision with action=%r", action)
 
 
 def _iter_turns(transcript_path: str) -> Iterator[tuple[str, str]]:
