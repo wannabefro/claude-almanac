@@ -31,11 +31,14 @@ The adapter exposes `name` as the provider *family*, not the model. The model na
 
    ```bash
    source .venv/bin/activate
-   claude-almanac calibrate --provider <name> --model <model> \
-     --corpus tests/fixtures/calibration_corpus.jsonl
+   claude-almanac calibrate <provider> <model> tests/fixtures/calibration_corpus.jsonl
    ```
 
-   The harness emits a distance histogram and suggests a `dedup_distance` at the 95th percentile of known-duplicate pairs. Paste the histogram + the suggested threshold into the PR description. Profiles without a measured threshold are not mergeable — a guessed threshold produces silent dedup misbehavior.
+   Run `claude-almanac calibrate <provider> <model> <fixture.jsonl>` to derive a
+   dedup_distance threshold. Commit the resulting value to
+   `src/claude_almanac/embedders/profiles.py` as the new `EmbedderProfile` entry.
+
+   The harness emits a distance histogram and suggests a `dedup_distance` at max × 1.2 of observed duplicate-pair distances. Paste the histogram + the suggested threshold into the PR description. Profiles without a measured threshold are not mergeable — a guessed threshold produces silent dedup misbehavior.
 
 ## Threshold reasoning
 

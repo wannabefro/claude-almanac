@@ -53,6 +53,9 @@ def build_parser() -> argparse.ArgumentParser:
                             help="Refresh every repo listed in code_index.repos "
                                  "(auto-init missing DBs). Overrides --repo.")
 
+    s_cal = sub.add_parser("calibrate", help="Embedder calibration helper")
+    s_cal.add_argument("args", nargs="*")
+
     return p
 
 
@@ -81,6 +84,11 @@ def cmd_digest(args: argparse.Namespace) -> None:
     sys.exit(_digest.run([args.subcmd, *args.args] if args.subcmd else []))
 
 
+def cmd_calibrate(args: argparse.Namespace) -> None:
+    from . import calibrate as _cal
+    _cal.run(list(args.args))
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     ns = parser.parse_args(argv)
@@ -93,9 +101,14 @@ def main(argv: list[str] | None = None) -> None:
         "recall": cmd_recall,
         "digest": cmd_digest,
         "codeindex": cmd_codeindex,
+        "calibrate": cmd_calibrate,
     }
     fn = dispatch.get(ns.cmd)
     if fn is None:
         parser.print_help()
         sys.exit(2)
     fn(ns)
+
+
+if __name__ == "__main__":
+    main()
