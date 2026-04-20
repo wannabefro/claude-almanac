@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.4] — 2026-04-20
+
+### Fixed
+
+- **Critical:** the curator had been silently dropping every memory decision since v0.1 because the prompt asks Haiku for `{action, name, content, type}` but `_apply_decisions` read `{action, slug, text, kind}`. The 0.2.2 bare-list parser fix + 0.2.3 KeyError guard surfaced this shape mismatch by logging "dropping write_md with missing slug/text" on every turn — the write was never happening. Now `_apply_decisions` reads both shapes via `d.get("slug") or d.get("name")` (with `.md` auto-appended to bare names), `d.get("text") or d.get("content")`, `d.get("kind") or d.get("type")`.
+- The curator never implemented `update_md` — the prompt documents it as the preferred action for overwriting an existing memory, but the worker only handled `write_md` and `archive_turn`. Added `update_md` as an alias for the write path (slug collision → overwrite in place, which is the same behaviour as `write_md` + dedup-redirect hitting the exact slug) and `insert_archive` as the prompt-documented name for what the code calls `archive_turn`.
+- `skip_all` decisions now log a single INFO with the reason instead of falling through to "ignoring decision with action=...". Cosmetic but clearer in `claude-almanac tail`.
+
+### Operational note
+
+Archives written before 0.2.4 are empty. If you were relying on auto-curation, nothing was getting saved. From 0.2.4 on, the next Stop-hook firing will actually write memories. Verify with `claude-almanac status` — the archive counts should start climbing after your next session ends.
+
 ## [0.2.3] — 2026-04-20
 
 ### Fixed
