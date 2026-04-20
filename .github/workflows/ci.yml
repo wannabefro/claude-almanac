@@ -42,7 +42,10 @@ jobs:
   integration:
     name: Integration tests (Ubuntu, py3.12, live Ollama)
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' &&
+       startsWith(github.base_ref, 'release/'))
     services:
       ollama:
         image: ollama/ollama:latest
