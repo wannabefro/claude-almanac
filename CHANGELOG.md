@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.5] — 2026-04-20
+
+### Fixed
+
+- **Critical:** bge-m3 dedup threshold was calibrated (17.0 L2) against
+  unnormalized vectors, but Ollama's `/api/embed` returns unit-normalized
+  vectors for bge-m3 (max possible L2 is √2 ≈ 1.414). Every `<17.0`
+  dedup check therefore passed, causing every new memory to be redirected
+  to whichever md file already existed in that scope — effectively
+  overwriting the first memory ever written in each scope with every
+  subsequent write's content. Fresh calibration against real duplicate /
+  paraphrase / unrelated pairs lands on 0.5 as the new threshold:
+  exact dup (L2=0.00) and paraphrase (L2~0.67) pass; same-topic (L2~1.03)
+  and unrelated (L2~1.07) do not.
+- Ollama embedder docstring said "unnormalized vectors"; updated to
+  reflect Ollama's current behaviour. The L2 distance metric stored in
+  each archive's `meta` table is still valid (L2 on unit vectors is a
+  monotonic function of cosine distance), so no DB migration is required
+  — only the threshold comparison changes.
+
 ## [0.2.4] — 2026-04-20
 
 ### Fixed
