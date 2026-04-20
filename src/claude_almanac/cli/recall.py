@@ -8,17 +8,16 @@ from claude_almanac.embedders import make_embedder
 
 USAGE = """Usage: claude-almanac recall <subcommand> [args]
 
-  search <query>      semantic search over global + current-project archives
-  search-all <query>  fan out across ALL project archives
-  code <query>        semantic search over the current repo's code-index
-  list [type]         list markdown memories (type: user|feedback|project|reference)
-  show <slug>         print a memory file body
+  search <query>          semantic search over global + current-project archives
+  search-all <query>      fan out across ALL project archives
+  code <query>            semantic search over the current repo's code-index
+  list [type]             list markdown memories (type: user|feedback|project|reference)
+  show <slug>             print a memory file body
 
-  (deferred to v0.2 — see GitHub issues):
-  pin <id>            pin an archive entry
-  unpin <id>          unpin
-  forget <slug-or-id> move memory to trash
-  export [path]       dump all memories to one markdown file
+  pin <id-or-slug>        pin an archive entry (global + project scopes)
+  unpin <id-or-slug>      unpin
+  forget <slug>           move memory to trash dir (keeps a recoverable copy)
+  export [path]           dump memories to one markdown file; default scope: global+project
 """
 
 
@@ -97,6 +96,38 @@ def _cmd_code(argv: list[str]) -> int:
     return 0
 
 
+def _set_pinned_across_scopes(target: str, pinned: bool) -> int:
+    """Try target as int rowid first (per-scope), else as slug.
+
+    Returns total rows updated across both scopes.
+    """
+    total = 0
+    dbs = [paths.global_memory_dir() / "archive.db",
+           paths.project_memory_dir() / "archive.db"]
+    for db in dbs:
+        if not db.exists():
+            continue
+        try:
+            rowid = int(target)
+            total += archive.set_pinned(db, row_id=rowid, pinned=pinned)
+        except ValueError:
+            total += archive.set_pinned_by_slug(db, slug=target, pinned=pinned)
+    return total
+
+
+def _cmd_pin(args: list[str], *, pinned: bool) -> None:
+    if not args:
+        print(USAGE)
+        sys.exit(2)
+    target = args[0]
+    n = _set_pinned_across_scopes(target, pinned)
+    verb = "pinned" if pinned else "unpinned"
+    if n == 0:
+        print(f"no match for {target!r}")
+        sys.exit(1)
+    print(f"{verb} {n} row(s) for {target!r}")
+
+
 def run(argv: list[str]) -> None:
     if not argv:
         print(USAGE)
@@ -115,12 +146,15 @@ def run(argv: list[str]) -> None:
             print("show requires a slug")
             return
         _show(rest[0])
+    elif cmd == "pin":
+        _cmd_pin(rest, pinned=True)
+    elif cmd == "unpin":
+        _cmd_pin(rest, pinned=False)
     else:
-        # pin/unpin/forget/export are deferred to v0.2.
-        # See https://github.com/sammctaggart/claude-almanac/issues for current status.
-        if cmd in {"pin", "unpin", "forget", "export"}:
+        # forget/export are deferred to v0.2 (Tasks 3 and 4).
+        if cmd in {"forget", "export"}:
             print(
-                f"'{cmd}' is not implemented in v0.1. "
+                f"'{cmd}' is not yet implemented. "
                 f"Track progress at https://github.com/sammctaggart/claude-almanac/issues"
                 f" (label: v0.2)."
             )

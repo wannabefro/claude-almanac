@@ -44,9 +44,51 @@ def test_no_args_prints_usage(capsys):
     assert "Usage" in capsys.readouterr().out
 
 
-def test_recall_unsupported_command_points_to_github(capsys):
-    from claude_almanac.cli import recall
-    recall.run(["pin", "abc123"])
-    out = capsys.readouterr().out
-    assert "not implemented in v0.1" in out
-    assert "github.com" in out
+def _seed_project_db(tmp_path, slug: str, pinned: bool = False):
+    """Seed the per-project archive with one entry at md:<slug>."""
+    import os
+    os.environ["CLAUDE_ALMANAC_DATA_DIR"] = str(tmp_path)
+    from claude_almanac.core import archive, paths
+    db = paths.project_memory_dir() / "archive.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    rowid = archive.insert_entry(
+        db, text="t", kind="note", source=f"md:{slug}",
+        pinned=pinned, embedding=[0.0, 1.0],
+    )
+    return db, rowid
+
+
+def test_recall_pin_by_slug_sets_pinned_true(tmp_path, monkeypatch, capsys):
+    db, _ = _seed_project_db(tmp_path, "project_foo.md", pinned=False)
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    cli_recall.run(["pin", "project_foo.md"])
+    from claude_almanac.core import archive
+    hits = archive.search(db, query_embedding=[0.0, 1.0], top_k=5)
+    assert hits[0].pinned is True
+    assert "pinned" in capsys.readouterr().out.lower()
+
+
+def test_recall_pin_by_rowid_sets_pinned_true(tmp_path, monkeypatch, capsys):
+    db, rowid = _seed_project_db(tmp_path, "project_foo.md", pinned=False)
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    cli_recall.run(["pin", str(rowid)])
+    from claude_almanac.core import archive
+    hits = archive.search(db, query_embedding=[0.0, 1.0], top_k=5)
+    assert hits[0].pinned is True
+
+
+def test_recall_unpin_by_slug_sets_pinned_false(tmp_path, monkeypatch, capsys):
+    db, _ = _seed_project_db(tmp_path, "project_foo.md", pinned=True)
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    cli_recall.run(["unpin", "project_foo.md"])
+    from claude_almanac.core import archive
+    hits = archive.search(db, query_embedding=[0.0, 1.0], top_k=5)
+    assert hits[0].pinned is False
+
+
+def test_recall_pin_no_match_exits_nonzero(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    import pytest
+    with pytest.raises(SystemExit) as exc:
+        cli_recall.run(["pin", "ghost.md"])
+    assert exc.value.code == 1
