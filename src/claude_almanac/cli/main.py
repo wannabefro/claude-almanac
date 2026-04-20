@@ -56,6 +56,9 @@ def build_parser() -> argparse.ArgumentParser:
     s_cal = sub.add_parser("calibrate", help="Embedder calibration helper")
     s_cal.add_argument("args", nargs="*")
 
+    s_tail = sub.add_parser("tail", help="Stream merged logs across subsystems")
+    s_tail.add_argument("args", nargs="*")
+
     return p
 
 
@@ -89,6 +92,11 @@ def cmd_calibrate(args: argparse.Namespace) -> None:
     _cal.run(list(args.args))
 
 
+def cmd_tail(args: argparse.Namespace) -> None:
+    from . import tail as _tail
+    _tail.run(list(args.args))
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     ns = parser.parse_args(argv)
@@ -102,6 +110,7 @@ def main(argv: list[str] | None = None) -> None:
         "digest": cmd_digest,
         "codeindex": cmd_codeindex,
         "calibrate": cmd_calibrate,
+        "tail": cmd_tail,
     }
     fn = dispatch.get(ns.cmd)
     if fn is None:
