@@ -1,0 +1,39 @@
+src/claude_almanac/digest/collectors.py
+  5091e0bb0e31e4ab 153-172
+  5c09c2abc4dbc99b 132-152,199,201,203
+tests/unit/test_digest_collectors.py
+  5c09c2abc4dbc99b 94-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "5c8b6997affb1be21f3cd7b152e8ff19a943942a",
+  "prompts": {
+    "5091e0bb0e31e4ab": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f389a2d4-b1e4-4af3-b730-cc4f183682e4",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 20,
+      "total_deletions": 0,
+      "accepted_lines": 20,
+      "overriden_lines": 0
+    },
+    "5c09c2abc4dbc99b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b7e5d561-db12-458d-8089-8f386d664c45",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 121,
+      "total_deletions": 4,
+      "accepted_lines": 120,
+      "overriden_lines": 0
+    }
+  }
+}
