@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.6] — 2026-04-20
+
+### Fixed
+
+- **Curator drifted into conversational replies** when the transcript contained chatty content. The curator prompt used to be piped to Haiku as the user turn (same channel as the transcript), so Haiku sometimes answered "I'm Claude Code, those curator instructions were pasted by mistake" and emitted no JSON. Now the prompt is passed via `--system-prompt` (Haiku's system role) and the transcript is stdin. Also pass `--bare` so Haiku doesn't auto-load the host project's CLAUDE.md / hooks / plugins and get further distracted. Expected effect: far fewer "LLM returned non-JSON" warnings and dropped turns.
+- **Curator re-extracted memories piled up duplicate rows.** On every Stop hook firing, Haiku re-extracts the same durable memories from the growing transcript; with the dedup fix in 0.2.5 the redirect works correctly, but the worker still overwrote the md file and inserted a new archive row each time even when the proposed content was byte-identical to what was already on disk. Now when `target.exists() && target.read_text() == text`, the write + insert are skipped and the worker logs `skip identical re-write`. Paraphrase re-writes (different body, same slug after redirect) still overwrite and insert — that's a legitimate re-confirmation with improved phrasing.
+- **Daemons stayed on the old Python venv after `uv tool upgrade`.** `launchctl`/`systemctl` don't auto-restart a service when its managed package is upgraded, so the digest server kept running under a venv whose `site-packages` predated template/endpoint changes, returning stale 500s until manual `launchctl kickstart -k`. The auto-upgrade runner now invokes `claude-almanac setup` after a successful `uv tool upgrade` — setup's idempotent unit install already does an unload/load cycle, so daemons come back up on the fresh venv automatically.
+
 ## [0.2.5] — 2026-04-20
 
 ### Fixed
