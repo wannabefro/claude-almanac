@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A daily intelligence layer for Claude Code — self-curating memory, per-repo code-symbol index, and daily digest with Q&A",
-    "version": "0.2.7"
+    "version": "0.2.8"
   },
   "plugins": [
     {
       "name": "claude-almanac",
       "source": "./",
       "description": "Daily intelligence layer for Claude Code — memory, code-index, digest.",
-      "version": "0.2.7",
+      "version": "0.2.8",
       "author": {
         "name": "Sam McTaggart"
       },

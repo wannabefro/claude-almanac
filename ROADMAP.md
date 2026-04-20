@@ -56,6 +56,27 @@ These are the axes every roadmap item is evaluated against. A proposal that viol
 
 These four land together because they share infrastructure (knowledge graph tables, temporal scoring logic, versioning). Shipping them piecemeal would re-do the DB migration work repeatedly.
 
+### 3.0 — Curator LLM invocation path (foundational)
+
+**Why:** the 0.2.x curator shells out to `claude -p --model haiku --system-prompt <…>` per Stop hook. Haiku's API call itself is sub-second, but the `claude` CLI wrapper takes 30–45s to boot on every invocation (hooks, plugin sync, CLAUDE.md autoload, MCP init, skills discovery). `--bare` would skip all that but strips OAuth/keychain auth — and Claude Code OAuth tokens are NOT valid against the Anthropic `x-api-key` API, so the Anthropic SDK fast path only helps users who have a separate developer-console `ANTHROPIC_API_KEY` set. That's a minority. For the OAuth-only majority, the only path off the slow CLI is a local model.
+
+**Design sketch (in priority order):**
+
+1. **Primary: local Ollama model** — default `gemma3:4b` (Google's Gemma 3 4B instruct, ~3GB). Small footprint for users already running Ollama for embeddings, strong JSON-structured-output compliance for its size, no auth, no network round trip. Curator calls `/api/chat` with `format: "json"` to force structured output. This is the path that works for every user regardless of Claude Code auth. Bigger models like `qwen2.5:7b-instruct` or `llama3.1:8b-instruct` remain valid opt-in choices for users who want higher-quality decisions at the cost of RAM/latency.
+2. **Secondary: Anthropic SDK direct** when `ANTHROPIC_API_KEY` is explicitly configured. Fast path for API-key users; kept as opt-in because it requires a different credential from Claude Code's OAuth.
+3. **Fallback: current `claude` CLI** only when neither of the above is configured and the user explicitly opts in. Documented as slow.
+
+**Configuration:**
+```yaml
+curator:
+  provider: ollama | anthropic_sdk | claude_cli
+  model: gemma3:4b | qwen2.5:7b-instruct | claude-haiku-4-5-20251001 | …
+```
+
+Default for new users: `ollama` + `gemma3:4b`. `claude-almanac setup` pulls the model via `ollama pull gemma3:4b` if missing. Keep the prompt template + JSON-array contract unchanged; only the invocation layer switches.
+
+**Effort:** 3–4 days. Bulk is calibrating each provider's JSON-output reliability against the same fixture set and validating that the local-model curator produces decisions of comparable quality to Haiku.
+
 ### 3.1 — Session-transcript compression layer
 
 **Why:** claude-mem (46K ★) is the most-adopted Claude Code memory plugin. Its distinguishing behaviour is compressing entire session transcripts via the Claude Agent SDK and injecting distilled context into future sessions. Our curator writes individual memory files from each session; the session-level rollup is a *complement*, not a replacement.

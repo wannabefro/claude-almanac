@@ -317,6 +317,60 @@ def test_apply_decisions_insert_archive_maps_to_unpinned_archive_row(
     assert inserts[0]["kind"] == "archive"
 
 
+def test_existing_memory_titles_lists_both_scopes(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    from claude_almanac.core import paths as p
+    g = p.global_memory_dir()
+    g.mkdir(parents=True)
+    (g / "user_profile.md").write_text("User is a Go developer.\nMore context below.")
+    proj = p.project_memory_dir()
+    proj.mkdir(parents=True)
+    (proj / "project_foo.md").write_text("Active incident: deploys blocked.")
+    out = curator._existing_memory_titles()
+    assert "[global] user_profile" in out
+    assert "Go developer" in out
+    assert "[project] project_foo" in out
+    assert "deploys blocked" in out
+
+
+def test_existing_memory_titles_empty_archive(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    out = curator._existing_memory_titles()
+    assert "none" in out.lower()
+
+
+def test_build_system_prompt_substitutes_existing_memories(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    from claude_almanac.core import paths as p
+    g = p.global_memory_dir()
+    g.mkdir(parents=True)
+    (g / "user_profile.md").write_text("senior go dev")
+    prompt = curator._build_system_prompt()
+    # The placeholder is gone and replaced with the real content.
+    assert "{{EXISTING_MEMORIES}}" not in prompt
+    assert "user_profile" in prompt
+
+
+def test_timeout_error_message_does_not_leak_argv(monkeypatch, caplog):
+    """A TimeoutExpired used to stringify the full command (including the
+    ~3KB system prompt) into the log. Now we log a concise message."""
+    import subprocess as _sp
+
+    def _raise_timeout(*a, **kw):
+        raise _sp.TimeoutExpired(cmd=a[0] if a else ["claude"], timeout=curator.CURATOR_TIMEOUT_S)
+
+    monkeypatch.setattr(curator.subprocess, "run", _raise_timeout)
+    caplog.set_level("WARNING")
+    out = curator._run_llm("a very short transcript tail")
+    assert out == "{}"
+    # The log line should mention timeout + seconds, but not the full
+    # `claude -p --model haiku --system-prompt ...` argv.
+    msg = caplog.text
+    assert "timed out" in msg
+    assert str(curator.CURATOR_TIMEOUT_S) in msg
+    assert "--system-prompt" not in msg
+
+
 def test_main_tolerates_bare_list_response(monkeypatch, tmp_path):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))

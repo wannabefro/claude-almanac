@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.8] — 2026-04-20
+
+### Fixed
+
+- **Curator prompt never substituted its own placeholders.** `{{EXISTING_MEMORIES}}`, `{{USER_PROMPT}}`, and `{{ASSISTANT_RESPONSE}}` were emitted verbatim to Haiku because the only substitution site ever filled them. Haiku sometimes replied "no actual turn provided — curator template with unfilled `{{USER_PROMPT}}` and `{{ASSISTANT_RESPONSE}}` variables" and skipped the turn. Now: `{{USER_PROMPT}}` / `{{ASSISTANT_RESPONSE}}` are removed from the template (the transcript flows via stdin, not via prompt substitution), and `{{EXISTING_MEMORIES}}` is substituted with a summary of md files across the global + current-project scopes so Haiku can route refinements to `update_md` with the existing slug instead of coining near-duplicate names.
+- **Timeout log dumped the full ~3KB system prompt** on every `TimeoutExpired` because `subprocess.TimeoutExpired.__str__` includes the cmd argv. Replaced the generic `%s` format with an explicit one-line message: `curator LLM call timed out after 60s`.
+- **`FileNotFoundError` path** (when the `claude` CLI isn't on PATH) also logged the full exception; now logs `curator: \`claude\` CLI not on PATH`.
+
+### Notes
+
+- Keeping the curator timeout at 60s deliberately. Haiku's API call is sub-second; the 30–45s wall time users see is entirely the `claude` CLI booting (hooks, plugin sync, CLAUDE.md autoload, MCP init). Longer timeouts mask that overhead without fixing it. v0.3 plans to switch the curator to a local Ollama model (default `gemma3:4b`) to eliminate the CLI wrapper entirely — see ROADMAP.md §3.0.
+
 ## [0.2.7] — 2026-04-20
 
 ### Fixed

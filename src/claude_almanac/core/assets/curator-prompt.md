@@ -54,9 +54,9 @@ If nothing is worth saving, respond with:
 [{"action": "skip_all", "reason": "no durable facts in this turn"}]
 ```
 
-## Existing memories
+## Existing memories in the relevant scopes
 
-The following memories already exist. If this turn's content matches or refines one of them, use `update_md` with the EXACT existing name so it overwrites in place. Only use `write_md` with a new name if the topic is genuinely new.
+If the upcoming turn's content matches or refines one of these, use `update_md` with the EXACT existing name so it overwrites in place. Only use `write_md` with a new name if the topic is genuinely new.
 
 {{EXISTING_MEMORIES}}
 
@@ -72,12 +72,4 @@ The following memories already exist. If this turn's content matches or refines 
 
 Your response must start with `[` and end with `]`. No other characters. No explanation of what you did or why. Just the JSON array.
 
-## Input
-
-<turn>
-USER:
-{{USER_PROMPT}}
-
-ASSISTANT:
-{{ASSISTANT_RESPONSE}}
-</turn>
+The transcript to evaluate follows as the user turn.

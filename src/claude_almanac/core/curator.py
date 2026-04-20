@@ -31,6 +31,13 @@ from . import archive, config, dedup, paths
 LOGGER = logging.getLogger("claude_almanac.curator")
 
 MAX_TRANSCRIPT_CHARS = 120_000   # Haiku context budget minus prompt overhead
+# Timeout for the whole `claude -p` invocation. Note: Haiku's API call itself
+# is sub-second; virtually all the wall time is the `claude` CLI boot
+# (hooks, plugin sync, CLAUDE.md autoload, MCP init). 60s is already
+# generous for Haiku; longer timeouts just mask the CLI overhead.
+# Queued for v0.3: switch to the Anthropic SDK directly and remove the
+# CLI wrapper entirely. See ROADMAP.md §v0.3.
+CURATOR_TIMEOUT_S = 60
 
 
 def _setup_logging() -> None:
@@ -43,6 +50,33 @@ def _setup_logging() -> None:
 
 def _prompt_template() -> str:
     return files("claude_almanac.core.assets").joinpath("curator-prompt.md").read_text()
+
+
+def _existing_memory_titles() -> str:
+    """One-line-per-memory summary of md files across global + current project.
+
+    Fills the ``{{EXISTING_MEMORIES}}`` placeholder in the curator prompt so
+    Haiku can route refinements to the existing slug via `update_md` instead
+    of coining near-duplicate names.
+    """
+    lines: list[str] = []
+    for label, scope_dir in (
+        ("global", paths.global_memory_dir()),
+        ("project", paths.project_memory_dir()),
+    ):
+        if not scope_dir.exists():
+            continue
+        for md in sorted(scope_dir.glob("*.md")):
+            try:
+                first = md.read_text().strip().splitlines()[0][:120]
+            except OSError:
+                first = ""
+            lines.append(f"- [{label}] {md.stem}: {first}")
+    return "\n".join(lines) if lines else "(none — archive is empty)"
+
+
+def _build_system_prompt() -> str:
+    return _prompt_template().replace("{{EXISTING_MEMORIES}}", _existing_memory_titles())
 
 
 def _run_llm(conversation_tail: str) -> str:
@@ -62,16 +96,19 @@ def _run_llm(conversation_tail: str) -> str:
         result = subprocess.run(
             [
                 "claude", "-p", "--model", "haiku",
-                "--system-prompt", _prompt_template(),
+                "--system-prompt", _build_system_prompt(),
             ],
             input=conversation_tail,
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=CURATOR_TIMEOUT_S,
         )
         return result.stdout
-    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        LOGGER.warning("curator LLM call failed: %s", e)
+    except subprocess.TimeoutExpired:
+        LOGGER.warning("curator LLM call timed out after %ds", CURATOR_TIMEOUT_S)
+        return "{}"
+    except FileNotFoundError:
+        LOGGER.warning("curator: `claude` CLI not on PATH")
         return "{}"
 
 
