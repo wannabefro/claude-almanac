@@ -44,8 +44,8 @@ class OllamaCurator:
         }
         try:
             resp = self._client.post(f"{self.host}/api/chat", json=payload)
-        except (httpx.TimeoutException, httpx.ConnectError) as e:
-            LOGGER.warning("ollama curator timeout/connect error: %s", e)
+        except httpx.RequestError as e:
+            LOGGER.warning("ollama curator %s: %s", type(e).__name__, e)
             return ""
         if resp.status_code != 200:
             LOGGER.warning("ollama curator status %s: %.200s", resp.status_code, resp.text)
@@ -55,7 +55,9 @@ class OllamaCurator:
         except (KeyError, ValueError) as e:
             LOGGER.warning("ollama curator malformed response: %s", e)
             return ""
-        assert isinstance(content, str)
+        if not isinstance(content, str):
+            LOGGER.warning("ollama curator: content not a string: %.200r", content)
+            return ""
         return content
 
     def __del__(self) -> None:
