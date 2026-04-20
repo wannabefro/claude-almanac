@@ -1,0 +1,29 @@
+src/claude_almanac/cli/calibrate.py
+  5c09c2abc4dbc99b 1-73
+tests/unit/test_cli_calibrate.py
+  5c09c2abc4dbc99b 1-30
+src/claude_almanac/cli/main.py
+  5c09c2abc4dbc99b 56-58,87-91,104
+.claude/skills/add-embedder/SKILL.md
+  5c09c2abc4dbc99b 34,37-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "2b15e06160acae1a8426a59a6f55fc0483cd784d",
+  "prompts": {
+    "5c09c2abc4dbc99b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b7e5d561-db12-458d-8089-8f386d664c45",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 119,
+      "total_deletions": 4,
+      "accepted_lines": 118,
+      "overriden_lines": 0
+    }
+  }
+}
