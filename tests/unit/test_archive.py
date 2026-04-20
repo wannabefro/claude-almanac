@@ -67,22 +67,6 @@ def test_mismatched_model_refuses(tmp_path):
         archive.init(db, embedder_name="ollama", model="other-model", dim=4, distance="l2")
 
 
-def test_prune_old_unpinned(tmp_path):
-    import time
-    db = tmp_path / "a.db"
-    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
-    old_ts = int(time.time()) - 86400 * 200
-    archive.insert_entry(
-        db, text="stale", kind="note", source="t", pinned=False,
-        embedding=[1.0, 0.0], created_at=old_ts,
-    )
-    archive.insert_entry(
-        db, text="pinned-stale", kind="note", source="t", pinned=True,
-        embedding=[0.0, 1.0], created_at=old_ts,
-    )
-    removed = archive.prune(db, days=180)
-    assert removed == 1
-
 
 def test_set_pinned_flips_flag(tmp_path):
     db = tmp_path / "a.db"

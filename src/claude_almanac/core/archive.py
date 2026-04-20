@@ -6,9 +6,12 @@ import struct
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import sqlite_vec  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    from .config import DecayCfg
 
 Distance = Literal["l2", "cosine"]
 
@@ -295,22 +298,37 @@ def reinforce(db: Path, *, ids: list[int], now: int | None = None) -> int:
         conn.close()
 
 
-def prune(db: Path, *, days: int) -> int:
-    """Delete unpinned entries older than `days` days. Returns count removed."""
+def prune(db: Path, *, cfg: DecayCfg, now: int | None = None) -> int:
+    """Delete unpinned entries whose decay score has fallen below cfg.prune_threshold,
+    subject to a minimum-age safety floor (cfg.prune_min_age_days). Returns rows removed.
+
+    cfg: a DecayCfg (imported lazily to avoid a circular dep with core.config).
+    """
+    from .decay import decay_score
+    ts = now if now is not None else int(time.time())
+    min_age_cutoff = ts - cfg.prune_min_age_days * 86400
     conn = _connect(db)
     try:
-        cutoff = int(time.time()) - days * 86400
-        cur = conn.execute(
-            "SELECT id FROM entries WHERE pinned = 0 AND created_at < ?",
-            (cutoff,),
-        )
-        ids = [r[0] for r in cur.fetchall()]
-        if not ids:
+        rows = conn.execute(
+            "SELECT id, created_at, last_used_at, use_count "
+            "FROM entries WHERE pinned = 0 AND created_at < ?",
+            (min_age_cutoff,),
+        ).fetchall()
+        to_delete: list[int] = []
+        for row_id, created_at, last_used_at, use_count in rows:
+            score = decay_score(
+                created_at, last_used_at, use_count, ts,
+                half_life_days=cfg.half_life_days,
+                use_count_exponent=cfg.use_count_exponent,
+            )
+            if score < cfg.prune_threshold:
+                to_delete.append(row_id)
+        if not to_delete:
             return 0
-        placeholders = ",".join("?" * len(ids))
-        conn.execute(f"DELETE FROM entries WHERE id IN ({placeholders})", ids)
-        conn.execute(f"DELETE FROM entries_vec WHERE id IN ({placeholders})", ids)
+        placeholders = ",".join("?" * len(to_delete))
+        conn.execute(f"DELETE FROM entries WHERE id IN ({placeholders})", to_delete)
+        conn.execute(f"DELETE FROM entries_vec WHERE id IN ({placeholders})", to_delete)
         conn.commit()
-        return len(ids)
+        return len(to_delete)
     finally:
         conn.close()
