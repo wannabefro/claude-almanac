@@ -77,10 +77,15 @@ def test_reinforce_only_surfaced_hits(tmp_path, monkeypatch, fake_embedder):
          patch("claude_almanac.core.archive.search", return_value=hits), \
          patch("claude_almanac.core.archive.reinforce") as mock_reinforce:
         retrieve.run("prompt")
-    # Called exactly once, with one id (the top hit after ranking)
+    # Verify the TOP hit after ranking was the reinforced id, not some arbitrary one.
+    # With decay enabled (default) and both hits at distance=0.3, the fresher
+    # use_count=5 hit (id=1) wins the tiebreak over id=2 (never reinforced).
+    # reinforce may be called multiple times (once per scope); gather all ids.
     mock_reinforce.assert_called()
-    called_ids = mock_reinforce.call_args.kwargs["ids"]
-    assert len(called_ids) == 1
+    all_called_ids: list[int] = []
+    for call in mock_reinforce.call_args_list:
+        all_called_ids.extend(call.kwargs["ids"])
+    assert all_called_ids == [1], f"expected top hit id=1 reinforced, got {all_called_ids}"
 
 
 def test_embedder_failure_does_not_reinforce(
@@ -102,6 +107,55 @@ def test_embedder_failure_does_not_reinforce(
     mock_reinforce.assert_not_called()
 
 
+def test_reinforce_attributes_to_correct_scope_db_despite_id_collision(
+    tmp_path, monkeypatch, fake_embedder
+):
+    """Both scope DBs can have rowid=1 pointing at different entries. Ensure
+    reinforcement goes to the right DB via object identity, not hit.id matching.
+    """
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    from claude_almanac.core import config
+    cfg = config.default_config()
+    cfg.retrieval.top_k = 2
+    config.save(cfg)
+
+    global_hit = archive.Hit(
+        id=1, text="global-memory", kind="note", source="md:g.md",
+        pinned=False, created_at=1000, distance=0.1,
+        last_used_at=None, use_count=0,
+    )
+    project_hit = archive.Hit(
+        id=1, text="project-memory", kind="note", source="md:p.md",
+        pinned=False, created_at=1000, distance=0.2,
+        last_used_at=None, use_count=0,
+    )
+
+    search_call = {"n": 0}
+    def fake_search(db, *, query_embedding, top_k):
+        search_call["n"] += 1
+        return [global_hit] if search_call["n"] == 1 else [project_hit]
+
+    with patch("claude_almanac.core.retrieve.make_embedder", return_value=fake_embedder), \
+         patch("claude_almanac.core.archive.search", side_effect=fake_search), \
+         patch("claude_almanac.core.archive.reinforce") as mock_reinforce:
+        retrieve.run("prompt")
+
+    # Two reinforce calls, one per DB, each with its own id=1.
+    # Collect {db: ids} pairs.
+    by_db = {}
+    for call in mock_reinforce.call_args_list:
+        db_arg = call.args[0] if call.args else call.kwargs.get("db")
+        ids = call.kwargs["ids"]
+        by_db[db_arg] = ids
+
+    # Exactly two DBs should have received a reinforcement
+    assert len(by_db) == 2
+    # Each DB got id=[1] (correct for its own scope)
+    for db_path, ids in by_db.items():
+        assert ids == [1], f"db={db_path} got ids={ids}"
+
+
 def test_pinned_ranks_above_nonpinned_within_band(
     tmp_path, monkeypatch, fake_embedder
 ):
@@ -110,14 +164,16 @@ def test_pinned_ranks_above_nonpinned_within_band(
     from claude_almanac.core import config
     cfg = config.default_config()
     cfg.retrieval.decay.band = 0.1
+    # Short half-life to ensure non-pinned stale hit's score is clearly < 1.0
+    cfg.retrieval.decay.half_life_days = 30
     config.save(cfg)
     hits = [
-        # nonpinned but freshly reinforced
-        archive.Hit(id=1, text="nonpinned-fresh", kind="note", source="md:a.md",
-                    pinned=False, created_at=1000, distance=0.3,
-                    last_used_at=1000, use_count=100),
-        # pinned, ancient, never reinforced
-        archive.Hit(id=2, text="pinned-stale", kind="note", source="md:b.md",
+        # Non-pinned, never reinforced, ancient — score should be << 1.0
+        archive.Hit(id=1, text="nonpinned-stale", kind="note", source="md:a.md",
+                    pinned=False, created_at=0, distance=0.3,
+                    last_used_at=None, use_count=0),
+        # Pinned — always score=1.0 regardless of age
+        archive.Hit(id=2, text="pinned-ancient", kind="note", source="md:b.md",
                     pinned=True, created_at=0, distance=0.3,
                     last_used_at=None, use_count=0),
     ]
@@ -125,9 +181,5 @@ def test_pinned_ranks_above_nonpinned_within_band(
          patch("claude_almanac.core.archive.search", return_value=hits), \
          patch("claude_almanac.core.archive.reinforce"):
         out = retrieve.run("prompt")
-    # Pinned gets score=1.0 which is comparable to use_count=100 fresh. But the
-    # invariant is weak: we only assert both appear — ordering between two high-
-    # score hits within a band is implementation-defined by the sort's stability.
-    # The STRONG assertion is covered by test_decay_enabled_ranks_fresh_before_stale.
-    assert "pinned-stale" in out
-    assert "nonpinned-fresh" in out
+    # Pinned must rank BEFORE non-pinned-stale (within the same distance band)
+    assert out.index("pinned-ancient") < out.index("nonpinned-stale")

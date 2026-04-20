@@ -127,14 +127,20 @@ def run(prompt: str) -> str:
 
     hits = hits[: cfg.retrieval.top_k]
 
-    # Reinforce only the hits we surfaced, batched per scope-DB so we don't
-    # cross-write. Silent-skip the DB if the id set for that DB is empty.
+    # Map each Hit object (by Python id) to its source DB. Sqlite rowids are
+    # per-DB, so we cannot rely on hit.id for attribution — global and project
+    # scopes both start their AUTOINCREMENT at 1.
+    hit_to_db: dict[int, Path] = {}
+    for db, scope_hits in hits_by_scope.items():
+        for sh in scope_hits:
+            hit_to_db[id(sh)] = db
+
+    # After sort + top_k slice, surface only the ids we actually returned,
+    # attributed to the correct DB via object identity.
     surfaced_ids_by_db: dict[Path, list[int]] = {db: [] for db in hits_by_scope}
     for h in hits:
-        for db, scope_hits in hits_by_scope.items():
-            if any(sh.id == h.id for sh in scope_hits):
-                surfaced_ids_by_db[db].append(h.id)
-                break
+        db = hit_to_db[id(h)]
+        surfaced_ids_by_db[db].append(h.id)
     for db, ids in surfaced_ids_by_db.items():
         if ids:
             archive.reinforce(db, ids=ids, now=now)
