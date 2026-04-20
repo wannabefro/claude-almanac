@@ -92,3 +92,49 @@ def test_recall_pin_no_match_exits_nonzero(tmp_path, monkeypatch, capsys):
     with pytest.raises(SystemExit) as exc:
         cli_recall.run(["pin", "ghost.md"])
     assert exc.value.code == 1
+
+
+def test_recall_forget_moves_md_to_trash_and_deletes_archive_row(
+    tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    from claude_almanac.core import archive, paths
+    scope = paths.project_memory_dir()
+    scope.mkdir(parents=True)
+    (scope / "project_drop.md").write_text("---\nname: drop\n---\nbody")
+    db = scope / "archive.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    archive.insert_entry(
+        db, text="drop", kind="note", source="md:project_drop.md",
+        pinned=False, embedding=[0.0, 1.0],
+    )
+    cli_recall.run(["forget", "project_drop.md"])
+    assert not (scope / "project_drop.md").exists()
+    trash_entries = list((scope / "trash").glob("project_drop.md.*"))
+    assert len(trash_entries) == 1
+    hits = archive.search(db, query_embedding=[0.0, 1.0], top_k=5)
+    assert hits == []
+
+
+def test_recall_forget_ambiguous_slug_requires_scope(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    from claude_almanac.core import paths
+    for scope in (paths.global_memory_dir(), paths.project_memory_dir()):
+        scope.mkdir(parents=True)
+        (scope / "user_x.md").write_text("body")
+    import pytest
+    with pytest.raises(SystemExit) as exc:
+        cli_recall.run(["forget", "user_x.md"])
+    assert exc.value.code == 2
+    assert "--scope" in capsys.readouterr().err
+
+
+def test_recall_forget_with_scope_flag_picks_one_scope(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    from claude_almanac.core import paths
+    for scope in (paths.global_memory_dir(), paths.project_memory_dir()):
+        scope.mkdir(parents=True)
+        (scope / "user_x.md").write_text("body")
+    cli_recall.run(["forget", "user_x.md", "--scope", "global"])
+    assert not (paths.global_memory_dir() / "user_x.md").exists()
+    assert (paths.project_memory_dir() / "user_x.md").exists()

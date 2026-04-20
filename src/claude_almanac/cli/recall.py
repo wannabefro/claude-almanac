@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import sys
+import time as _time
+from pathlib import Path
 
 from claude_almanac.core import archive, config, paths
 from claude_almanac.embedders import make_embedder
@@ -128,6 +130,58 @@ def _cmd_pin(args: list[str], *, pinned: bool) -> None:
     print(f"{verb} {n} row(s) for {target!r}")
 
 
+def _scopes_containing_slug(slug: str) -> list[tuple[str, Path]]:
+    """Return [(name, scope_dir)] for scopes whose directory has <scope>/<slug>."""
+    out: list[tuple[str, Path]] = []
+    for name, sd in (
+        ("global", paths.global_memory_dir()),
+        ("project", paths.project_memory_dir()),
+    ):
+        if (sd / slug).exists():
+            out.append((name, sd))
+    return out
+
+
+def _cmd_forget(args: list[str]) -> None:
+    scope_filter: str | None = None
+    positional: list[str] = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--scope" and i + 1 < len(args):
+            scope_filter = args[i + 1]
+            i += 2
+            continue
+        positional.append(args[i])
+        i += 1
+    if not positional:
+        print(USAGE)
+        sys.exit(2)
+    slug = positional[0]
+    candidates = _scopes_containing_slug(slug)
+    if scope_filter:
+        candidates = [c for c in candidates if c[0] == scope_filter]
+    if not candidates:
+        print(f"no memory file named {slug!r}")
+        sys.exit(1)
+    if len(candidates) > 1 and not scope_filter:
+        print(
+            f"{slug!r} exists in multiple scopes; pass --scope global|project",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    ts = _time.strftime("%Y%m%d-%H%M%S")
+    for name, scope_dir in candidates:
+        trash = scope_dir / "trash"
+        trash.mkdir(parents=True, exist_ok=True)
+        src = scope_dir / slug
+        dst = trash / f"{slug}.{ts}"
+        src.rename(dst)
+        db = scope_dir / "archive.db"
+        if db.exists():
+            archive.delete_by_slug(db, slug=slug)
+        print(f"forgot {name}/{slug} -> trash/{dst.name}")
+
+
 def run(argv: list[str]) -> None:
     if not argv:
         print(USAGE)
@@ -150,9 +204,11 @@ def run(argv: list[str]) -> None:
         _cmd_pin(rest, pinned=True)
     elif cmd == "unpin":
         _cmd_pin(rest, pinned=False)
+    elif cmd == "forget":
+        _cmd_forget(rest)
     else:
-        # forget/export are deferred to v0.2 (Tasks 3 and 4).
-        if cmd in {"forget", "export"}:
+        # export is deferred to v0.2 (Task 4).
+        if cmd == "export":
             print(
                 f"'{cmd}' is not yet implemented. "
                 f"Track progress at https://github.com/sammctaggart/claude-almanac/issues"
