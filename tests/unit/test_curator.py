@@ -73,6 +73,89 @@ def test_apply_decisions_redirects_on_dup(monkeypatch, tmp_path):
     assert not (p.global_memory_dir() / "new.md").exists()
 
 
+def test_apply_decisions_skips_identical_rewrite(monkeypatch, tmp_path):
+    """Re-extraction of a byte-identical memory on a subsequent Stop hook
+    must NOT pile up new archive rows or re-write the md file."""
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "claude_almanac.core.curator.dedup.find_dup_slug",
+        lambda **kw: ("existing.md", 0.0),
+    )
+    fake_embedder = MagicMock()
+    fake_embedder.embed.return_value = [[0.0, 1.0]]
+    fake_embedder.name = "ollama"
+    fake_embedder.dim = 2
+    fake_embedder.distance = "l2"
+    monkeypatch.setattr(
+        "claude_almanac.core.curator.make_embedder", lambda *a, **kw: fake_embedder
+    )
+    monkeypatch.setattr("claude_almanac.core.curator.archive.init", lambda *a, **kw: None)
+    insert_calls = {"n": 0}
+    monkeypatch.setattr(
+        "claude_almanac.core.curator.archive.insert_entry",
+        lambda *a, **kw: insert_calls.update(n=insert_calls["n"] + 1) or 1,
+    )
+    from claude_almanac.core import paths as p
+    p.ensure_dirs()
+    # Seed the target file with the exact body we're about to "write" again.
+    (p.global_memory_dir() / "existing.md").write_text("body identical")
+    decisions = [
+        {
+            "action": "write_md",
+            "scope": "global",
+            "slug": "new.md",
+            "kind": "project",
+            "text": "body identical",
+        }
+    ]
+    curator._apply_decisions(decisions)
+    assert insert_calls["n"] == 0  # no new archive row
+    # The file is still there, untouched.
+    assert (p.global_memory_dir() / "existing.md").read_text() == "body identical"
+
+
+def test_apply_decisions_overwrites_on_paraphrase_after_redirect(monkeypatch, tmp_path):
+    """A paraphrase redirect (same slug, different body) should still
+    overwrite the md file AND add an archive row."""
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "claude_almanac.core.curator.dedup.find_dup_slug",
+        lambda **kw: ("existing.md", 0.3),  # paraphrase distance
+    )
+    fake_embedder = MagicMock()
+    fake_embedder.embed.return_value = [[0.0, 1.0]]
+    fake_embedder.name = "ollama"
+    fake_embedder.dim = 2
+    fake_embedder.distance = "l2"
+    monkeypatch.setattr(
+        "claude_almanac.core.curator.make_embedder", lambda *a, **kw: fake_embedder
+    )
+    monkeypatch.setattr("claude_almanac.core.curator.archive.init", lambda *a, **kw: None)
+    insert_calls = {"n": 0}
+    monkeypatch.setattr(
+        "claude_almanac.core.curator.archive.insert_entry",
+        lambda *a, **kw: insert_calls.update(n=insert_calls["n"] + 1) or 1,
+    )
+    from claude_almanac.core import paths as p
+    p.ensure_dirs()
+    # Seed with *different* existing body so the paraphrase truly re-writes.
+    (p.global_memory_dir() / "existing.md").write_text("original phrasing")
+    decisions = [
+        {
+            "action": "write_md",
+            "scope": "global",
+            "slug": "new.md",
+            "kind": "project",
+            "text": "refined phrasing",
+        }
+    ]
+    curator._apply_decisions(decisions)
+    assert insert_calls["n"] == 1  # row inserted
+    assert (p.global_memory_dir() / "existing.md").read_text() == "refined phrasing"
+
+
 def test_parse_decisions_accepts_documented_envelope():
     out = curator._parse_decisions(
         '{"decisions": [{"action": "archive_turn", "text": "x"}]}'

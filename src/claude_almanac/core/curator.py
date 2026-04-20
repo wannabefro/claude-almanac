@@ -46,12 +46,24 @@ def _prompt_template() -> str:
 
 
 def _run_llm(conversation_tail: str) -> str:
-    """Invoke the local ``claude -p --model haiku`` CLI with the curator prompt."""
-    prompt = f"{_prompt_template()}\n\n---\n\n{conversation_tail}"
+    """Invoke the local ``claude -p --model haiku`` CLI with the curator prompt.
+
+    The curator prompt goes into Haiku's SYSTEM role (via ``--system-prompt``),
+    and the transcript is delivered as the user turn (stdin). This is critical:
+    without the split, Haiku sees chatty content in the transcript and drifts
+    into conversational mode ("I'm Claude Code, memory curator prompts were
+    pasted by mistake") instead of executing the curator task. ``--bare`` keeps
+    Haiku out of the host project's CLAUDE.md / hooks / plugins so its only
+    context is the system prompt + the transcript it's meant to evaluate.
+    """
     try:
         result = subprocess.run(
-            ["claude", "-p", "--model", "haiku"],
-            input=prompt,
+            [
+                "claude", "-p", "--model", "haiku",
+                "--bare",
+                "--system-prompt", _prompt_template(),
+            ],
+            input=conversation_tail,
             capture_output=True,
             text=True,
             timeout=60,
@@ -119,6 +131,13 @@ def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
                 LOGGER.info("dedup-miss: nearest md distance=%s", dist)
             target = scope_dir / slug
             target.parent.mkdir(parents=True, exist_ok=True)
+            # Skip re-insert + re-write when the on-disk body matches byte-for-byte.
+            # Haiku re-extracts the same durable memories on every Stop hook, so
+            # without this the archive accumulates one extra row per re-run even
+            # though nothing changed.
+            if target.exists() and target.read_text() == text:
+                LOGGER.info("curator: skip identical re-write of %r", slug)
+                continue
             target.write_text(text)
             archive.insert_entry(
                 db,

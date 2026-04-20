@@ -45,6 +45,27 @@ def _run(target_version: str) -> int:
         except (OSError, subprocess.SubprocessError) as e:
             log.write(f"runner: launch failed: {e}\n".encode())
             exit_code = 127
+        # Even when uv reports success, any long-lived daemons (digest server,
+        # daily digest, codeindex refresh) are still running under the OLD
+        # venv's Python. launchd/systemd do not restart on package upgrade, so
+        # users hit stale-process 500s until the next reboot. Re-invoke
+        # `claude-almanac setup` which idempotently re-registers units, which
+        # on both platforms includes an unload+load / daemon-reload + restart.
+        if exit_code == 0:
+            log.write(b"runner: upgrade succeeded, re-registering daemons\n")
+            log.flush()
+            try:
+                setup_result = subprocess.run(
+                    ["claude-almanac", "setup"],
+                    stdout=log, stderr=log, check=False,
+                )
+                if setup_result.returncode != 0:
+                    log.write(
+                        f"runner: setup exited {setup_result.returncode}; "
+                        f"daemons may still be on the old venv\n".encode()
+                    )
+            except (OSError, subprocess.SubprocessError) as e:
+                log.write(f"runner: setup launch failed: {e}\n".encode())
     status_path.write_text(json.dumps({
         "ts": int(time.time()),
         "exit": exit_code,
