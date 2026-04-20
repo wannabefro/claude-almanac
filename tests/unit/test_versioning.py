@@ -119,3 +119,9 @@ def test_list_versions_returns_history_plus_live(db, tmp_path):
     assert [v.text for v in chain] == ["body-2", "body-1"]
     assert chain[0].provenance == "update_md"  # the action that produced body-2
     assert chain[1].provenance == "update_md"  # the action that superseded body-1
+
+
+def test_list_versions_unknown_slug_returns_empty(db):
+    """Never-written slug → []. Base case for recall history CLI (Task 11)."""
+    result = versioning.list_versions(db, slug="nonexistent.md")
+    assert result == []

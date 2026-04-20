@@ -30,11 +30,12 @@ class Version:
     is_current: bool
 
 
-def _connect(db: Path) -> sqlite3.Connection:
+def _connect(db: Path, *, load_vec: bool = True) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db))
-    conn.enable_load_extension(True)
-    sqlite_vec.load(conn)
-    conn.enable_load_extension(False)
+    if load_vec:
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+        conn.enable_load_extension(False)
     return conn
 
 
@@ -65,48 +66,46 @@ def snapshot_then_replace(
     """
     conn = _connect(db)
     try:
-        conn.execute("BEGIN")
-        row = conn.execute(
-            "SELECT id, text, kind, created_at FROM entries WHERE source = ?",
-            (f"md:{slug}",),
-        ).fetchone()
-        now = int(time.time())
-        if row is None:
-            cur = conn.execute(
-                "INSERT INTO entries(text, kind, source, pinned, created_at, "
-                "last_used_at, use_count) VALUES (?, ?, ?, ?, ?, NULL, 0)",
-                (new_text, new_kind, f"md:{slug}", 1, now),
-            )
-            rowid = cur.lastrowid
-            conn.execute(
-                "INSERT INTO entries_vec(id, embedding) VALUES (?, ?)",
-                (rowid, _serialize(new_embedding)),
-            )
-            conn.execute("COMMIT")
-        elif row[1] == new_text:
-            conn.execute("ROLLBACK")
-            return
-        else:
-            cur_id, cur_text, cur_kind, cur_created_at = row
-            next_version = (conn.execute(
-                "SELECT COALESCE(MAX(version), 0) + 1 FROM entries_history WHERE slug = ?",
-                (slug,),
-            ).fetchone()[0])
-            conn.execute(
-                "INSERT INTO entries_history(slug, text, kind, version, "
-                "original_created_at, superseded_at, provenance) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (slug, cur_text, cur_kind, next_version, cur_created_at, now, provenance),
-            )
-            conn.execute(
-                "UPDATE entries SET text = ?, kind = ?, created_at = ? WHERE id = ?",
-                (new_text, new_kind, now, cur_id),
-            )
-            conn.execute(
-                "UPDATE entries_vec SET embedding = ? WHERE id = ?",
-                (_serialize(new_embedding), cur_id),
-            )
-            conn.execute("COMMIT")
+        with conn:
+            row = conn.execute(
+                "SELECT id, text, kind, created_at FROM entries WHERE source = ?",
+                (f"md:{slug}",),
+            ).fetchone()
+            now = int(time.time())
+            if row is not None and row[1] == new_text:
+                # Identical re-write. with-block commits the empty txn; skip file write.
+                return
+            if row is None:
+                cur = conn.execute(
+                    "INSERT INTO entries(text, kind, source, pinned, created_at, "
+                    "last_used_at, use_count) VALUES (?, ?, ?, ?, ?, NULL, 0)",
+                    (new_text, new_kind, f"md:{slug}", 1, now),
+                )
+                rowid = cur.lastrowid
+                conn.execute(
+                    "INSERT INTO entries_vec(id, embedding) VALUES (?, ?)",
+                    (rowid, _serialize(new_embedding)),
+                )
+            else:
+                cur_id, cur_text, cur_kind, cur_created_at = row
+                next_version = conn.execute(
+                    "SELECT COALESCE(MAX(version), 0) + 1 FROM entries_history WHERE slug = ?",
+                    (slug,),
+                ).fetchone()[0]
+                conn.execute(
+                    "INSERT INTO entries_history(slug, text, kind, version, "
+                    "original_created_at, superseded_at, provenance) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (slug, cur_text, cur_kind, next_version, cur_created_at, now, provenance),
+                )
+                conn.execute(
+                    "UPDATE entries SET text = ?, kind = ?, created_at = ? WHERE id = ?",
+                    (new_text, new_kind, now, cur_id),
+                )
+                conn.execute(
+                    "UPDATE entries_vec SET embedding = ? WHERE id = ?",
+                    (_serialize(new_embedding), cur_id),
+                )
         scope_dir.mkdir(parents=True, exist_ok=True)
         (scope_dir / slug).write_text(new_text)
     finally:
@@ -120,7 +119,7 @@ def list_versions(db: Path, *, slug: str) -> list[Version]:
     rows follow in descending version order. Returns [] if the slug has never
     been written.
     """
-    conn = _connect(db)
+    conn = _connect(db, load_vec=False)
     try:
         live = conn.execute(
             "SELECT text, kind, created_at FROM entries WHERE source = ?",
