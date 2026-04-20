@@ -1,0 +1,42 @@
+CHANGELOG.md
+  5c09c2abc4dbc99b 9-17
+pyproject.toml
+  5c09c2abc4dbc99b 7
+.claude-plugin/marketplace.json
+  5c09c2abc4dbc99b 9,16
+plugin.json
+  5c09c2abc4dbc99b 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "021ebf4c6ddfe5e77e962ffcb56cc5f19b9b82d8",
+  "prompts": {
+    "5c09c2abc4dbc99b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b7e5d561-db12-458d-8089-8f386d664c45",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 515,
+      "overriden_lines": 0
+    },
+    "beda9cef5004854a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cd0924a-bfda-4a32-b77b-6d9f0e58343b",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 6,
+      "overriden_lines": 0
+    }
+  }
+}
