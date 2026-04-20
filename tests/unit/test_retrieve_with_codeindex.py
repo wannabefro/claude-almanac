@@ -23,6 +23,8 @@ def test_retrieve_appends_code_block_when_gate_opens(monkeypatch, tmp_path):
     monkeypatch.setattr("claude_almanac.core.retrieve.archive.init", lambda *a, **kw: None)
     monkeypatch.setattr("claude_almanac.core.retrieve.archive.assert_compatible",
                         lambda *a, **kw: None)
+    monkeypatch.setattr("claude_almanac.core.retrieve.archive.reinforce",
+                        lambda *a, **kw: 0)
     monkeypatch.setattr(
         "claude_almanac.core.retrieve._codeindex_block",
         lambda vec: "## Relevant code\n- sym foo",
