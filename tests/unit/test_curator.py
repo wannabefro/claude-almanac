@@ -351,25 +351,6 @@ def test_build_system_prompt_substitutes_existing_memories(tmp_path, monkeypatch
     assert "user_profile" in prompt
 
 
-def test_timeout_error_message_does_not_leak_argv(monkeypatch, caplog):
-    """A TimeoutExpired used to stringify the full command (including the
-    ~3KB system prompt) into the log. Now we log a concise message."""
-    import subprocess as _sp
-
-    def _raise_timeout(*a, **kw):
-        raise _sp.TimeoutExpired(cmd=a[0] if a else ["claude"], timeout=curator.CURATOR_TIMEOUT_S)
-
-    monkeypatch.setattr(curator.subprocess, "run", _raise_timeout)
-    caplog.set_level("WARNING")
-    out = curator._run_llm("a very short transcript tail")
-    assert out == "{}"
-    # The log line should mention timeout + seconds, but not the full
-    # `claude -p --model haiku --system-prompt ...` argv.
-    msg = caplog.text
-    assert "timed out" in msg
-    assert str(curator.CURATOR_TIMEOUT_S) in msg
-    assert "--system-prompt" not in msg
-
 
 def test_main_tolerates_bare_list_response(monkeypatch, tmp_path):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
@@ -391,3 +372,43 @@ def test_main_tolerates_bare_list_response(monkeypatch, tmp_path):
     monkeypatch.setattr("claude_almanac.core.curator._apply_decisions", _count)
     curator.main()
     assert called["n"] == 1
+
+
+def test_run_llm_invokes_make_curator_with_system_and_tail(monkeypatch):
+    """_run_llm should build the system prompt and delegate to make_curator(cfg).invoke(...)."""
+    from claude_almanac.core import curator
+
+    captured = {}
+
+    class _FakeCurator:
+        name = "fake"
+        model = "fake-model"
+        timeout_s = 1.0
+
+        def invoke(self, system_prompt, user_turn):
+            captured["system"] = system_prompt
+            captured["user"] = user_turn
+            return '[{"action": "skip_all"}]'
+
+    monkeypatch.setattr(
+        "claude_almanac.core.curator.make_curator",
+        lambda cfg: _FakeCurator(),
+    )
+    out = curator._run_llm("TRANSCRIPT TAIL")
+    assert out == '[{"action": "skip_all"}]'
+    assert "EXISTING_MEMORIES" not in captured["system"]  # placeholder was substituted
+    assert captured["user"] == "TRANSCRIPT TAIL"
+
+
+def test_run_llm_swallows_provider_exceptions(monkeypatch, caplog):
+    """If make_curator itself raises, _run_llm must not crash the Stop hook."""
+    from claude_almanac.core import curator
+
+    def _boom(cfg):
+        raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr("claude_almanac.core.curator.make_curator", _boom)
+    caplog.set_level("WARNING")
+    out = curator._run_llm("tail")
+    assert out == "{}"
+    assert "provider" in caplog.text.lower() or "unavailable" in caplog.text.lower()

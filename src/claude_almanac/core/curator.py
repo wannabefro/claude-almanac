@@ -1,12 +1,11 @@
 """Curator worker: invoked via `python -m claude_almanac.core.curator`.
 
-Reads recent conversation state, asks Haiku (via the local `claude -p` CLI)
-what to save, applies decisions to markdown files + archive DB.
+Reads recent conversation state, asks the configured LLM provider what to
+save, applies decisions to markdown files + archive DB.
 
-Ported from ~/.claude/memory-tools/curator-worker.py. Key changes:
-- paths come from claude_almanac.core.paths (XDG-aware)
-- embedder is pluggable via claude_almanac.embedders
-- dedup threshold loaded from per-embedder profile (or config override)
+The LLM invocation layer is pluggable via ``make_curator``. Configure the
+provider via ``curator.provider`` in ``~/.config/claude-almanac/config.yaml``
+(``ollama`` for local gemma3:4b, ``anthropic`` for direct SDK with API key).
 
 The transcript reader parses Claude Code's JSONL session transcript. It
 honors ``CLAUDE_ALMANAC_TRANSCRIPT`` (explicit override for CLI/testing)
@@ -18,26 +17,19 @@ from __future__ import annotations
 import json
 import logging
 import os
-import subprocess
 from collections.abc import Iterator
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
+from claude_almanac.curators import make_curator
 from claude_almanac.embedders import get_profile, make_embedder
 
 from . import archive, config, dedup, paths
 
 LOGGER = logging.getLogger("claude_almanac.curator")
 
-MAX_TRANSCRIPT_CHARS = 120_000   # Haiku context budget minus prompt overhead
-# Timeout for the whole `claude -p` invocation. Note: Haiku's API call itself
-# is sub-second; virtually all the wall time is the `claude` CLI boot
-# (hooks, plugin sync, CLAUDE.md autoload, MCP init). 60s is already
-# generous for Haiku; longer timeouts just mask the CLI overhead.
-# Queued for v0.3: switch to the Anthropic SDK directly and remove the
-# CLI wrapper entirely. See ROADMAP.md §v0.3.
-CURATOR_TIMEOUT_S = 60
+MAX_TRANSCRIPT_CHARS = 120_000   # context budget minus prompt overhead
 
 
 def _setup_logging() -> None:
@@ -80,35 +72,16 @@ def _build_system_prompt() -> str:
 
 
 def _run_llm(conversation_tail: str) -> str:
-    """Invoke the local ``claude -p --model haiku`` CLI with the curator prompt.
+    """Dispatch to the configured curator provider.
 
-    The curator prompt goes into Haiku's SYSTEM role (via ``--system-prompt``),
-    and the transcript is delivered as the user turn (stdin). This is critical:
-    without the split, Haiku sees chatty content in the transcript and drifts
-    into conversational mode ("I'm Claude Code, memory curator prompts were
-    pasted by mistake") instead of executing the curator task.
-
-    We deliberately do NOT pass ``--bare`` here. ``--bare`` forces strict auth
-    (``ANTHROPIC_API_KEY`` or ``apiKeyHelper`` via ``--settings``) and skips
-    OAuth/keychain, which breaks the default auth path most users are on.
+    On any provider-construction or invocation failure, return ``"{}"``
+    so ``_parse_decisions`` yields an empty list. Errors are logged.
     """
     try:
-        result = subprocess.run(
-            [
-                "claude", "-p", "--model", "haiku",
-                "--system-prompt", _build_system_prompt(),
-            ],
-            input=conversation_tail,
-            capture_output=True,
-            text=True,
-            timeout=CURATOR_TIMEOUT_S,
-        )
-        return result.stdout
-    except subprocess.TimeoutExpired:
-        LOGGER.warning("curator LLM call timed out after %ds", CURATOR_TIMEOUT_S)
-        return "{}"
-    except FileNotFoundError:
-        LOGGER.warning("curator: `claude` CLI not on PATH")
+        cfg = config.load()
+        return make_curator(cfg).invoke(_build_system_prompt(), conversation_tail)
+    except Exception as e:
+        LOGGER.warning("curator provider unavailable: %s", e)
         return "{}"
 
 
