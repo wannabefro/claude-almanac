@@ -86,10 +86,9 @@ def test_apply_decisions_redirects_on_dup(monkeypatch, tmp_path):
 
 
 def test_apply_decisions_skips_identical_rewrite(monkeypatch, tmp_path):
-    """Re-extraction of a byte-identical memory on a subsequent Stop hook
-    must NOT pile up new archive rows or re-write the md file.
-    snapshot_then_replace owns the no-op logic; we assert it is called exactly
-    once (delegating the no-op to it) with the expected args."""
+    """Verify the curator delegates identical re-writes to snapshot_then_replace
+    exactly once (routing-only test). The actual no-op body-match guard is
+    tested in test_versioning.py::test_identical_rewrite_is_noop."""
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
     monkeypatch.setattr(

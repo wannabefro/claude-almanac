@@ -149,6 +149,7 @@ def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
             )
 
         elif action in ("insert_archive", "archive_turn"):
+            # Turn entries are ephemeral and not md-backed — no versioning, no dedup.
             if not text:
                 LOGGER.warning("curator: dropping %s with missing content", action)
                 continue
