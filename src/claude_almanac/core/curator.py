@@ -130,7 +130,11 @@ def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
 
 
 def _iter_turns(transcript_path: str) -> Iterator[tuple[str, str]]:
-    """Yield (role, text) for each user/assistant turn in a JSONL transcript.
+    """Yield (role, text) for each user/assistant/compaction/subagent_stop event.
+
+    Roles beyond user/assistant:
+      - "compaction"     — {"type": "summary", "summary": "..."} events
+      - "subagent_stop"  — {"type": "subagent_stop", "summary": "..."} events
 
     Ported from memory-tools/curator-worker.py. Handles:
     - string content
@@ -147,8 +151,19 @@ def _iter_turns(transcript_path: str) -> Iterator[tuple[str, str]]:
                     ev = json.loads(line)
                 except json.JSONDecodeError:
                     continue
+                ev_type = ev.get("type")
+                if ev_type == "summary":
+                    summary_text = ev.get("summary", "")
+                    if summary_text:
+                        yield "compaction", summary_text
+                    continue
+                if ev_type == "subagent_stop":
+                    summary_text = ev.get("summary", "")
+                    if summary_text:
+                        yield "subagent_stop", summary_text
+                    continue
                 msg = ev.get("message") or {}
-                role = msg.get("role") or ev.get("type")
+                role = msg.get("role")
                 if role not in ("user", "assistant"):
                     continue
                 content = msg.get("content")
