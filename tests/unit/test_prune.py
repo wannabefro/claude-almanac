@@ -1,4 +1,5 @@
 """Decay-score-based pruning with 30-day safety floor."""
+import sqlite3
 import time
 
 import pytest
@@ -23,15 +24,27 @@ def db(tmp_path):
     return path
 
 
-def test_prune_keeps_entries_within_min_age(db):
+def test_prune_returns_zero_when_prefilter_excludes_all(db):
+    """SQL pre-filter drops young entries before Python-side scoring runs.
+    Result: return 0 with the Python loop body never executing."""
     now = int(time.time())
-    young = _insert(db, created_at=now - 5 * 86400)  # 5 days old
-    # threshold=1 = "prune everything allowed"
+    _insert(db, created_at=now - 5 * 86400)  # 5 days old
+    cfg = DecayCfg(prune_threshold=1.0, prune_min_age_days=30)
+    removed = archive.prune(db, cfg=cfg, now=now)
+    assert removed == 0
+
+
+def test_prune_keeps_young_entry_when_threshold_tempts_eviction(db):
+    """Entry falls just outside the min_age_days floor but is still young
+    enough that the SQL pre-filter excludes it regardless of threshold.
+    Explicit coverage complement to the score-path test."""
+    now = int(time.time())
+    young_id = _insert(db, created_at=now - 29 * 86400)  # 29 days — just inside floor
     cfg = DecayCfg(prune_threshold=1.0, prune_min_age_days=30)
     removed = archive.prune(db, cfg=cfg, now=now)
     assert removed == 0
     hits = archive.search(db, query_embedding=[1.0, 0.0], top_k=5)
-    assert any(h.id == young for h in hits)
+    assert any(h.id == young_id for h in hits)
 
 
 def test_prune_evicts_old_low_score(db):
@@ -43,8 +56,28 @@ def test_prune_evicts_old_low_score(db):
     cfg = DecayCfg(prune_threshold=0.05, prune_min_age_days=30, half_life_days=20)
     removed = archive.prune(db, cfg=cfg, now=now)
     assert removed == 1
+
+    # Verify search can no longer surface the row
     hits = archive.search(db, query_embedding=[1.0, 0.0], top_k=5)
     assert not any(h.id == ancient for h in hits)
+
+    # Explicit dual-table deletion check: direct queries, not JOIN.
+    conn = sqlite3.connect(str(db))
+    try:
+        conn.enable_load_extension(True)
+        import sqlite_vec
+        sqlite_vec.load(conn)
+        conn.enable_load_extension(False)
+        entries_rows = conn.execute(
+            "SELECT id FROM entries WHERE id = ?", (ancient,)
+        ).fetchall()
+        entries_vec_rows = conn.execute(
+            "SELECT id FROM entries_vec WHERE id = ?", (ancient,)
+        ).fetchall()
+    finally:
+        conn.close()
+    assert entries_rows == [], "entries row not deleted"
+    assert entries_vec_rows == [], "entries_vec row not deleted"
 
 
 def test_prune_keeps_pinned(db):
