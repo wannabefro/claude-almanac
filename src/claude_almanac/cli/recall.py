@@ -16,6 +16,7 @@ USAGE = """Usage: claude-almanac recall <subcommand> [args]
   code <query>            semantic search over the current repo's code-index
   list [type]             list markdown memories (type: user|feedback|project|reference)
   show <slug>             print a memory file body
+  history <slug>          print version history of a memory
 
   pin <id-or-slug>        pin an archive entry (global + project scopes)
   unpin <id-or-slug>      unpin
@@ -80,6 +81,44 @@ def _show(slug: str) -> None:
             print(candidate.read_text())
             return
     print(f"not found: {slug}")
+
+
+def _history(slug: str) -> None:
+    from datetime import datetime as _dt
+
+    from claude_almanac.core import versioning
+    # Look in global then project scope. First scope with the slug wins.
+    for scope_dir in (paths.global_memory_dir(), paths.project_memory_dir()):
+        db = scope_dir / "archive.db"
+        if not db.exists():
+            continue
+        chain = versioning.list_versions(db, slug=slug)
+        if chain:
+            n = len(chain)
+            plural = "s" if n != 1 else ""
+            print(f"Version history for '{slug}' ({n} version{plural})")
+            print()
+            for v in chain:
+                marker = " (current)" if v.is_current else ""
+                orig = _dt.fromtimestamp(v.original_created_at).strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+                header = (
+                    f"v{v.version}{marker}  created={orig}  "
+                    f"provenance={v.provenance}"
+                )
+                if v.superseded_at is not None:
+                    sup = _dt.fromtimestamp(v.superseded_at).strftime(
+                        "%Y-%m-%d %H:%M"
+                    )
+                    header += f"  superseded={sup}"
+                print(header)
+                for line in v.text.splitlines():
+                    print(f"  {line}")
+                print()
+            return
+    print(f"error: no memory found with slug {slug!r}", file=sys.stderr)
+    sys.exit(1)
 
 
 def _cmd_code(argv: list[str]) -> int:
@@ -250,6 +289,11 @@ def run(argv: list[str]) -> None:
             print("show requires a slug")
             return
         _show(rest[0])
+    elif cmd == "history":
+        if len(rest) < 1:
+            sys.stderr.write("history: missing <slug>\n")
+            sys.exit(2)
+        _history(rest[0])
     elif cmd == "pin":
         _cmd_pin(rest, pinned=True)
     elif cmd == "unpin":

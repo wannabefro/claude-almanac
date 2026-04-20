@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+import pytest
+
 from claude_almanac.cli import recall as cli_recall
 
 
@@ -194,3 +196,37 @@ def test_recall_export_all_scans_all_project_dirs(tmp_path, monkeypatch):
     text = out.read_text()
     assert "project_p1.md" in text
     assert "project_p2.md" in text
+
+
+def test_recall_history_prints_chain(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    from claude_almanac.core import archive, paths, versioning
+    scope_dir = paths.project_memory_dir()
+    scope_dir.mkdir(parents=True, exist_ok=True)
+    db = scope_dir / "archive.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    versioning.snapshot_then_replace(
+        db, scope_dir=scope_dir, slug="foo.md",
+        new_text="body-1", new_kind="reference",
+        new_embedding=[1.0, 0.0], provenance="write_md",
+    )
+    versioning.snapshot_then_replace(
+        db, scope_dir=scope_dir, slug="foo.md",
+        new_text="body-2", new_kind="reference",
+        new_embedding=[0.9, 0.1], provenance="update_md",
+    )
+    cli_recall.run(["history", "foo.md"])
+    out = capsys.readouterr().out
+    assert "Version history for 'foo.md'" in out
+    assert "body-1" in out
+    assert "body-2" in out
+    assert "update_md" in out
+
+
+def test_recall_history_unknown_slug_exits_nonzero(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
+    with pytest.raises(SystemExit) as exc:
+        cli_recall.run(["history", "nonexistent.md"])
+    assert exc.value.code != 0
