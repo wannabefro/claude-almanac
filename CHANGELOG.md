@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.3] — 2026-04-20
+
+### Fixed
+
+- Curator crashed with `KeyError: 'slug'` when Haiku emitted a `write_md` decision missing the `slug` or `text` keys. After 0.2.2 accepted bare-list payloads, more malformed-but-structurally-valid decisions reached `_apply_decisions` and surfaced this gap. Missing keys now log a warning and the decision is skipped; unknown actions log and continue.
+- `claude-almanac tail` required a `--` separator before `--no-follow` / `--lines` / `--since` / `--source` because the subparser collected everything as positional. Flags are now declared on the subparser and parsed before dispatch, so `claude-almanac tail --no-follow --lines 40` works as expected.
+- `.claude-plugin/marketplace.json` was never bumped during release, so it stayed at `0.1.2` while `plugin.json` advanced. Claude Code's Stop hook intermittently errored with "Plugin directory does not exist" when auto-update of the plugin raced against the marketplace-manifest version mismatch. Marketplace JSON now tracks the plugin version.
+- Auto-upgrade hook (`SessionStart` drift detection) had two silent-failure modes: it shelled out to `uv tool upgrade claude-almanac` without pinning the index (so users with pinned corporate mirrors would loop-fail in the background), and the `Popen` returned immediately, so failed upgrades never surfaced to the user on subsequent sessions. The hook now spawns `claude_almanac.hooks.upgrade_runner` which runs `uv tool upgrade --default-index https://pypi.org/simple/ claude-almanac` and records `{ts, exit, target}` to `logs/upgrade.status.json`. On the next session, if the last attempt for the current plugin version failed, the hook surfaces the failure with the exit code + manual recovery command instead of silently spawning another doomed subprocess.
+
 ## [0.2.2] — 2026-04-20
 
 ### Fixed
