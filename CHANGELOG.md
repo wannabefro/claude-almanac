@@ -6,6 +6,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-04-20 — Curator provider switch (v0.3 §3.0)
+
+### Added
+
+- **`curators/` package** — pluggable curator LLM provider layer mirroring `embedders/`. `Curator` Protocol (`name`, `model`, `timeout_s: float`, `invoke(system_prompt, user_turn) -> str`), a `make_curator(cfg)` dispatch factory, and two shipped providers:
+  - `OllamaCurator` — calls `/api/chat` with `format: "json"` and `temperature: 0`. Default model `gemma3:4b`.
+  - `AnthropicCurator` — calls the official `anthropic` SDK's `messages.create` directly with `ANTHROPIC_API_KEY`. Default model `claude-haiku-4-5-20251001`.
+- **`CuratorCfg`** in `core.config` — new `curator:` YAML block with `provider`, `model`, `timeout_s` fields. Defaults to `ollama` / `gemma3:4b`. Old `0.2.x` configs load cleanly with the defaults backfilled on first save.
+- **Automatic migration in `claude-almanac setup`.** On first run against a config that lacks a `curator:` block, setup picks the right provider based on `ANTHROPIC_API_KEY` in env: present → `anthropic_sdk` + Haiku, absent → `ollama` + `gemma3:4b` plus `ollama pull gemma3:4b` when reachable. Pre-existing `curator:` blocks are respected; only `provider=ollama` configs get a re-pull on subsequent runs to self-heal after upgrades.
+- **`/almanac status` curator section** — shows `provider (model)` and `last invocation: <ts>` derived from `curator.log` mtime.
+- **Integration parity suite** — `tests/integration/test_curator_providers.py` runs both providers against four real-session fixtures (`chatty_output`, `pure_chatter`, `durable_memory_signal`, `large_180kb`). Asserts shape (every decision has a known action; `write_md`/`update_md` carry name + content) plus two behavioral guards: the durable-signal fixture must emit a non-skip decision on both providers; the pure-chatter fixture must never emit a write. Gated behind `@pytest.mark.integration`.
+- **CI improvements** — `.github/workflows/ci.yml` integration job switched from the `services:` block to explicit `docker run -v /tmp/ollama-models:/root/.ollama`. `actions/cache@v4` persists the models dir across runs (key `ollama-models-v1-bge-m3-gemma3-4b`). Adds `gemma3:4b` pull step alongside `bge-m3`. Wires the new `ANTHROPIC_API_KEY` repo secret into the pytest env so the Anthropic provider runs end-to-end.
+- **Test-isolation guard for `codeindex` unit tests** — new `tests/unit/codeindex/conftest.py` autouse fixture pins `CLAUDE_ALMANAC_DATA_DIR` and `CLAUDE_ALMANAC_CONFIG_DIR` to `tmp_path` for every test in the subpackage. Prior to this fix, `test_arch.py` and `test_sym.py` wrote synthetic log lines (`module=m err=boom symbol=pub sha=sha1`) into the real XDG log on every `pytest` run, accumulating ~83 MB of noise.
+
+### Changed
+
+- **BREAKING: the `claude -p --model haiku` subprocess curator path is removed.** `core/curator.py::_run_llm` now delegates to `make_curator(cfg).invoke(...)`. The 30–45 s CLI boot on every Stop hook is gone; real curator invocations complete in under 5 s end-to-end (Ollama warm: ~1 s model, ~4 s embedder + archive writes).
+- **`anthropic>=0.40,<1.0`** added as a core dependency. Intentional — the fast-API path requires the SDK to be importable regardless of the user's chosen provider.
+- **`CURATOR_TIMEOUT_S` module constant removed.** Timeouts are per-provider now (`_DEFAULT_TIMEOUT = {"ollama": 30, "anthropic_sdk": 15}`), configurable via `curator.timeout_s` in `config.yaml`.
+- **Curator prompt output format** — the template now asks for `{"decisions": [...]}` rather than a bare `[...]` array. Ollama's `format: "json"` constrains output to a JSON object; the old prompt caused gemma3:4b to return `{}` and silently drop every transcript. The existing `_parse_decisions` helper already tolerated this shape, so Haiku behavior is unchanged.
+
+### Fixed
+
+- **Ollama curator error handling** widened from `(TimeoutException, ConnectError)` to the broader `httpx.RequestError`, covering `RemoteProtocolError` and other transient failures the sibling embedder pattern already handles. The bare `assert isinstance(content, str)` path was replaced with a logged warning + empty-string return to honor the Protocol's "providers never raise" contract.
+- **Anthropic curator error handling** narrowed from `except Exception` to `except anthropic.APIError`, so non-SDK exceptions (`MemoryError`, bugs) propagate instead of being silently swallowed. All SDK-layer failures (connection, timeout, rate, auth, bad request) still yield an empty string.
+
+### Deferred to 0.3.1+
+
+- §3.1 Session-transcript compression
+- §3.2 Temporal decay scoring
+- §3.3 Knowledge-graph edges
+- §3.4 Memory versioning
+
 ## [0.2.8] — 2026-04-20
 
 ### Fixed
