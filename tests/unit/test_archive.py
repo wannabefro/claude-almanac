@@ -129,3 +129,15 @@ def test_delete_by_slug_removes_entries_and_vectors(tmp_path):
     assert removed == 1
     hits = archive.search(db, query_embedding=[0.0, 1.0], top_k=5)
     assert [h.source for h in hits] == ["md:keep.md"]
+
+
+def test_hit_carries_usage_fields(tmp_path):
+    db = tmp_path / "a.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+    archive.insert_entry(
+        db, text="hello", kind="reference", source="test",
+        pinned=False, embedding=[1.0, 0.0],
+    )
+    hits = archive.search(db, query_embedding=[1.0, 0.0], top_k=1)
+    assert hits[0].use_count == 0
+    assert hits[0].last_used_at is None

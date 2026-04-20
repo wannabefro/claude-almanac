@@ -26,6 +26,8 @@ class Hit:
     pinned: bool
     created_at: int
     distance: float
+    last_used_at: int | None = None
+    use_count: int = 0
 
 
 def _connect(db: Path) -> sqlite3.Connection:
@@ -73,7 +75,9 @@ def init(db: Path, *, embedder_name: str, model: str, dim: int, distance: Distan
             "kind TEXT NOT NULL, "
             "source TEXT NOT NULL, "
             "pinned INTEGER NOT NULL DEFAULT 0, "
-            "created_at INTEGER NOT NULL"
+            "created_at INTEGER NOT NULL, "
+            "last_used_at INTEGER, "
+            "use_count INTEGER NOT NULL DEFAULT 0"
             ")"
         )
         conn.execute(
@@ -148,7 +152,8 @@ def search(db: Path, *, query_embedding: list[float], top_k: int) -> list[Hit]:
     conn = _connect(db)
     try:
         rows = conn.execute(
-            "SELECT e.id, e.text, e.kind, e.source, e.pinned, e.created_at, v.distance "
+            "SELECT e.id, e.text, e.kind, e.source, e.pinned, e.created_at, "
+            "e.last_used_at, e.use_count, v.distance "
             "FROM entries_vec v JOIN entries e ON e.id = v.id "
             "WHERE v.embedding MATCH ? AND k = ? "
             "ORDER BY v.distance",
@@ -156,7 +161,7 @@ def search(db: Path, *, query_embedding: list[float], top_k: int) -> list[Hit]:
         ).fetchall()
         return [
             Hit(id=r[0], text=r[1], kind=r[2], source=r[3], pinned=bool(r[4]),
-                created_at=r[5], distance=r[6])
+                created_at=r[5], last_used_at=r[6], use_count=r[7], distance=r[8])
             for r in rows
         ]
     finally:
@@ -168,7 +173,8 @@ def nearest(db: Path, *, query_embedding: list[float], source_prefix: str) -> Hi
     conn = _connect(db)
     try:
         rows = conn.execute(
-            "SELECT e.id, e.text, e.kind, e.source, e.pinned, e.created_at, v.distance "
+            "SELECT e.id, e.text, e.kind, e.source, e.pinned, e.created_at, "
+            "e.last_used_at, e.use_count, v.distance "
             "FROM entries_vec v JOIN entries e ON e.id = v.id "
             "WHERE v.embedding MATCH ? AND k = ? AND e.source LIKE ? "
             "ORDER BY v.distance LIMIT 1",
@@ -178,7 +184,7 @@ def nearest(db: Path, *, query_embedding: list[float], source_prefix: str) -> Hi
             return None
         r = rows[0]
         return Hit(id=r[0], text=r[1], kind=r[2], source=r[3], pinned=bool(r[4]),
-                   created_at=r[5], distance=r[6])
+                   created_at=r[5], last_used_at=r[6], use_count=r[7], distance=r[8])
     finally:
         conn.close()
 
