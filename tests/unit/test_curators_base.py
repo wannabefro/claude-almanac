@@ -7,7 +7,7 @@ from claude_almanac.curators import Curator
 class _StubCurator:
     name = "stub"
     model = "stub-model"
-    timeout_s = 1
+    timeout_s = 1.0
 
     def invoke(self, system_prompt: str, user_turn: str) -> str:
         return "{}"
