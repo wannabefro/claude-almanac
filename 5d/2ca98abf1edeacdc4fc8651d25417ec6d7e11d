@@ -1,0 +1,25 @@
+tests/unit/test_archive.py
+  5c09c2abc4dbc99b 85-129
+src/claude_almanac/core/archive.py
+  5c09c2abc4dbc99b 186-231
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "5d2ca98abf1edeacdc4fc8651d25417ec6d7e11d",
+  "prompts": {
+    "5c09c2abc4dbc99b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b7e5d561-db12-458d-8089-8f386d664c45",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 91,
+      "total_deletions": 0,
+      "accepted_lines": 91,
+      "overriden_lines": 0
+    }
+  }
+}
