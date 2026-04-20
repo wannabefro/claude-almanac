@@ -132,6 +132,7 @@ def insert_entry(
     conn = _connect(db)
     try:
         ts = created_at if created_at is not None else int(time.time())
+        # last_used_at/use_count omitted; DB defaults (NULL/0); written by reinforce()
         cur = conn.execute(
             "INSERT INTO entries(text, kind, source, pinned, created_at) VALUES (?, ?, ?, ?, ?)",
             (text, kind, source, int(pinned), ts),

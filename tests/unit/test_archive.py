@@ -134,10 +134,24 @@ def test_delete_by_slug_removes_entries_and_vectors(tmp_path):
 def test_hit_carries_usage_fields(tmp_path):
     db = tmp_path / "a.db"
     archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
-    archive.insert_entry(
+    entry_id = archive.insert_entry(
         db, text="hello", kind="reference", source="test",
         pinned=False, embedding=[1.0, 0.0],
     )
+    # Fresh-insert defaults
     hits = archive.search(db, query_embedding=[1.0, 0.0], top_k=1)
     assert hits[0].use_count == 0
     assert hits[0].last_used_at is None
+
+    # Round-trip: write non-default values, confirm search returns them
+    import sqlite3
+    conn = sqlite3.connect(str(db))
+    conn.execute(
+        "UPDATE entries SET last_used_at = 9999, use_count = 7 WHERE id = ?",
+        (entry_id,),
+    )
+    conn.commit()
+    conn.close()
+    hits = archive.search(db, query_embedding=[1.0, 0.0], top_k=1)
+    assert hits[0].use_count == 7
+    assert hits[0].last_used_at == 9999
