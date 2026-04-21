@@ -100,6 +100,9 @@ class RollupCfg:
     max_transcript_tokens: int = 32000
     # None -> defaults to curator provider, or anthropic_sdk if API key set
     provider: str | None = None
+    # None -> reuse cfg.curator.model. Set to override (e.g., "qwen2.5:7b") for
+    # a faster/different rollup model without touching the per-turn curator.
+    model: str | None = None
     min_turns: int = 3
 
 
@@ -203,6 +206,7 @@ def _from_dict(raw: dict[str, Any]) -> Config:
         idle_threshold_minutes=rollup_raw.get("idle_threshold_minutes", 45),
         max_transcript_tokens=rollup_raw.get("max_transcript_tokens", 32000),
         provider=rollup_raw.get("provider"),  # None by default
+        model=rollup_raw.get("model"),  # None -> reuse curator.model
         min_turns=rollup_raw.get("min_turns", 3),
     )
 

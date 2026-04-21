@@ -42,7 +42,7 @@ def main() -> int:
     if not cfg.rollup.enabled:
         return 0
 
-    curator_cfg = _override_curator(cfg, cfg.rollup.provider)
+    curator_cfg = _override_curator(cfg, cfg.rollup.provider, cfg.rollup.model)
     curator = make_curator(curator_cfg)
     embedder = make_embedder(cfg.embedder.provider, cfg.embedder.model)
 
@@ -118,10 +118,25 @@ def main() -> int:
     return 0
 
 
-def _override_curator(cfg: Config, provider: str | None) -> Config:
-    if provider is None:
+def _override_curator(
+    cfg: Config, provider: str | None, model: str | None = None,
+) -> Config:
+    """Return cfg with curator.provider / curator.model overridden for rollups.
+
+    Either override can be None (no change on that axis). This lets callers
+    mix "same provider, different model" (e.g. cfg.curator=ollama+gemma4:e4b
+    but rollups want ollama+qwen2.5:7b) without touching the curator config.
+    """
+    if provider is None and model is None:
         return cfg
-    return dataclasses.replace(cfg, curator=dataclasses.replace(cfg.curator, provider=provider))
+    curator_overrides: dict[str, Any] = {}
+    if provider is not None:
+        curator_overrides["provider"] = provider
+    if model is not None:
+        curator_overrides["model"] = model
+    return dataclasses.replace(
+        cfg, curator=dataclasses.replace(cfg.curator, **curator_overrides),
+    )
 
 
 def _current_branch(cwd: Path) -> str | None:

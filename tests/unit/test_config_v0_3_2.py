@@ -13,6 +13,23 @@ def test_v0_3_1_config_still_loads_with_defaults():
     assert cfg.retrieval.edges.expand is False
     assert cfg.rollup.enabled is True
     assert cfg.rollup.idle_threshold_minutes == 45
+    assert cfg.rollup.model is None  # default: reuse curator.model
+
+
+def test_rollup_model_override_parses():
+    """rollup.model lets users pin a faster model without touching curator.model."""
+    text = """
+curator:
+  provider: ollama
+  model: gemma4:e4b
+rollup:
+  provider: ollama
+  model: qwen2.5:7b
+"""
+    cfg = load_config_from_text(text)
+    assert cfg.rollup.provider == "ollama"
+    assert cfg.rollup.model == "qwen2.5:7b"
+    assert cfg.curator.model == "gemma4:e4b"  # unchanged
 
 
 def test_v0_3_2_overrides_parse():
