@@ -246,6 +246,8 @@ dimension changes.)
   it's built on `claude-agent-sdk`, which drives Claude Code's OAuth
   session. No change there.
 
+## 0.3.2 — 2026-04-21 — Session rollups + KG edges (v0.3 §3.1 + §3.3)
+
 ### Added
 
 - **Session rollups (§3.1).** First-class narrative artifact per work session,
