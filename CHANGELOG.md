@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.12 — 2026-04-21 — Release pipeline fix (pull qwen3-embedding in CI)
+
+### Fixed
+
+- **Release workflow integration gate.** `release.yml` (and `ci.yml`'s
+  integration job) only pulled `bge-m3` + `gemma3:4b`. Since v0.3.9
+  flipped the default embedder to `qwen3-embedding:0.6b`, integration
+  tests that instantiate an embedder from `cfg.embedder.model` asked
+  Ollama for a model that wasn't loaded and got `404 Not Found` for
+  `/api/embed`. This blocked the publish gate on every release from
+  0.3.6 through 0.3.11 — PyPI has been stuck at 0.3.5. Added an explicit
+  `qwen3-embedding:0.6b` pull step ahead of the existing bge-m3 +
+  gemma3:4b pulls and bumped the Ollama model-cache key from
+  `v1-bge-m3-gemma3-4b` to `v2-qwen3-embedding-bge-m3-gemma3-4b` so the
+  stale cache invalidates on next run.
+
+### Note
+
+v0.3.12 contains no product code changes beyond 0.3.11 — it re-ships
+0.3.11's hybrid code-index retrieval via a CI pipeline that can actually
+reach PyPI. See the 0.3.11 entry for feature details.
+
 ## 0.3.11 — 2026-04-21 — Hybrid code-index retrieval (vector + keyword RRF)
 
 ### Added

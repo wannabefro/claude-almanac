@@ -73,7 +73,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/ollama-models
-          key: ollama-models-v1-bge-m3-gemma3-4b
+          # Bump the v<N> suffix whenever the model list below changes so
+          # the key invalidates on next run.
+          key: ollama-models-v2-qwen3-embedding-bge-m3-gemma3-4b
       - name: Start Ollama container with cached volume
         run: |
           mkdir -p /tmp/ollama-models
@@ -88,16 +90,21 @@ jobs:
             fi
             sleep 2
           done
-      - name: Pull bge-m3 (cache hit -> no-op)
+      - name: Pull qwen3-embedding:0.6b (default since v0.3.9)
+        run: |
+          curl -fsS -X POST http://127.0.0.1:11434/api/pull \
+            -d '{"name": "qwen3-embedding:0.6b"}' | tail -n 1
+      - name: Pull bge-m3 (legacy fixtures reference it)
         run: |
           curl -fsS -X POST http://127.0.0.1:11434/api/pull \
             -d '{"name": "bge-m3"}' | tail -n 1
-      - name: Pull gemma3:4b (cache hit -> no-op)
+      - name: Pull gemma3:4b (curator default)
         run: |
           curl -fsS -X POST http://127.0.0.1:11434/api/pull \
             -d '{"name": "gemma3:4b"}' | tail -n 1
       - name: Verify models
         run: |
+          curl -s http://127.0.0.1:11434/api/tags | grep -q qwen3-embedding
           curl -s http://127.0.0.1:11434/api/tags | grep -q bge-m3
           curl -s http://127.0.0.1:11434/api/tags | grep -q gemma3
       - name: Pytest (integration)
