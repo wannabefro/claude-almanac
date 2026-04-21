@@ -7,6 +7,36 @@ from claude_almanac.codeindex import keyword as _keyword
 from claude_almanac.embedders import profiles as _embedder_profiles
 
 
+def _demote_structural_unnamed(
+    hits: list[dict[str, object]], query: str,
+) -> list[dict[str, object]]:
+    """Move vector hits whose ``symbol_name`` is in the structural
+    hijacker set and didn't match any query token to the end of the
+    list, preserving relative order otherwise (v0.3.14).
+
+    The keyword channel already penalizes these rows via the score
+    multiplier in ``keyword.search``. The vector channel has no such
+    signal — qwen3-embedding happily ranks ``LOGGER`` at d<0.75 for
+    any rollup-adjacent query because the embedding model learned
+    that ``LOGGER`` lives near rollup code textually. Demoting
+    (instead of dropping) keeps the hit available if nothing else
+    surfaces, but drops its RRF contribution to the back of the
+    list so named domain symbols win top-3.
+    """
+    tokens = _keyword._tokenise(query)
+    if not tokens:
+        return hits
+    kept: list[dict[str, object]] = []
+    demoted: list[dict[str, object]] = []
+    for h in hits:
+        name = str(h.get("symbol_name") or "").lower()
+        if name in _keyword._STRUCTURAL_NAMES and not any(t in name for t in tokens):
+            demoted.append(h)
+        else:
+            kept.append(h)
+    return kept + demoted
+
+
 def resolve_min_confidence(
     cfg_value: float | None,
     embedder_provider: str,
@@ -67,6 +97,7 @@ def _hybrid_sym(
     )
     kw_hits = _keyword.search(db_path, query=query, k=fetch, kind="sym")
     vec_hits = _filter_low_confidence(vec_hits, kw_hits, min_confidence_distance)
+    vec_hits = _demote_structural_unnamed(vec_hits, query)
     fused = _fuse.rrf([vec_hits, kw_hits], top_k=k)
     for r in fused:
         r.setdefault("kind", "sym")

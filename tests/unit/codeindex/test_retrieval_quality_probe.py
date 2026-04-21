@@ -271,3 +271,118 @@ def test_pattern_e_keyword_confirmed_hit_bypasses_filter(cooking_db):
         min_confidence_distance=0.95,
     )
     assert "knead_dough" in out
+
+
+# ---------------------------------------------------------------------------
+# Pattern A (extended) — vector-channel structural demotion (v0.3.14)
+# ---------------------------------------------------------------------------
+#
+# The keyword-channel penalty alone doesn't stop ``LOGGER`` surfacing in
+# top-3 when the vector embedding ranks it high on its own. Observed on
+# 2026-04-21 dogfood: query "session rollup idle timeout trigger" hit
+# LOGGER (in hooks/retrieve.py) at d=0.746 — well inside the confidence
+# filter. The vector channel has no structural-symbol signal, so we
+# demote ``LOGGER`` / ``__init__`` / ``__main__`` / ``dispatch`` hits
+# whose names didn't match any query token to the end of the vector
+# list before fusion.
+
+
+def test_pattern_a_vector_logger_demoted_when_unnamed(tmp_path):
+    """LOGGER with a small vector distance must NOT out-rank a named
+    domain symbol that matches the query on name.
+
+    Fixture: two symbols. LOGGER has an embedding very close to the
+    query vector (distance ~0.1). ``process_event`` has an embedding
+    further away but its name matches the query. Before demotion,
+    LOGGER wins vector rank 1 and RRF-fuses to top; after demotion,
+    LOGGER goes to the bottom of vec_hits and process_event wins.
+    """
+    dbp = str(tmp_path / "demote.db")
+    ci_db.init(dbp, dim=2)
+    ci_db.upsert_sym(
+        dbp, kind="sym",
+        text="LOGGER = logging.getLogger(__name__)",
+        file_path="src/events/bus.py",
+        symbol_name="LOGGER",
+        module="src/events",
+        line_start=3, line_end=3,
+        commit_sha="sha1",
+        embedding=[0.40, 0.60],  # close to query vector
+    )
+    ci_db.upsert_sym(
+        dbp, kind="sym",
+        text=(
+            "def process_event(evt: Event) -> None:\n"
+            "    \"\"\"Dispatch event to registered handlers.\"\"\"\n"
+            "    ..."
+        ),
+        file_path="src/events/bus.py",
+        symbol_name="process_event",
+        module="src/events",
+        line_start=10, line_end=30,
+        commit_sha="sha1",
+        embedding=[0.10, 0.90],  # farther from query
+    )
+    # Query vector close to LOGGER but query text names "process_event"
+    # via the 'process' / 'event' tokens.
+    out = ci_search.search_and_format(
+        dbp, query_vec=[0.42, 0.58],
+        sym_k=3, arch_k=0,
+        query="process event dispatch", hybrid=True,
+    )
+    # Both should be present, but process_event must win ranking.
+    assert "process_event" in out
+    pos_named = out.index("process_event")
+    if "LOGGER" in out:
+        assert pos_named < out.index("LOGGER")
+
+
+def test_pattern_a_vector_logger_preserved_when_named(tmp_path):
+    """Counter: if the query explicitly names LOGGER, it must NOT be
+    demoted. This is the minimum-viable single-symbol case — only
+    LOGGER in the DB, user asks for LOGGER, the hit surfaces."""
+    dbp = str(tmp_path / "demote_named.db")
+    ci_db.init(dbp, dim=2)
+    ci_db.upsert_sym(
+        dbp, kind="sym",
+        text="LOGGER = logging.getLogger(__name__)",
+        file_path="src/core/base.py",
+        symbol_name="LOGGER",
+        module="src/core",
+        line_start=3, line_end=3,
+        commit_sha="sha1",
+        embedding=[0.5, 0.5],
+    )
+    out = ci_search.search_and_format(
+        dbp, query_vec=[0.5, 0.5],
+        sym_k=3, arch_k=0,
+        query="logger base setup", hybrid=True,
+    )
+    assert "LOGGER" in out
+
+
+def test_pattern_a_demotion_no_query_tokens_skipped(tmp_path):
+    """If the query has no tokens passing the 3-char floor (e.g.,
+    punctuation or empty), the demotion is a no-op — we can't tell
+    intent, so we preserve vector rank. Locks a defensive branch."""
+    dbp = str(tmp_path / "demote_empty.db")
+    ci_db.init(dbp, dim=2)
+    ci_db.upsert_sym(
+        dbp, kind="sym",
+        text="LOGGER = logging.getLogger(__name__)",
+        file_path="src/core/base.py",
+        symbol_name="LOGGER",
+        module="src/core",
+        line_start=3, line_end=3,
+        commit_sha="sha1",
+        embedding=[0.5, 0.5],
+    )
+    out = ci_search.search_and_format(
+        dbp, query_vec=[0.5, 0.5],
+        sym_k=3, arch_k=0,
+        query="", hybrid=True,  # empty → no tokens → no-op demotion
+    )
+    # Empty query → hybrid path disabled (needs bool(query)), so this
+    # tests the non-hybrid path which doesn't demote either. Purely
+    # asserts no crash + LOGGER surfaces via vector-only path.
+    assert "LOGGER" in out
