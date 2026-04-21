@@ -19,13 +19,21 @@ If `$ARGUMENTS` is empty, show the usage help.
 Search the per-repo code index directly. Returns symbol + module summaries.
 Requires `claude-almanac codeindex init` to have run for this repo.
 
-Example:
+Examples:
   recall code "jwt verification flow"
+  recall code "TUI terminal report Model"
+  recall code "audience segment builder"
 
 Note: code-index hits are also auto-injected alongside memory hits for prompts
 that look like code questions (the `autoinject.should_query` gate in
 `core/retrieve.py`). Use `recall code <query>` when you want to bypass the gate
 and search the index directly.
+
+**Phrase queries as 3–5 word natural-language descriptions**, not bare domain
+nouns. The default embedder (qwen3-embedding:0.6b) maps 1–2 word queries near
+the centroid, so terse queries return noisy rankings even when the right
+symbols are indexed. Add a distinguishing noun, domain, or architectural kind
+and the right hits usually surface in the top 3.
 
 ### `recall link <slug-a> <slug-b>`
 

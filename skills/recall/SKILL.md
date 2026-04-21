@@ -21,6 +21,17 @@ For cross-repo lookups (a concept defined in one repo but referenced from anothe
 
 If the user's prompt mentions a specific symbol name, file path, module, or "how does X work / where is X defined" idiom, prefer `/recall code <query>`. This bypasses the auto-inject gate and hits the per-repo code index directly, returning symbol + arch summaries rather than memory entries. Requires `claude-almanac codeindex init` to have been run for the repo.
 
+**Query phrasing matters.** The code index retrieves via vector similarity using a small embedder (qwen3-embedding:0.6b by default). Single-word or terse queries embed close to the centroid and let generic test/helper symbols out-rank domain-specific ones. Phrase `recall code` queries as **3–5 word natural-language descriptions** — include kind, domain, and a distinctive token:
+
+- ❌ `recall code "tui"` → ranks unrelated tests high
+- ✅ `recall code "TUI terminal report Model"` → surfaces `tuireport/model.go::Model` directly
+- ❌ `recall code "segmentation"` → ranks prompt constants high
+- ✅ `recall code "audience segment builder"` → surfaces the segmentation service module
+- ❌ `recall code "flow"` (might work, might not)
+- ✅ `recall code "flow publish modal hook"` → surfaces the specific hook module
+
+If the first query is noisy, don't give up — add a distinguishing noun (module name, behaviour verb, or architectural kind) and retry. The index is usually correct; retrieval ranking is the weak link.
+
 ## Anti-triggers
 
 Do NOT use `/recall` for:
