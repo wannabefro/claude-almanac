@@ -299,8 +299,11 @@ def _parse_decisions(raw: str) -> list[dict[str, Any]]:
         return []
     try:
         payload = json.loads(cleaned)
-    except json.JSONDecodeError:
-        LOGGER.warning("curator: LLM returned non-JSON: %.200s", raw)
+    except json.JSONDecodeError as exc:
+        LOGGER.warning(
+            "curator: LLM returned non-JSON (len=%d, err=%s): %s",
+            len(raw), exc, raw,
+        )
         return []
     if isinstance(payload, list):
         return [d for d in payload if isinstance(d, dict)]
