@@ -6,6 +6,69 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.2 — 2026-04-21 — Session rollups + KG edges (v0.3 §3.1 + §3.3)
+
+### Added
+
+- **Session rollups (§3.1).** First-class narrative artifact per work session,
+  with `narrative` (2–4 paragraphs), `decisions` (non-obvious choices with
+  rationale), and `artifacts` (files/commits/memories touched). Produced by
+  a new `RollupGenerator` that reuses the curator provider factory but has
+  its own prompt. Stored in a new `rollups` table + `rollups_vec` vector
+  table.
+- **Rollup triggers.** `SessionEnd` and `PreCompact` Claude Code hooks fire
+  the rollup runner; `UserPromptSubmit` checks for an idle prior session
+  (default 45 min threshold) and retroactively rolls it up; explicit
+  `claude-almanac recall rollup-now` for manual invocation.
+- **Rollup retrieval (gated).** `retrieval.rollups.autoinject: false` by
+  default. `claude-almanac recall rollups <query>` for on-demand recall.
+  Digest web UI gains a `/rollups` tab with per-rollup detail views.
+- **Knowledge-graph edges (§3.3).** New `edges` table with four types:
+  `related`, `supersedes`, `applies_to`, `produced_by`. Fully-qualified
+  scope strings (`entry@project`, `entry@global`, `rollup@project`) travel
+  with every edge.
+- **Edge creation paths.** Curator emits `related` via an extended JSON
+  contract (`"edges": [{"type": "related", "to": "<slug>"}]`); dedup emits
+  `supersedes` when an `update_md` changes the live body; rollup generator
+  emits `produced_by` for each memory written during the session window;
+  user emits all four via CLI.
+- **Edge retrieval (gated).** `retrieval.edges.skip_superseded: true`
+  (default ON) hides explicitly-replaced entries. `retrieval.edges.expand:
+  false` adds 1-hop graph-walk expansion with bonus re-scoring.
+- **CLI.** `recall link`, `recall supersede`, `recall unlink`, `recall
+  links`, `recall rollups`, `recall rollup-now`.
+- **Status.** `/almanac status` shows rollup count-by-trigger + edge
+  count-by-type with a cross-scope edge counter.
+
+### Fixed
+
+- **Curator non-JSON log.** Widened from `%.200s` to full-payload logging
+  so truncation can be diagnosed in future; previously hid whether failures
+  were truncation or shape drift.
+- **Ollama `num_predict: 8192`.** Lifted from the default (~2k) to
+  accommodate the curator's longest observed payloads. Rollup generator
+  reuses the same bumped setting.
+- **`rollup.provider` auto-default.** When `ANTHROPIC_API_KEY` is set,
+  rollups prefer `anthropic_sdk` over Ollama for higher JSON reliability on
+  longer narrative outputs. Explicit `rollup.provider:` in config overrides.
+- **`archive.prune()` edge cascade.** Pruned entries now also remove their
+  attached edges (prevents orphans). `prune()` gains a `scope` parameter
+  to correctly cascade against `entry@project` or `entry@global` archives.
+- **`archive.init()` v0.3.2 tables.** Fresh-DB init now creates `edges` +
+  `rollups` + `rollups_vec` (previously only the migration path did).
+- **`_migrate_schema` fail-loud.** Raises `ValueError` when the `meta`
+  table has no `dim` key instead of silently defaulting to 1024.
+
+### Schema (idempotent, auto-migrated)
+
+- New `rollups` table (`session_id, repo_key, branch, started_at,
+  ended_at, turn_count, trigger, narrative, decisions, artifacts,
+  created_at`) with `UNIQUE(session_id, trigger)`.
+- New `rollups_vec` virtual table (vec0, dim from embedder profile).
+- New `edges` table (`src_id, src_scope, dst_id, dst_scope, type,
+  created_at, created_by`) with `UNIQUE(src_id, src_scope, dst_id,
+  dst_scope, type)`, indexed on both directions.
+
 ## 0.3.1 — 2026-04-20
 
 ### Added
