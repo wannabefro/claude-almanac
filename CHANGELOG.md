@@ -6,6 +6,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.14 — 2026-04-21 — Retrieval quality fixes from the 13-query dogfood probe
+
+### Fixed
+
+- **Pattern A — module-symbol hijack.** Code-index keyword search now
+  penalizes rows whose `symbol_name` didn't match any query token.
+  Structural names (`LOGGER`, `__init__`, `__all__`, `__main__`,
+  `dispatch`, `main`) get a 0.4× multiplier and single-line module-
+  level variables get 0.6×, so `LOGGER` / `MAX_TRANSCRIPT_CHARS` /
+  `__init__` no longer hijack top-3 slots when the query only matches
+  a file path. Dogfood Q1 ("hook entrypoint user prompt submit") flips
+  from `curate.main, retrieve.run, rollup.main` to
+  `retrieve.run, autoinject.should_query, rollup.run_hook`. The rule
+  is name-only (not body-level) because the extractor occasionally
+  bleeds adjacent symbol signatures into the `text` field.
+- **Pattern A (vector-channel companion).** The keyword penalty alone
+  didn't stop `LOGGER` surfacing at rank 2-3 when the vector embedding
+  ranked it high on its own (observed on expanded dogfood: `LOGGER`
+  at d=0.746 for "session rollup idle timeout trigger"). The vector
+  channel now demotes structural-named hits with no query-name match
+  to the end of the pre-fusion list, dropping their RRF contribution
+  without removing them entirely. Counter-queries that name LOGGER
+  explicitly still return it at rank 1.
+- **Pattern D — TypeScript build-output duplication.** Added
+  `**/.output/**` and `**/*.d.ts` to the code-index default excludes so
+  generated declaration files don't double every symbol hit. Nuxt/Nitro
+  `.output/` joins `dist/` and `build/` already in the list.
+- **Pattern E — no-confidence false positives.** Vector-only sym hits
+  whose distance exceeds an embedder-specific confidence floor are
+  dropped before RRF fusion so no-match queries ("blockchain wallet",
+  "auth") return the existing `(no matches)` sentinel instead of the
+  3 nearest unrelated symbols. Calibrated thresholds: qwen3-embedding
+  (any size) / bge-m3 → 0.95 L2; openai / voyage → 0.5 cosine. Hits
+  confirmed by the keyword channel bypass the filter.
+
+### Config additions
+
+- `retrieval.code.min_confidence_distance` — per-call override of the
+  Pattern E floor. Defaults to `None` (use the embedder profile);
+  ≤ 0 disables the filter entirely.
+- `EmbedderProfile.min_confidence_distance` — profile-level default
+  used when the config override is unset.
+
+### Note
+
+All three fixes are keyword/scoring/index-enumeration changes;
+`retrieval.code.hybrid_enabled: false` restores pre-v0.3.11 behavior
+if any regression surfaces. The 13-query probe is locked as
+regression tests in `tests/unit/codeindex/test_retrieval_quality_probe.py`.
+
 ## 0.3.13 — 2026-04-21 — Fix stale integration-test assertion (unblocks 0.3.12 publish)
 
 ### Fixed
