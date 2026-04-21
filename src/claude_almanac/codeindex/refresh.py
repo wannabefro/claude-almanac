@@ -66,7 +66,18 @@ def main(repo_root: str) -> int:
         print("clean — nothing to do")
         return 0
     if last:
-        changed = _git(["diff", "--name-only", f"{last}..{target}"], repo_root).splitlines()
+        try:
+            changed = _git(
+                ["diff", "--name-only", f"{last}..{target}"], repo_root,
+            ).splitlines()
+        except subprocess.CalledProcessError:
+            # last_sha points at a commit that no longer exists (force-push,
+            # rewritten history, or a stale placeholder from an earlier buggy
+            # init). Treat as "no common ancestor" → re-index everything.
+            emit(log_path, component="code-index", level="warn",
+                 event="refresh.stale_last_sha", repo=repo_root,
+                 last=last, target=target)
+            changed = []
     else:
         changed = []
     t0 = time.time()

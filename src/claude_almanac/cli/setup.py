@@ -188,6 +188,91 @@ def _migrate_all_archives() -> None:
         print(f"migrated {fixed} archive DB(s) to current schema")
 
 
+def _migrate_all_code_indexes() -> None:
+    """Walk every project's code-index.db and rename stale ones aside.
+
+    A code-index.db's `entries_vec` virtual table pins the embedding
+    dimension at creation time (FLOAT[N]). If the embedder's dim changes
+    (bge-m3 swap, model upgrade, or a legacy default-2 wrong-dim bug from
+    old installs), every upsert / query fails with
+    `sqlite3.OperationalError: Dimension mismatch`.
+
+    We can't migrate vectors across dims — the embeddings have to be
+    recomputed. This helper renames any mismatched code-index.db to
+    `code-index.db.stale-<detected-dim>` so the user can inspect or
+    discard, then prints a one-line note pointing them at
+    `claude-almanac codeindex init`.
+    """
+    from claude_almanac.embedders.profiles import get as get_profile
+
+    cfg = core_config.load()
+    try:
+        profile = get_profile(cfg.embedder.provider, cfg.embedder.model)
+    except KeyError:
+        return
+    expected_dim = profile.dim
+
+    candidate_dbs: list[Path] = []
+    projs = paths.projects_memory_dir()
+    if projs.exists():
+        for d in projs.iterdir():
+            if d.is_dir():
+                db = d / "code-index.db"
+                if db.exists():
+                    candidate_dbs.append(db)
+
+    renamed = 0
+    for db in candidate_dbs:
+        detected = _detect_code_index_dim(db)
+        if detected is None or detected == expected_dim:
+            continue
+        stale = db.with_name(f"code-index.db.stale-{detected}")
+        try:
+            db.rename(stale)
+        except OSError as e:
+            print(f"  warning: could not rename {db} → {stale}: {e}",
+                  file=sys.stderr)
+            continue
+        renamed += 1
+        print(
+            f"moved {db} → {stale.name} (dim={detected}, expected={expected_dim})"
+        )
+
+    if renamed:
+        print(
+            f"renamed {renamed} stale code-index DB(s); "
+            "run `claude-almanac codeindex init` in the affected repo(s) to rebuild"
+        )
+
+
+def _detect_code_index_dim(db: Path) -> int | None:
+    """Pull the FLOAT[N] literal out of the entries_vec CREATE VIRTUAL TABLE SQL.
+
+    Returns None when the DB is unreadable or the entries_vec table is missing.
+    """
+    import re
+    import sqlite3
+
+    try:
+        conn = sqlite3.connect(db)
+    except sqlite3.Error:
+        return None
+    try:
+        row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='entries_vec'"
+        ).fetchone()
+    except sqlite3.Error:
+        return None
+    finally:
+        conn.close()
+    if row is None or not row[0]:
+        return None
+    match = re.search(r"FLOAT\[(\d+)\]", row[0])
+    if not match:
+        return None
+    return int(match.group(1))
+
+
 def _print_provider_suggestions() -> None:
     """Info-only: note which curator providers are available on this machine.
 
@@ -238,6 +323,7 @@ def _do_install() -> None:
         print(f"updated {cfg_path} with new default fields")
     _migrate_curator_provider()
     _migrate_all_archives()
+    _migrate_all_code_indexes()
     _print_provider_suggestions()
     cfg = core_config.load()
     _stamp_installed_version()

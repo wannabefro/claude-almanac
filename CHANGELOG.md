@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.7 — 2026-04-21 — Code-index robustness (stale-sha + dim-mismatch)
+
+### Fixed
+
+- **`codeindex refresh` no longer crashes when `last_sha` is gone from the
+  repo's git history.** `git diff <last>..<target>` raised
+  `CalledProcessError` for force-pushed branches, rewritten history, or
+  stale placeholder SHAs from old buggy inits. Refresh now catches that
+  and falls back to `changed = []` (equivalent to a fresh index from
+  `target`), logs `refresh.stale_last_sha`, and continues.
+- **Stale `code-index.db` dim-mismatch auto-renamed on setup.**
+  `entries_vec` pins the embedding dimension at creation; older installs
+  had a bug that wrote `FLOAT[2]` instead of the embedder's real dim, and
+  legitimate embedder swaps produce the same shape of incompatibility.
+  `claude-almanac setup` (fired on every `uv tool upgrade`) now scans
+  every project's `code-index.db`, and when one's `entries_vec` dim
+  doesn't match the configured embedder profile, renames it aside to
+  `code-index.db.stale-<detected-dim>` and prints a note pointing the
+  user at `claude-almanac codeindex init` to rebuild. Vectors can't be
+  migrated across dims; re-embedding is the only answer.
+
 ## 0.3.6 — 2026-04-21 — Unified `recall search` (memories + code-index)
 
 ### Added
