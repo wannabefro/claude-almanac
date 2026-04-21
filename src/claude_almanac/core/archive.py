@@ -11,7 +11,8 @@ from typing import TYPE_CHECKING, Literal
 import sqlite_vec  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
-    from .config import DecayCfg
+    from claude_almanac.core.config import DecayCfg
+    from claude_almanac.embedders.base import EmbedderProfile
 
 Distance = Literal["l2", "cosine"]
 
@@ -94,16 +95,93 @@ def init(db: Path, *, embedder_name: str, model: str, dim: int, distance: Distan
         conn.close()
 
 
-def _migrate_schema(conn: sqlite3.Connection) -> None:
-    """Bring an existing archive DB up to the v0.3.1 schema idempotently."""
-    cols = {row[1] for row in conn.execute("PRAGMA table_info(entries)").fetchall()}
-    if "last_used_at" not in cols:
-        conn.execute("ALTER TABLE entries ADD COLUMN last_used_at INTEGER")
-    if "use_count" not in cols:
-        conn.execute("ALTER TABLE entries ADD COLUMN use_count INTEGER NOT NULL DEFAULT 0")
-    _create_entries_history(conn)
+def _migrate_schema(conn: sqlite3.Connection, dim: int | None = None) -> None:
+    """Bring an existing archive DB up to the v0.3.2 schema idempotently.
+
+    dim: embedder dimension. If not provided, will be read from meta table (v0.3.1+ DBs).
+    """
+    # Infer dim from meta if not provided
+    if dim is None:
+        meta = {row[0]: row[1] for row in conn.execute("SELECT key, value FROM meta").fetchall()}
+        dim = int(meta.get("dim", "1024"))
+
+    # v0.3.0 → v0.3.1 migrations (entries table should exist in init path)
+    tables = {row[0] for row in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+    ).fetchall()}
+    if "entries" in tables:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(entries)").fetchall()}
+        if "last_used_at" not in cols:
+            conn.execute("ALTER TABLE entries ADD COLUMN last_used_at INTEGER")
+        if "use_count" not in cols:
+            conn.execute("ALTER TABLE entries ADD COLUMN use_count INTEGER NOT NULL DEFAULT 0")
+        _create_entries_history(conn)
+
+    # v0.3.1 → v0.3.2 migrations
+    _create_rollups_tables(conn, dim=dim)
+    _create_edges_table(conn)
+
     # DDL auto-commits in sqlite3 legacy mode; this commit ensures a clean close state.
     conn.commit()
+
+
+def _create_rollups_tables(conn: sqlite3.Connection, *, dim: int) -> None:
+    """Create rollups and rollups_vec tables, idempotent via IF NOT EXISTS."""
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS rollups ("
+        "id INTEGER PRIMARY KEY, "
+        "session_id TEXT NOT NULL, "
+        "repo_key TEXT NOT NULL, "
+        "branch TEXT, "
+        "started_at INTEGER NOT NULL, "
+        "ended_at INTEGER NOT NULL, "
+        "turn_count INTEGER NOT NULL, "
+        "trigger TEXT NOT NULL, "
+        "narrative TEXT NOT NULL, "
+        "decisions TEXT NOT NULL, "
+        "artifacts TEXT NOT NULL, "
+        "created_at INTEGER NOT NULL, "
+        "UNIQUE(session_id, trigger)"
+        ")"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_rollups_started "
+        "ON rollups(started_at DESC)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_rollups_repo_key "
+        "ON rollups(repo_key)"
+    )
+    conn.execute(
+        f"CREATE VIRTUAL TABLE IF NOT EXISTS rollups_vec USING vec0("
+        f"rollup_id INTEGER PRIMARY KEY, "
+        f"embedding FLOAT[{dim}])"
+    )
+
+
+def _create_edges_table(conn: sqlite3.Connection) -> None:
+    """Create edges table, idempotent via IF NOT EXISTS."""
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS edges ("
+        "id INTEGER PRIMARY KEY, "
+        "src_id INTEGER NOT NULL, "
+        "src_scope TEXT NOT NULL, "
+        "dst_id INTEGER NOT NULL, "
+        "dst_scope TEXT NOT NULL, "
+        "type TEXT NOT NULL, "
+        "created_at INTEGER NOT NULL, "
+        "created_by TEXT NOT NULL, "
+        "UNIQUE(src_id, src_scope, dst_id, dst_scope, type)"
+        ")"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_edges_src "
+        "ON edges(src_id, src_scope, type)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_edges_dst "
+        "ON edges(dst_id, dst_scope, type)"
+    )
 
 
 def _create_entries_history(conn: sqlite3.Connection) -> None:
@@ -124,6 +202,15 @@ def _create_entries_history(conn: sqlite3.Connection) -> None:
         "CREATE INDEX IF NOT EXISTS idx_entries_history_slug "
         "ON entries_history(slug, version)"
     )
+
+
+def ensure_schema(conn: sqlite3.Connection, *, profile: EmbedderProfile) -> None:
+    """Ensure the archive DB has the current schema, given a profile.
+
+    Idempotent: safe to call multiple times on the same connection.
+    Uses profile.dim to template vector table dimensions.
+    """
+    _migrate_schema(conn, dim=profile.dim)
 
 
 def get_meta(db: Path) -> dict[str, str | int]:
