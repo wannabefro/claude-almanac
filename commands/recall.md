@@ -27,7 +27,38 @@ that look like code questions (the `autoinject.should_query` gate in
 `core/retrieve.py`). Use `recall code <query>` when you want to bypass the gate
 and search the index directly.
 
-### Deferred in v0.1
+### `recall link <slug-a> <slug-b>`
 
-`pin`, `unpin`, `forget`, and `export` are tracked for v0.2. Invoking them
-prints a clear "not implemented" message with a link to the issue tracker.
+Create a symmetric `related` edge between two memory slugs. Both directions
+are inserted. Slugs are the bare filename (without the `.md` extension) as
+stored in the archive's `source` field.
+
+### `recall supersede <new-slug> <old-slug>`
+
+Mark `new-slug` as superseding `old-slug`. Inserts a one-directional
+`supersedes` edge (new → old). Use this when a memory has been replaced by a
+newer one so retrieve can skip the stale version.
+
+### `recall unlink <slug-a> <slug-b> [--type TYPE]`
+
+Remove edge(s) between two slugs. For `related` edges both directions are
+removed. For other types only the specified direction (a → b) is removed.
+Defaults to `--type related`.
+
+### `recall links <slug>`
+
+Show all incoming and outgoing edges for a slug. Prints two sections:
+`Outgoing` (→) and `Incoming` (←) with edge type and creator.
+
+### `recall rollups <query>`
+
+Semantic search over session rollups. Returns the top-k rollups ranked by
+embedding distance, showing the rollup id, distance, and narrative excerpt.
+Uses the same embedder configured in `~/.config/claude-almanac/config.yaml`.
+
+### `recall rollup-now`
+
+Manually trigger a rollup for the most recent transcript in the current
+repo's Claude project directory. Invokes the rollup runner subprocess with
+`--trigger explicit`. Requires that Claude Code has already written at least
+one transcript for this working directory.
