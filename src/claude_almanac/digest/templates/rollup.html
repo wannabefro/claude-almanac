@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Rollup — digest{% endblock %}
+{% block content %}
+<main class="history">
+  <header class="topbar">
+    <a href="/rollups">← rollups</a>
+    <div class="topbar-center">
+      <h2>Rollup</h2>
+    </div>
+  </header>
+
+  <div class="layout">
+    <article class="digest-body">
+      <div class="meta scope-badge">{{ trigger }} · started {{ started_at }} · ended {{ ended_at }}</div>
+
+      <h2>Narrative</h2>
+      <div class="narrative">{{ narrative }}</div>
+
+      {% if decisions %}
+      <h2>Decisions</h2>
+      <ul class="digest-list">
+        {% for d in decisions %}
+          <li><strong>{{ d.title }}</strong> — {{ d.why }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <h2>Artifacts</h2>
+      {% if artifacts.files %}
+      <p><strong>Files:</strong> {{ artifacts.files | join(", ") }}</p>
+      {% endif %}
+      {% if artifacts.commits %}
+      <p><strong>Commits:</strong> {{ artifacts.commits | join(", ") }}</p>
+      {% endif %}
+      {% if artifacts.memories %}
+      <p><strong>Memories:</strong> {{ artifacts.memories | join(", ") }}</p>
+      {% endif %}
+      {% if not artifacts.files and not artifacts.commits and not artifacts.memories %}
+      <p class="empty">(none recorded)</p>
+      {% endif %}
+    </article>
+  </div>
+</main>
+{% endblock %}

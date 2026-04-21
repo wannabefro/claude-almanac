@@ -183,6 +183,47 @@ def run() -> None:
         f"β={dcfg.use_count_exponent}, band={dcfg.band or 'profile-default'}"
     )
     print()
+    # v0.3.2: rollup + edge counters
+    try:
+        db = paths.project_memory_dir() / "archive.db"
+        if db.exists():
+            conn = sqlite3.connect(str(db))
+            try:
+                r_total = conn.execute("SELECT count(*) FROM rollups").fetchone()[0]
+                r_by_trigger = dict(conn.execute(
+                    "SELECT trigger, count(*) FROM rollups GROUP BY trigger"
+                ).fetchall())
+                r_last = conn.execute("SELECT MAX(created_at) FROM rollups").fetchone()[0]
+
+                e_total = conn.execute("SELECT count(*) FROM edges").fetchone()[0]
+                e_by_type = dict(conn.execute(
+                    "SELECT type, count(*) FROM edges GROUP BY type"
+                ).fetchall())
+                e_cross = conn.execute(
+                    "SELECT count(*) FROM edges WHERE src_scope != dst_scope"
+                ).fetchone()[0]
+            finally:
+                conn.close()
+
+            print("rollups")
+            print(f"  total: {r_total}")
+            for trig, cnt in r_by_trigger.items():
+                print(f"  {trig}: {cnt}")
+            if r_last:
+                from datetime import datetime
+                print(f"  last: {datetime.fromtimestamp(r_last).strftime('%Y-%m-%d %H:%M')}")
+            print()
+
+            print("edges")
+            print(f"  total: {e_total}")
+            for t, c in e_by_type.items():
+                print(f"  {t}: {c}")
+            if e_cross:
+                print(f"  cross-scope: {e_cross}")
+            print()
+    except Exception:
+        pass
+
     warnings = _embedder_mismatch_warnings(cfg.embedder.provider, cfg.embedder.model)
     print("warnings")
     if warnings:

@@ -1,5 +1,4 @@
 """Tests for idle-fallback rollup trigger in UserPromptSubmit hook."""
-from pathlib import Path
 from unittest.mock import patch
 
 from claude_almanac.hooks.retrieve import _maybe_fire_idle_rollup

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Rollups — digest{% endblock %}
+{% block content %}
+<main class="history">
+  <h1>Rollups</h1>
+
+  {% if rollups %}
+  <ul class="digest-list rollup-list">
+    {% for r in rollups %}
+      <li class="rollup-entry">
+        <a href="/rollup/{{ r.id }}">
+          <span class="recent-scope trigger">{{ r.trigger }}</span>
+          <span class="recent-date">{{ r.turn_count }} turns</span>
+        </a>
+        {% if r.preview %}<p class="hero-preview">{{ r.preview }}…</p>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">No rollups yet. Sessions will generate them automatically on end / compact, or run <code>claude-almanac recall rollup-now</code> to create one now.</p>
+  {% endif %}
+</main>
+{% endblock %}

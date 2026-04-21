@@ -336,6 +336,70 @@ async def ask_stream(
     return EventSourceResponse(event_generator())
 
 
+@app.get("/rollups", response_class=HTMLResponse)
+def rollups_index(request: Request) -> Response:
+    import sqlite3 as _sqlite3
+
+    from claude_almanac.core.paths import project_memory_dir
+    db = project_memory_dir() / "archive.db"
+    rollups: list[dict[str, Any]] = []
+    if db.exists():
+        conn = _sqlite3.connect(str(db))
+        try:
+            rows = conn.execute(
+                "SELECT id, session_id, started_at, ended_at, turn_count, trigger, "
+                "substr(narrative, 1, 300) "
+                "FROM rollups ORDER BY started_at DESC LIMIT 100"
+            ).fetchall()
+            rollups = [
+                {"id": r[0], "session_id": r[1], "started_at": r[2],
+                 "ended_at": r[3], "turn_count": r[4], "trigger": r[5],
+                 "preview": r[6]}
+                for r in rows
+            ]
+        except _sqlite3.OperationalError:
+            pass
+        finally:
+            conn.close()
+    return templates.TemplateResponse(
+        request, "rollups.html", {"rollups": rollups}
+    )
+
+
+@app.get("/rollup/{rollup_id}", response_class=HTMLResponse)
+def rollup_detail(request: Request, rollup_id: int) -> Response:
+    import json as _j
+    import sqlite3 as _sqlite3
+
+    from claude_almanac.core.paths import project_memory_dir
+    db = project_memory_dir() / "archive.db"
+    row = None
+    if db.exists():
+        conn = _sqlite3.connect(str(db))
+        try:
+            row = conn.execute(
+                "SELECT narrative, decisions, artifacts, trigger, "
+                "started_at, ended_at FROM rollups WHERE id=?", (rollup_id,),
+            ).fetchone()
+        except _sqlite3.OperationalError:
+            pass
+        finally:
+            conn.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="rollup not found")
+    return templates.TemplateResponse(
+        request, "rollup.html",
+        {
+            "narrative": row[0],
+            "decisions": _j.loads(row[1]) if row[1] else [],
+            "artifacts": _j.loads(row[2]) if row[2] else {},
+            "trigger": row[3],
+            "started_at": row[4],
+            "ended_at": row[5],
+        },
+    )
+
+
 @app.get("/generate", response_class=HTMLResponse)
 def generate_form(request: Request) -> Response:
     return templates.TemplateResponse(request, "generate_form.html", {})
