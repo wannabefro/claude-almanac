@@ -138,14 +138,9 @@ def run(prompt: str) -> str:
         hits.extend(scope_hits)
 
     # --- v0.3.2 retrieval extensions (all gated) ---
-    # cfg.retrieval.edges / cfg.retrieval.rollups may not exist on v0.3.1 configs;
-    # AttributeError fallback treats all new features as off.
 
     # 1. Skip superseded: drop hits that are the dst of a live supersedes edge.
-    try:
-        skip_superseded_flag: bool = cfg.retrieval.edges.skip_superseded  # type: ignore[attr-defined]
-    except AttributeError:
-        skip_superseded_flag = False
+    skip_superseded_flag = cfg.retrieval.edges.skip_superseded
     if skip_superseded_flag and hits:
         refs = [(h.id, _scope_of(h)) for h in hits]
         # Use the project archive DB for edge lookups (edges live there).
@@ -159,16 +154,11 @@ def run(prompt: str) -> str:
             hits = _filter_superseded(hits, sup_edges, enabled=True)
 
     # 2. Graph-walk expansion (1-hop related edges, bonus re-scoring).
-    # Note: archive.Hit objects don't carry .scope or .base_score natively;
-    # expand_hits relies on both. This path is default-off and only activates
-    # once Task 8 adds edges.expand to config. When active, ensure hits have
-    # been augmented with those fields before calling expand_hits.
-    try:
-        expand_flag: bool = cfg.retrieval.edges.expand  # type: ignore[attr-defined]
-        expand_bonus: float = cfg.retrieval.edges.expand_bonus  # type: ignore[attr-defined]
-        expand_hops: int = cfg.retrieval.edges.expand_hops  # type: ignore[attr-defined]
-    except AttributeError:
-        expand_flag = False
+    # archive.Hit objects don't carry .scope or .base_score natively; default-off
+    # gate means expand_hits only runs when the caller has synthesized those fields.
+    expand_flag = cfg.retrieval.edges.expand
+    expand_bonus = cfg.retrieval.edges.expand_bonus
+    expand_hops = cfg.retrieval.edges.expand_hops
     if expand_flag and hits:
         from claude_almanac.edges.expand import ExpandCfg
         from claude_almanac.edges.expand import expand_hits as _expand_hits_fn
@@ -186,12 +176,9 @@ def run(prompt: str) -> str:
             )
 
     # 3. Rollups union: merge entry hits with top-K rollup vector hits.
-    try:
-        rollup_ai: bool = cfg.retrieval.rollups.autoinject  # type: ignore[attr-defined]
-        rollup_topk: int = cfg.retrieval.rollups.topk  # type: ignore[attr-defined]
-        rollup_cutoff: float = cfg.retrieval.rollups.distance_cutoff  # type: ignore[attr-defined]
-    except AttributeError:
-        rollup_ai = False
+    rollup_ai = cfg.retrieval.rollups.autoinject
+    rollup_topk = cfg.retrieval.rollups.topk
+    rollup_cutoff = cfg.retrieval.rollups.distance_cutoff
     if rollup_ai:
         _proj_db = _db_for(paths.project_memory_dir())
         if _proj_db.exists():
