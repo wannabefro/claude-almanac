@@ -1,0 +1,31 @@
+CHANGELOG.md
+  7260c9bbd9808709 9-22
+src/claude_almanac/cli/setup.py
+  7260c9bbd9808709 128-190,240
+pyproject.toml
+  7260c9bbd9808709 7
+plugin.json
+  7260c9bbd9808709 3
+tests/unit/test_setup_archive_migration.py
+  7260c9bbd9808709 1-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "f2f606df39d30681774e73217e846e26a22a7f50",
+  "prompts": {
+    "7260c9bbd9808709": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "61df4f8a-a0d8-4e69-9565-16df65aabd12",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 185,
+      "total_deletions": 5,
+      "accepted_lines": 595,
+      "overriden_lines": 0
+    }
+  }
+}
