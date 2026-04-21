@@ -1,0 +1,42 @@
+tests/unit/test_curator_parse_decisions_log.py
+  7260c9bbd9808709 1-14
+src/claude_almanac/core/curator.py
+  7260c9bbd9808709 302-306
+src/claude_almanac/curators/ollama.py
+  7260c9bbd9808709 43
+scripts/gemma_truncation_probe.py
+  7260c9bbd9808709 1-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "eb13343aaea0a68c9b255924e65956cc85585c23",
+  "prompts": {
+    "2e3459024d90401f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f4c2b2e-0257-4060-aa4b-e19509ead002",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 267,
+      "total_deletions": 0,
+      "accepted_lines": 267,
+      "overriden_lines": 0
+    },
+    "7260c9bbd9808709": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "61df4f8a-a0d8-4e69-9565-16df65aabd12",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 106,
+      "total_deletions": 12,
+      "accepted_lines": 97,
+      "overriden_lines": 0
+    }
+  }
+}
