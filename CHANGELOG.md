@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.4 — 2026-04-21 — Polish (cwd robustness + setup hints + .gitignore)
+
+### Fixed
+
+- **Curator survives a deleted working directory.** Background curator /
+  rollup processes inherit cwd from their parent. If that directory was
+  removed between fork and run (e.g. a short-lived worktree), `Path.cwd()`
+  raised `FileNotFoundError` and took down the whole curator pass. `paths.
+  project_key()` now routes through a `_safe_cwd()` helper that returns a
+  `cwd-unknown` sentinel key instead of crashing; the curator writes to
+  `<projects>/cwd-unknown/archive.db` in that case.
+- **Stale `uv.lock` accidentally committed in v0.3.3.** Added to `.gitignore`
+  and removed from tracking. The repo no longer pins resolved versions in
+  VCS.
+- **Digest web-UI mode selector** now reads `fast (configured provider)`
+  and `deep (tools — requires \`claude\` CLI)`. Makes the deep-mode
+  Claude-binary dependency discoverable without reading docs.
+
+### Added
+
+- **`setup` prints available curator providers** when `claude` / `codex` /
+  `ANTHROPIC_API_KEY` are present on the machine. Info-only — does not
+  change config. Surfaces the rollout options (`rollup.provider`,
+  `digest.narrative_provider`, `digest.qa_provider`) so users don't need
+  to discover them from docs.
+
 ## 0.3.3 — 2026-04-21 — Digest polish (kind resolution + Q&A provider unification)
 
 ### Fixed

@@ -125,6 +125,39 @@ def _migrate_curator_provider() -> None:
             print(f"  warning: ollama pull failed: {e}")
 
 
+def _print_provider_suggestions() -> None:
+    """Info-only: note which curator providers are available on this machine.
+
+    Doesn't change config — users pick per-surface overrides
+    (rollup.provider, digest.narrative_provider, digest.qa_provider)
+    themselves. This just surfaces the option so users don't have to
+    discover claude_cli/codex providers from docs alone.
+    """
+    available: list[str] = []
+    if shutil.which("claude"):
+        available.append(
+            "  claude_cli — uses `claude` CLI (OAuth, no API key needed)"
+        )
+    if shutil.which("codex"):
+        available.append(
+            "  codex      — uses `codex exec` (OAuth, no API key needed)"
+        )
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        available.append(
+            "  anthropic_sdk — direct SDK via ANTHROPIC_API_KEY (fastest)"
+        )
+    if not available:
+        return
+    print()
+    print("additional curator providers available on this machine:")
+    for line in available:
+        print(line)
+    print(
+        "  (configure per-surface via rollup.provider / "
+        "digest.narrative_provider / digest.qa_provider in config.yaml)"
+    )
+
+
 def run(*, uninstall: bool, purge_data: bool) -> None:
     if uninstall:
         _do_uninstall(purge_data=purge_data)
@@ -141,6 +174,7 @@ def _do_install() -> None:
     elif core_config.materialize_missing_fields():
         print(f"updated {cfg_path} with new default fields")
     _migrate_curator_provider()
+    _print_provider_suggestions()
     cfg = core_config.load()
     _stamp_installed_version()
     ok = _probe_embedder()

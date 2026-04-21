@@ -48,30 +48,45 @@ def logs_dir() -> Path:
     return data_dir() / "logs"
 
 
+def _safe_cwd() -> Path | None:
+    """Path.cwd() can raise FileNotFoundError if the process's working
+    directory was deleted out from under it (happens when a background
+    curator/rollup process inherits a cwd whose directory is later removed).
+    Return None on failure so callers can fall back to a stable key."""
+    try:
+        return Path.cwd().resolve()
+    except (FileNotFoundError, OSError):
+        return None
+
+
 def project_key() -> str:
     """Stable per-repo key. Uses git-common-dir parent so worktrees share storage.
-    Falls back to cwd-<hash> when not inside a git repo."""
+    Falls back to cwd-<hash> when not inside a git repo, or to a deterministic
+    'unknown' sentinel when even cwd can't be resolved."""
+    cwd = _safe_cwd()
+    if cwd is None:
+        return "cwd-unknown"
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--git-common-dir"],
+            cwd=cwd,
             capture_output=True,
             text=True,
             check=True,
         )
         git_common = Path(result.stdout.strip())
         if not git_common.is_absolute():
-            git_common = (Path.cwd() / git_common).resolve()
+            git_common = (cwd / git_common).resolve()
         else:
             git_common = git_common.resolve()
         # Parent of .git is the repo root; for worktrees this points at the primary repo.
         root = git_common.parent if git_common.name == ".git" else git_common
         digest = hashlib.sha256(str(root).encode()).hexdigest()[:16]
         return f"git-{digest}"
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
         # Fallback: walk up from cwd looking for a .git directory or file.
         # This handles cases where the git CLI is unavailable or the repo
         # is only partially initialized (e.g. empty .git/ in tests).
-        cwd = Path.cwd().resolve()
         for candidate in (cwd, *cwd.parents):
             if (candidate / ".git").exists():
                 digest = hashlib.sha256(str(candidate).encode()).hexdigest()[:16]
