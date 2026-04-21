@@ -12,7 +12,7 @@ from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class Curator(Protocol):
-    name: str         # provider id: "ollama" | "anthropic_sdk"
+    name: str         # provider id: "ollama" | "anthropic_sdk" | "claude_cli" | "codex"
     model: str        # "gemma3:4b", "claude-haiku-4-5-20251001", etc.
     timeout_s: float  # seconds; fractional values are permitted
 

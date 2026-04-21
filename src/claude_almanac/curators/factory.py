@@ -5,7 +5,13 @@ from claude_almanac.core.config import Config
 
 from .base import Curator
 
-_DEFAULT_TIMEOUT = {"ollama": 30, "anthropic_sdk": 15}
+_DEFAULT_TIMEOUT = {
+    "ollama": 30,
+    "anthropic_sdk": 15,
+    # Subprocess-based providers pay CLI boot overhead (~10-45s) per call.
+    "claude_cli": 120,
+    "codex": 120,
+}
 
 
 def make_curator(cfg: Config) -> Curator:
@@ -17,4 +23,10 @@ def make_curator(cfg: Config) -> Curator:
     if cc.provider == "anthropic_sdk":
         from .anthropic_sdk import AnthropicCurator
         return AnthropicCurator(model=cc.model, timeout_s=timeout)
+    if cc.provider == "claude_cli":
+        from .claude_cli import ClaudeCliCurator
+        return ClaudeCliCurator(model=cc.model, timeout_s=timeout)
+    if cc.provider == "codex":
+        from .codex import CodexCurator
+        return CodexCurator(model=cc.model, timeout_s=timeout)
     raise ValueError(f"unknown curator provider: {cc.provider!r}")
