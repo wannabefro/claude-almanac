@@ -1,10 +1,21 @@
-"""Daily-digest markdown rendering + Haiku narrative shell-out."""
+"""Daily-digest markdown rendering + narrative shell-out.
+
+Narratives are produced via the configured curator provider
+(``cfg.digest.narrative_provider`` / ``cfg.digest.narrative_model``,
+defaulting to ``cfg.curator`` if unset). Routes through
+``curators.factory.make_curator`` so digest, rollups, and per-turn
+curator all share the same provider surface.
+"""
 from __future__ import annotations
 
-import subprocess
+import logging
 from dataclasses import dataclass
 from textwrap import dedent
 from typing import Any
+
+from claude_almanac.curators.base import Curator
+
+LOGGER = logging.getLogger("claude_almanac.digest.render")
 
 
 @dataclass
@@ -17,40 +28,45 @@ class DigestInputs:
     narratives_by_repo: dict[str, str]
 
 
-def _call_claude_cli(argv: list[str], stdin: str) -> str:
-    try:
-        out = subprocess.run(
-            argv, input=stdin, capture_output=True, text=True,
-            timeout=60, check=False,
-        )
-    except FileNotFoundError as e:
-        raise RuntimeError(f"claude CLI missing: {e}") from e
-    if out.returncode != 0:
-        raise RuntimeError(f"claude exit {out.returncode}: {out.stderr[:400]}")
-    return out.stdout.strip()
+def _fallback(commits: list[dict[str, Any]]) -> str:
+    return "\n".join(f"- {c['sha'][:8]} {c['subject'].strip()}" for c in commits)
 
 
-def haiku_narrate(*, repo: str, commits: list[dict[str, Any]], model: str) -> str:
+def haiku_narrate(
+    *, repo: str, commits: list[dict[str, Any]], curator: Curator,
+) -> str:
+    """Summarise a day's commits as 2-3 bullets via the configured curator.
+
+    Falls back to a bare sha+subject list if the curator returns nothing
+    (empty string, error, or timeout — providers never raise per the
+    Curator protocol).
+    """
     if not commits:
         return "_no commits in window_"
     commits_text = "\n".join(
         f"- {c['sha'][:8]}  {c['subject']}  (by {c.get('author', '?')})"
         for c in commits
     )
-    prompt = dedent(f"""
-        Summarize this day's commits in {repo} as 2-3 bullet points (markdown).
-        Focus on what changed semantically, not individual commits.
-        Do not invent details beyond what is given.
+    system_prompt = dedent("""
+        You summarise a day's git commits into 2-3 markdown bullet points.
+        Focus on what changed semantically, not individual commits. Do not
+        invent details beyond what is given. Output ONLY the bullets, no
+        preamble.
+    """).strip()
+    user_turn = dedent(f"""
+        Repository: {repo}
 
         Commits:
         {commits_text}
     """).strip()
     try:
-        return _call_claude_cli(["claude", "-p", "--model", model], stdin=prompt)
-    except (RuntimeError, FileNotFoundError):
-        return "\n".join(
-            f"- {c['sha'][:8]} {c['subject'].strip()}" for c in commits
-        )
+        result = curator.invoke(system_prompt, user_turn).strip()
+    except Exception as e:
+        LOGGER.warning("digest narrate: curator raised %s: %s", type(e).__name__, e)
+        return _fallback(commits)
+    if not result:
+        return _fallback(commits)
+    return result
 
 
 def render_digest(inputs: DigestInputs) -> str:

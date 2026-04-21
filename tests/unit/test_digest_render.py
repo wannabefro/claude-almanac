@@ -35,35 +35,27 @@ def test_render_digest_handles_empty_sections():
     assert "_no activity_" in out
 
 
-def test_haiku_narrate_falls_back_on_cli_failure(monkeypatch):
-    def boom(*a, **kw):
-        raise FileNotFoundError("claude: not found")
-    monkeypatch.setattr("subprocess.run", boom)
+def test_haiku_narrate_falls_back_when_curator_returns_empty():
+    curator = MagicMock()
+    curator.invoke.return_value = ""
     out = render.haiku_narrate(
         repo="r",
         commits=[{"sha": "abcdef123456", "subject": "feat: x", "author": "t"}],
-        model="haiku",
+        curator=curator,
     )
     assert "abcdef12" in out
     assert "feat: x" in out
 
 
-def test_haiku_narrate_uses_claude_cli(monkeypatch):
-    captured = {}
-    def fake_run(argv, input, capture_output, text, timeout, check):
-        captured["argv"] = argv
-        captured["stdin"] = input
-        m = MagicMock()
-        m.returncode = 0
-        m.stdout = "- narrative bullet\n"
-        m.stderr = ""
-        return m
-    monkeypatch.setattr("subprocess.run", fake_run)
+def test_haiku_narrate_returns_curator_output():
+    curator = MagicMock()
+    curator.invoke.return_value = "- narrative bullet\n"
     out = render.haiku_narrate(
         repo="r",
         commits=[{"sha": "abcdef123456", "subject": "feat: x", "author": "t"}],
-        model="haiku",
+        curator=curator,
     )
     assert out == "- narrative bullet"
-    assert captured["argv"] == ["claude", "-p", "--model", "haiku"]
-    assert "feat: x" in captured["stdin"]
+    system_prompt, user_turn = curator.invoke.call_args.args
+    assert "bullet" in system_prompt.lower()
+    assert "feat: x" in user_turn

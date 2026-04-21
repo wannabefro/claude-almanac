@@ -10,6 +10,7 @@ from typing import Any
 
 from claude_almanac.core import archive, paths
 from claude_almanac.core import config as core_config
+from claude_almanac.curators.factory import make_curator
 from claude_almanac.embedders import make_embedder
 
 from . import notify as digest_notify
@@ -110,9 +111,10 @@ def generate(
                         file=sys.stderr,
                     )
 
+    narrative_curator = make_curator(_digest_curator_cfg(cfg))
     narratives_by_repo = {
         repo: haiku_narrate(
-            repo=repo, commits=commits, model=rt.haiku_model,
+            repo=repo, commits=commits, curator=narrative_curator,
         )
         for repo, commits in commits_by_repo.items()
     }
@@ -160,3 +162,24 @@ def generate(
         "pruned": pruned,
         "notified": notified,
     }
+
+
+def _digest_curator_cfg(cfg: core_config.Config) -> core_config.Config:
+    """Apply digest narrative provider/model overrides to cfg.curator.
+
+    Mirrors the rollup runner's _override_curator pattern: an unset override
+    (None) falls through to the existing curator config.
+    """
+    import dataclasses
+
+    d = cfg.digest
+    if d.narrative_provider is None and d.narrative_model is None:
+        return cfg
+    overrides: dict[str, Any] = {}
+    if d.narrative_provider is not None:
+        overrides["provider"] = d.narrative_provider
+    if d.narrative_model is not None:
+        overrides["model"] = d.narrative_model
+    return dataclasses.replace(
+        cfg, curator=dataclasses.replace(cfg.curator, **overrides),
+    )

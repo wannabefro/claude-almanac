@@ -38,6 +38,11 @@ class DigestCfg:
     repos: list[RepoCfg] = field(default_factory=list)
     hour: int = 7
     notify: bool = True
+    # Narrative (per-repo commit summary) provider overrides. None -> reuse
+    # cfg.curator. Lets users pick codex/claude_cli for richer digest prose
+    # without touching the per-turn curator path.
+    narrative_provider: str | None = None
+    narrative_model: str | None = None
 
 
 @dataclass
@@ -218,6 +223,8 @@ def _from_dict(raw: dict[str, Any]) -> Config:
             repos=repos,
             hour=dig.get("hour", 7),
             notify=dig.get("notify", True),
+            narrative_provider=dig.get("narrative_provider"),
+            narrative_model=dig.get("narrative_model"),
         ),
         code_index=_code_index_from_dict(raw.get("code_index", {})),
         retrieval=retrieval,
