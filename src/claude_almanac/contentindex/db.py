@@ -1,6 +1,11 @@
-"""sqlite-vec-backed code-index store.
+"""sqlite-vec-backed content-index store.
 
-One DB per repo (path lives under paths.project_memory_dir() / 'code-index.db').
+Path-agnostic engine: the caller supplies ``db_path`` on every entry point.
+Today the codeindex subsystem uses ``paths.project_memory_dir() /
+'code-index.db'``; the documents subsystem landing in Task 3 will use
+``content-index.db`` under the same dir. The schema below is shared across
+both callers — ``kind`` distinguishes rows.
+
 Schema:
   entries(id, kind, text, file_path, symbol_name, module, line_start, line_end,
           commit_sha, created_at)

@@ -1,4 +1,4 @@
-"""Keyword retrieval channel for the code index (v0.3.11+).
+"""Keyword retrieval channel for the shared content-index engine.
 
 Complements the vector channel in `db.search` by matching query tokens
 case-insensitively against `entries.symbol_name`, `entries.file_path`, and the

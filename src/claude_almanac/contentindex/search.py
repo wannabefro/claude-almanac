@@ -1,4 +1,15 @@
-"""Query the code-index DB and format results for retrieve injection."""
+"""Shared retrieval orchestrator for the content-index engine.
+
+Runs a hybrid sym channel (vector + keyword fused via RRF), a vector-only
+arch channel, a low-confidence distance filter on vector-only sym hits,
+and a structural-symbol demotion pass to keep hijackers like ``LOGGER``
+from crowding out named domain symbols. Formats the merged result as a
+markdown block for retrieve-hook injection.
+
+The ``"## Relevant code"`` header emitted by ``search_and_format`` is
+currently code-specific; Task 6 will make it kind-aware so ``doc`` hits
+render under their own heading.
+"""
 from __future__ import annotations
 
 from claude_almanac.contentindex import db as _db
@@ -111,7 +122,13 @@ def search_and_format(db_path: str, *, query_vec: list[float],
                       query: str | None = None,
                       hybrid: bool = False,
                       min_confidence_distance: float | None = None) -> str:
-    """Format code-index hits as a ``## Relevant code`` block.
+    """Format content-index hits as a markdown block.
+
+    The header is currently hard-coded to ``## Relevant code`` because
+    today's only caller is the codeindex retrieve path (sym + arch).
+    Task 6 will make this kind-aware so ``doc`` hits render under a
+    ``## Relevant docs`` heading when documents/ starts feeding the
+    engine.
 
     ``min_confidence_distance`` (v0.3.14): if set, drops vector-only sym
     hits whose distance exceeds the threshold so no-match queries return

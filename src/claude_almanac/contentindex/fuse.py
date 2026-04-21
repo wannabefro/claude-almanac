@@ -1,10 +1,11 @@
-"""Reciprocal rank fusion for hybrid code retrieval (v0.3.11).
+"""Reciprocal rank fusion for hybrid retrieval (v0.3.11).
 
 Merges ranked result lists from independent channels (vector + keyword) into
-a single ranking. RRF sums `1/(k + rank)` across channels per doc id, which
-requires no per-channel score normalisation — the two channels here produce
+a single ranking. RRF sums `1/(k + rank)` across channels per row id, which
+requires no per-channel score normalisation — the two channels produce
 values on wildly different scales (L2 distance in ~14–29 for qwen3-embedding
-vs integer match-count for keyword), so RRF is a natural fit.
+vs integer match-count for keyword), so RRF is a natural fit. Kind-agnostic:
+the fuser operates on row ids and ranks, not on sym/arch/doc semantics.
 
 Reference: Cormack, Clarke, Buettcher. "Reciprocal Rank Fusion outperforms
 Condorcet and individual rank learning methods." SIGIR '09. Default k=60 is
