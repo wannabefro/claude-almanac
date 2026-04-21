@@ -76,6 +76,7 @@ def _codeindex_block(
     min_confidence_distance: float | None = None,
 ) -> str:
     try:
+        from claude_almanac.codeindex.scoring import CODE_PROFILE
         from claude_almanac.contentindex import search as ci_search
     except ImportError:
         return ""
@@ -86,6 +87,7 @@ def _codeindex_block(
         str(ci_db), query_vec=query_vec, sym_k=3, arch_k=2,
         query=query, hybrid=hybrid,
         min_confidence_distance=min_confidence_distance,
+        scoring=CODE_PROFILE,
     )
 
 

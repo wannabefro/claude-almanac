@@ -6,6 +6,14 @@ and a structural-symbol demotion pass to keep hijackers like ``LOGGER``
 from crowding out named domain symbols. Formats the merged result as a
 markdown block for retrieve-hook injection.
 
+v0.4: per-kind scoring rules (structural-penalty sets, penalty
+multipliers, vector demotion, per-kind confidence cutoff) are supplied
+via :class:`~claude_almanac.contentindex.scoring.ScoringProfile`. Callers
+pass ``scoring=CODE_PROFILE`` from :mod:`claude_almanac.codeindex.scoring`
+for the v0.3.14 code-index behavior. Omitting ``scoring`` (or passing
+``ScoringProfile()``) gives plain keyword-count scoring with no demotion
+— the shape future ``kind='doc'`` callers will use.
+
 The ``"## Relevant code"`` header emitted by ``search_and_format`` is
 currently code-specific; Task 6 will make it kind-aware so ``doc`` hits
 render under their own heading.
@@ -15,15 +23,18 @@ from __future__ import annotations
 from claude_almanac.contentindex import db as _db
 from claude_almanac.contentindex import fuse as _fuse
 from claude_almanac.contentindex import keyword as _keyword
+from claude_almanac.contentindex.scoring import ScoringProfile
 from claude_almanac.embedders import profiles as _embedder_profiles
 
 
 def _demote_structural_unnamed(
     hits: list[dict[str, object]], query: str,
+    *,
+    structural_names: frozenset[str],
 ) -> list[dict[str, object]]:
-    """Move vector hits whose ``symbol_name`` is in the structural
-    hijacker set and didn't match any query token to the end of the
-    list, preserving relative order otherwise (v0.3.14).
+    """Move vector hits whose ``symbol_name`` is in ``structural_names``
+    and didn't match any query token to the end of the list, preserving
+    relative order otherwise (v0.3.14).
 
     The keyword channel already penalizes these rows via the score
     multiplier in ``keyword.search``. The vector channel has no such
@@ -41,7 +52,7 @@ def _demote_structural_unnamed(
     demoted: list[dict[str, object]] = []
     for h in hits:
         name = str(h.get("symbol_name") or "").lower()
-        if name in _keyword._STRUCTURAL_NAMES and not any(t in name for t in tokens):
+        if name in structural_names and not any(t in name for t in tokens):
             demoted.append(h)
         else:
             kept.append(h)
@@ -52,20 +63,26 @@ def resolve_min_confidence(
     cfg_value: float | None,
     embedder_provider: str,
     embedder_model: str,
+    *,
+    profile: ScoringProfile | None = None,
 ) -> float | None:
     """Resolve the effective ``min_confidence_distance`` for a caller.
 
-    Precedence: explicit cfg override → embedder profile default → None
-    (filter disabled). ``cfg_value`` ≤ 0 also disables the filter so
-    users can opt out without editing the profile.
+    Precedence: ``profile.min_confidence_distance`` → explicit ``cfg_value``
+    → embedder profile default → ``None`` (filter disabled). Any value
+    ≤ 0 also disables the filter so users can opt out without editing
+    the embedder profile.
     """
+    if profile is not None and profile.min_confidence_distance is not None:
+        v = profile.min_confidence_distance
+        return v if v > 0 else None
     if cfg_value is not None:
         return cfg_value if cfg_value > 0 else None
     try:
-        profile = _embedder_profiles.get(embedder_provider, embedder_model)
+        embedder_profile = _embedder_profiles.get(embedder_provider, embedder_model)
     except KeyError:
         return None
-    return profile.min_confidence_distance
+    return embedder_profile.min_confidence_distance
 
 
 def _filter_low_confidence(
@@ -96,19 +113,27 @@ def _filter_low_confidence(
 def _hybrid_sym(
     db_path: str, query_vec: list[float], query: str, k: int,
     module: str | None,
+    scoring: ScoringProfile,
     min_confidence_distance: float | None,
 ) -> list[dict[str, object]]:
     """Vector + keyword channels fused via RRF. Fetches 2*k per channel so
     fusion has headroom to reorder. If a confidence threshold is set,
     vector-only hits beyond it are dropped before fusion — keyword-
-    confirmed hits are always preserved."""
+    confirmed hits are always preserved. If the profile enables vector
+    demotion, un-named structural symbols are moved to the back of the
+    vector list before fusion."""
     fetch = max(k * 2, 10)
     vec_hits = _db.search(
         db_path, embedding=query_vec, k=fetch, kind="sym", module=module,
     )
-    kw_hits = _keyword.search(db_path, query=query, k=fetch, kind="sym")
+    kw_hits = _keyword.search(
+        db_path, query=query, k=fetch, kind="sym", scoring=scoring,
+    )
     vec_hits = _filter_low_confidence(vec_hits, kw_hits, min_confidence_distance)
-    vec_hits = _demote_structural_unnamed(vec_hits, query)
+    if scoring.demote_structural_in_vector:
+        vec_hits = _demote_structural_unnamed(
+            vec_hits, query, structural_names=scoring.structural_names,
+        )
     fused = _fuse.rrf([vec_hits, kw_hits], top_k=k)
     for r in fused:
         r.setdefault("kind", "sym")
@@ -121,7 +146,8 @@ def search_and_format(db_path: str, *, query_vec: list[float],
                       kind: str | None = None,
                       query: str | None = None,
                       hybrid: bool = False,
-                      min_confidence_distance: float | None = None) -> str:
+                      min_confidence_distance: float | None = None,
+                      scoring: ScoringProfile | None = None) -> str:
     """Format content-index hits as a markdown block.
 
     The header is currently hard-coded to ``## Relevant code`` because
@@ -130,18 +156,25 @@ def search_and_format(db_path: str, *, query_vec: list[float],
     ``## Relevant docs`` heading when documents/ starts feeding the
     engine.
 
+    ``scoring`` (v0.4): supplies the per-kind scoring rules. Defaults to
+    a no-op :class:`ScoringProfile` so tests and future ``doc`` callers
+    can omit it. Code-index callers pass
+    :data:`claude_almanac.codeindex.scoring.CODE_PROFILE`.
+
     ``min_confidence_distance`` (v0.3.14): if set, drops vector-only sym
     hits whose distance exceeds the threshold so no-match queries return
     an empty string instead of the 3 nearest unrelated symbols. Arch
     hits are not filtered — module summaries are coarser and a
     too-strict cutoff would blank arch injection too aggressively.
     """
+    effective_scoring = scoring if scoring is not None else ScoringProfile()
     results: list[dict[str, object]] = []
     use_hybrid = hybrid and bool(query)
     if kind in (None, "sym"):
         if use_hybrid:
             results += _hybrid_sym(
                 db_path, query_vec, query or "", sym_k, module,
+                effective_scoring,
                 min_confidence_distance,
             )
         else:

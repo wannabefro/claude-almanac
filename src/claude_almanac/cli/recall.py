@@ -132,6 +132,7 @@ def _collect_code_block(
     min_confidence_distance: float | None = None,
 ) -> str:
     """Return formatted code-index section, or '' when no index / no hits."""
+    from claude_almanac.codeindex.scoring import CODE_PROFILE
     from claude_almanac.contentindex import search as _ci_search
 
     ci_db = paths.project_memory_dir() / "code-index.db"
@@ -142,6 +143,7 @@ def _collect_code_block(
             str(ci_db), query_vec=vec, sym_k=3, arch_k=2,
             query=query, hybrid=hybrid,
             min_confidence_distance=min_confidence_distance,
+            scoring=CODE_PROFILE,
         )
     except Exception:
         # Stale or mis-dimensioned code-index: skip silently, don't crash recall.
@@ -279,6 +281,7 @@ def _cmd_code(argv: list[str]) -> int:
     if not positional:
         print("usage: recall code [--no-hybrid] <query>", file=sys.stderr)
         return 2
+    from claude_almanac.codeindex.scoring import CODE_PROFILE
     from claude_almanac.contentindex import search as _ci_search
     dbp = paths.project_memory_dir() / "code-index.db"
     if not dbp.exists():
@@ -302,6 +305,7 @@ def _cmd_code(argv: list[str]) -> int:
         str(dbp), query_vec=vec, sym_k=3, arch_k=2,
         query=query, hybrid=hybrid,
         min_confidence_distance=code_min_conf,
+        scoring=CODE_PROFILE,
     )
     print(out or "(no matches)")
     return 0

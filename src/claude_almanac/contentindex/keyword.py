@@ -7,39 +7,24 @@ first line of `entries.text`. Cheap SQLite LIKE scans — no FTS5 migration.
 Return shape matches `db.search` (minus `distance`) so `fuse.py` can merge
 keyword and vector hits without row-coercion glue.
 
-v0.3.14: structural-symbol penalty. When no query token matches a row's
-``symbol_name``, short module-level hijackers like ``LOGGER`` /
-``__init__`` / single-line constants used to tie domain functions and
-win by default SQLite row order. A penalty multiplier drops their score
-so the behavioral function surfaces first. The rule is name-only
-(not body-level) because the extractor occasionally bleeds adjacent
-symbol signatures into the ``text`` field, which would otherwise defeat
-a body-based check.
+v0.4: the structural-symbol penalty and single-line-var penalty previously
+hardcoded here are now supplied per-kind via
+:class:`~claude_almanac.contentindex.scoring.ScoringProfile`. Callers pass
+``scoring=CODE_PROFILE`` (from :mod:`claude_almanac.codeindex.scoring`) to
+preserve the v0.3.14 behavior; passing ``ScoringProfile()`` (the default
+no-op) disables the penalty branches and simplifies the SQL to raw LIKE
+counts — useful for ``kind='doc'`` retrieval which has no structural
+hijackers.
 """
 from __future__ import annotations
 
 import re
 import sqlite3
 
+from claude_almanac.contentindex.scoring import ScoringProfile
+
 _TOKEN_SPLIT = re.compile(r"[\s_\-/.,:;()\[\]{}\"'`]+")
 _MIN_TOKEN_LEN = 3
-
-# Symbol names whose appearance as a file_path-only match is almost always
-# a hijack. Lowercased for comparison against ``lower(symbol_name)``.
-_STRUCTURAL_NAMES = (
-    "logger",
-    "__init__",
-    "__all__",
-    "__main__",
-    "dispatch",
-    "main",
-)
-
-# Penalty multipliers applied to a row's raw score when the row matched
-# ONLY via file_path — i.e., no query token appeared in its symbol_name or
-# first-line text.
-_STRUCTURAL_NAME_PENALTY = 0.4
-_SINGLE_LINE_PENALTY = 0.6
 
 
 def _tokenise(query: str) -> list[str]:
@@ -60,18 +45,33 @@ def search(
     query: str,
     k: int,
     kind: str = "sym",
+    scoring: ScoringProfile,
 ) -> list[dict[str, object]]:
     """Return up to `k` rows matching any query token in
     symbol_name / file_path / first-line-of-text.
 
     Scoring: count of tokens matched across the three columns, tie-broken
-    by shorter `file_path`, with a multiplicative penalty for rows that
-    match only via file_path and look like structural/boilerplate symbols
-    (see `_STRUCTURAL_NAMES`, `_SINGLE_LINE_PENALTY`).
+    by shorter `file_path`, with a multiplicative penalty (per ``scoring``)
+    for rows that match only via file_path and look like structural /
+    single-line boilerplate symbols.
+
+    ``scoring`` supplies the penalty rules. The v0.3.14 code-index rules
+    live in :data:`claude_almanac.codeindex.scoring.CODE_PROFILE`. Passing
+    ``ScoringProfile()`` disables the penalties and collapses the SQL to
+    pure LIKE-count scoring.
     """
     tokens = _tokenise(query)
     if not tokens:
         return []
+
+    # If no structural names and both penalties are 1.0, skip the name_hits
+    # computation entirely — the CASE expression collapses to a constant
+    # 1.0 multiplier, so the extra LIKE scans are pure waste.
+    penalties_active = (
+        bool(scoring.structural_names)
+        or scoring.structural_name_penalty != 1.0
+        or scoring.single_line_var_penalty != 1.0
+    )
 
     conn = sqlite3.connect(db_path)
     try:
@@ -112,48 +112,75 @@ def search(
             where_params.extend([pattern, pattern, pattern])
 
         any_sql = " + ".join(any_hit_parts)
-        name_sql = " + ".join(name_hit_parts)
         where_any = " OR ".join(where_parts)
 
-        structural_csv = ", ".join(f"'{n}'" for n in _STRUCTURAL_NAMES)
-
-        # Compute any_hits + name_hits once per row in a subquery so the
-        # outer SELECT can reference them in the score expression without
-        # duplicating the LIKE scans. Penalty applies only when no query
-        # token matched ``symbol_name`` (name_hits = 0).
-        sql = (
-            f"SELECT id, kind, text, file_path, symbol_name, module, "
-            f"line_start, line_end, commit_sha, "
-            f"any_hits * ("
-            f"  CASE "
-            f"    WHEN name_hits = 0 "
-            f"         AND lower(symbol_name) IN ({structural_csv}) "
-            f"      THEN {_STRUCTURAL_NAME_PENALTY} "
-            f"    WHEN name_hits = 0 "
-            f"         AND (COALESCE(line_end, 0) - COALESCE(line_start, 0)) <= 0 "
-            f"      THEN {_SINGLE_LINE_PENALTY} "
-            f"    ELSE 1.0 "
-            f"  END"
-            f") AS score, "
-            f"length(file_path) AS fp_len "
-            f"FROM ( "
-            f"  SELECT id, kind, text, file_path, symbol_name, module, "
-            f"    line_start, line_end, commit_sha, "
-            f"    ({any_sql}) AS any_hits, "
-            f"    ({name_sql}) AS name_hits "
-            f"  FROM entries "
-            f"  WHERE kind = ? AND ({where_any}) "
-            f") t "
-            f"ORDER BY score DESC, fp_len ASC "
-            f"LIMIT ?"
-        )
-        params: list[object] = [
-            *any_params,
-            *name_params,
-            kind,
-            *where_params,
-            k,
-        ]
+        if penalties_active:
+            name_sql = " + ".join(name_hit_parts)
+            # Build the CASE branches conditionally so an empty
+            # structural_names set doesn't emit an invalid ``IN ()``.
+            case_branches: list[str] = []
+            if scoring.structural_names:
+                structural_csv = ", ".join(
+                    f"'{n}'" for n in sorted(scoring.structural_names)
+                )
+                case_branches.append(
+                    f"    WHEN name_hits = 0 "
+                    f"         AND lower(symbol_name) IN ({structural_csv}) "
+                    f"      THEN {scoring.structural_name_penalty} "
+                )
+            if scoring.single_line_var_penalty != 1.0:
+                case_branches.append(
+                    f"    WHEN name_hits = 0 "
+                    f"         AND (COALESCE(line_end, 0) - COALESCE(line_start, 0)) <= 0 "
+                    f"      THEN {scoring.single_line_var_penalty} "
+                )
+            case_expr = (
+                "CASE "
+                + "".join(case_branches)
+                + "    ELSE 1.0 "
+                + "  END"
+            )
+            sql = (
+                f"SELECT id, kind, text, file_path, symbol_name, module, "
+                f"line_start, line_end, commit_sha, "
+                f"any_hits * ({case_expr}) AS score, "
+                f"length(file_path) AS fp_len "
+                f"FROM ( "
+                f"  SELECT id, kind, text, file_path, symbol_name, module, "
+                f"    line_start, line_end, commit_sha, "
+                f"    ({any_sql}) AS any_hits, "
+                f"    ({name_sql}) AS name_hits "
+                f"  FROM entries "
+                f"  WHERE kind = ? AND ({where_any}) "
+                f") t "
+                f"ORDER BY score DESC, fp_len ASC "
+                f"LIMIT ?"
+            )
+            params: list[object] = [
+                *any_params,
+                *name_params,
+                kind,
+                *where_params,
+                k,
+            ]
+        else:
+            # No-op profile: skip the name_hits subquery and the CASE entirely.
+            sql = (
+                f"SELECT id, kind, text, file_path, symbol_name, module, "
+                f"line_start, line_end, commit_sha, "
+                f"({any_sql}) AS score, "
+                f"length(file_path) AS fp_len "
+                f"FROM entries "
+                f"WHERE kind = ? AND ({where_any}) "
+                f"ORDER BY score DESC, fp_len ASC "
+                f"LIMIT ?"
+            )
+            params = [
+                *any_params,
+                kind,
+                *where_params,
+                k,
+            ]
         rows = conn.execute(sql, params).fetchall()
     finally:
         conn.close()

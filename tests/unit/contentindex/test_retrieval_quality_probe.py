@@ -18,6 +18,7 @@ from __future__ import annotations
 import pytest
 
 from claude_almanac.codeindex.config import DEFAULT_EXCLUDES, _excluded
+from claude_almanac.codeindex.scoring import CODE_PROFILE
 from claude_almanac.contentindex import db as ci_db
 from claude_almanac.contentindex import keyword as ci_keyword
 from claude_almanac.contentindex import search as ci_search
@@ -75,7 +76,9 @@ def hooks_file_db(tmp_path):
 def test_pattern_a_function_outranks_module_logger(hooks_file_db):
     """Query that hits only via file_path should rank the behavioral
     function above the module-level LOGGER constant."""
-    hits = ci_keyword.search(hooks_file_db, query="hooks widgets", k=5)
+    hits = ci_keyword.search(
+        hooks_file_db, query="hooks widgets", k=5, scoring=CODE_PROFILE,
+    )
     names = [h["symbol_name"] for h in hits]
     assert "process_widget_submission" in names
     assert "LOGGER" in names
@@ -122,7 +125,7 @@ def test_pattern_a_dunder_init_penalized_on_filepath_only_match(tmp_path):
         commit_sha="sha1",
         embedding=[0.5, 0.5],
     )
-    hits = ci_keyword.search(dbp, query="pipeline", k=5)
+    hits = ci_keyword.search(dbp, query="pipeline", k=5, scoring=CODE_PROFILE)
     names = [h["symbol_name"] for h in hits]
     assert "runner_main" in names
     assert "__init__" in names
@@ -133,7 +136,9 @@ def test_pattern_a_user_querying_logger_by_name_still_works(hooks_file_db):
     """Counter-fixture: when the user literally queries ``LOGGER``, the
     symbol_name column matches directly and the structural penalty must
     NOT apply. Locks that the fix doesn't over-reach."""
-    hits = ci_keyword.search(hooks_file_db, query="logger widgets", k=5)
+    hits = ci_keyword.search(
+        hooks_file_db, query="logger widgets", k=5, scoring=CODE_PROFILE,
+    )
     names = [h["symbol_name"] for h in hits]
     assert "LOGGER" in names
     # LOGGER's symbol_name matched 'logger' token AND file_path matched
@@ -329,6 +334,7 @@ def test_pattern_a_vector_logger_demoted_when_unnamed(tmp_path):
         dbp, query_vec=[0.42, 0.58],
         sym_k=3, arch_k=0,
         query="process event dispatch", hybrid=True,
+        scoring=CODE_PROFILE,
     )
     # Both should be present, but process_event must win ranking.
     assert "process_event" in out
