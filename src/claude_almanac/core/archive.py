@@ -403,6 +403,68 @@ def reinforce(db: Path, *, ids: list[int], now: int | None = None) -> int:
         conn.close()
 
 
+def insert_rollup(
+    db: Path,
+    *,
+    session_id: str,
+    repo_key: str,
+    branch: str | None,
+    started_at: int,
+    ended_at: int,
+    turn_count: int,
+    trigger: str,
+    narrative: str,
+    decisions: str,
+    artifacts: str,
+    embedding: list[float],
+    created_at: int | None = None,
+) -> int | None:
+    """Insert a rollup row + vec row. Returns new id, or None on
+    UNIQUE(session_id, trigger) conflict. Follows the insert_entry pattern.
+    """
+    conn = _connect(db)
+    try:
+        ts = created_at if created_at is not None else int(time.time())
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO rollups "
+            "(session_id, repo_key, branch, started_at, ended_at, turn_count,"
+            " trigger, narrative, decisions, artifacts, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (session_id, repo_key, branch, started_at, ended_at, turn_count,
+             trigger, narrative, decisions, artifacts, ts),
+        )
+        if cur.rowcount == 0:
+            conn.commit()
+            return None
+        rollup_id = cur.lastrowid
+        assert rollup_id is not None
+        conn.execute(
+            "INSERT INTO rollups_vec (rollup_id, embedding) VALUES (?, ?)",
+            (int(rollup_id), _serialize(embedding)),
+        )
+        conn.commit()
+        return int(rollup_id)
+    finally:
+        conn.close()
+
+
+def search_rollups(
+    db: Path, query_embedding: list[float], *, topk: int = 5
+) -> list[tuple[int, float, str]]:
+    """Vector search over rollups_vec. Returns (id, distance, narrative)."""
+    conn = _connect(db)
+    try:
+        rows = conn.execute(
+            "SELECT r.id, v.distance, r.narrative "
+            "FROM rollups r JOIN rollups_vec v ON r.id = v.rollup_id "
+            "WHERE v.embedding MATCH ? AND k = ? ORDER BY v.distance",
+            (_serialize(query_embedding), topk),
+        ).fetchall()
+        return [(int(r[0]), float(r[1]), str(r[2])) for r in rows]
+    finally:
+        conn.close()
+
+
 def prune(db: Path, *, cfg: DecayCfg, now: int | None = None, scope: str = "entry@project") -> int:
     """Delete unpinned entries whose decay score has fallen below cfg.prune_threshold,
     subject to a minimum-age safety floor (cfg.prune_min_age_days). Returns rows removed.
