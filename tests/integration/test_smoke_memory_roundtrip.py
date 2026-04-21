@@ -34,4 +34,8 @@ def test_curator_write_then_recall_search_returns_entry(isolated_data_dir):
         env=env, capture_output=True, text=True, timeout=30,
     )
     assert search.returncode == 0, search.stderr
-    assert "teal" in search.stdout.lower() or search.stdout.strip() == ""
+    # Curator may decline to save from a thin 2-turn transcript; in that case
+    # `recall search` prints the `(no matches)` sentinel introduced in v0.3.6.
+    # Accept either outcome: a real hit mentioning teal, or the no-match path.
+    stdout = search.stdout.strip().lower()
+    assert "teal" in stdout or stdout in ("", "(no matches)")

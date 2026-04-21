@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.13 — 2026-04-21 — Fix stale integration-test assertion (unblocks 0.3.12 publish)
+
+### Fixed
+
+- **`test_smoke_memory_roundtrip` expected empty stdout** when the curator
+  declined to save, but v0.3.6's unified `recall search` now prints a
+  `(no matches)` sentinel in that case. The assertion
+  `stdout.strip() == ""` was no longer satisfiable. Widened to accept
+  either `"teal"` in the hit text or `(no matches)` as the no-hit
+  sentinel. Product behavior unchanged.
+
+### Note
+
+This was a stale test assertion masked by the 0.3.6–0.3.11 integration
+gate outages. v0.3.12's CI run was the first successful model-pull + test
+run since v0.3.5 and surfaced it. Re-ships 0.3.12's features (hybrid
+retrieval + release pipeline fix) via the first CI run that can actually
+reach `publish`.
+
 ## 0.3.12 — 2026-04-21 — Release pipeline fix (pull qwen3-embedding in CI)
 
 ### Fixed
