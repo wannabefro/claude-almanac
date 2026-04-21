@@ -40,7 +40,11 @@ class OllamaCurator:
             ],
             "stream": False,
             "format": "json",
-            "options": {"temperature": 0, "num_predict": 8192},
+            "options": {
+                "temperature": 0,
+                # 8k >> largest observed curator payload; prevents mid-JSON truncation.
+                "num_predict": 8192,
+            },
         }
         try:
             resp = self._client.post(f"{self.host}/api/chat", json=payload)
