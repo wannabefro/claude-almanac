@@ -39,6 +39,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   links`, `recall rollups`, `recall rollup-now`.
 - **Status.** `/almanac status` shows rollup count-by-trigger + edge
   count-by-type with a cross-scope edge counter.
+- **`claude_cli` curator provider.** Invokes `claude -p --model <model>`
+  as a subprocess using the user's Claude Code OAuth session — no
+  `ANTHROPIC_API_KEY` required. CLI boot makes it unsuitable for the
+  per-turn curator hot path, but it shines as a rollup/digest provider.
+- **`codex` curator provider.** Invokes `codex exec` non-interactively
+  using the user's Codex login (no API key required). Same CLI-boot
+  tradeoffs as `claude_cli`. Routes through
+  `--skip-git-repo-check --ephemeral -s read-only` for safety.
+- **`rollup.model` config override.** Lets users pick a different model
+  for rollups than the per-turn curator without touching `curator.model`
+  (e.g. `curator=gemma4:e4b` but `rollup=qwen2.5:7b` or
+  `rollup.provider=codex`).
+- **`digest.narrative_provider` / `digest.narrative_model` config
+  overrides.** Daily-digest commit narratives now route through the
+  same `curators.factory.make_curator()` as the per-turn curator and
+  rollup generator, so all three LLM-text surfaces share one provider
+  abstraction and can be independently configured per feature.
 
 ### Fixed
 
@@ -58,6 +75,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `rollups` + `rollups_vec` (previously only the migration path did).
 - **`_migrate_schema` fail-loud.** Raises `ValueError` when the `meta`
   table has no `dim` key instead of silently defaulting to 1024.
+- **cwd-path encoding for transcript discovery.** Claude Code replaces
+  both `/` and `.` in the cwd when deriving the project-transcript
+  directory name; `rollup-now` and the idle-fallback previously only
+  replaced `/`, missing transcripts for any cwd containing a dot.
+- **Digest narrator unification.** `digest/render.py::haiku_narrate`
+  no longer shells out directly to `claude -p` via a private helper.
+  It now takes a `Curator` instance from the factory, so digest
+  narratives honor `cfg.curator` (or the new `digest.narrative_*`
+  overrides). Falls back to bare `sha subject` bullets when the
+  curator returns empty.
 
 ### Schema (idempotent, auto-migrated)
 
