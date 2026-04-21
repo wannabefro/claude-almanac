@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import re
+import sqlite3
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+_KIND_PREFIXES = ("feedback_", "project_", "reference_", "user_")
 
 
 def _parse_frontmatter(text: str) -> dict[str, str]:
@@ -22,9 +25,54 @@ def _parse_frontmatter(text: str) -> dict[str, str]:
     return fm
 
 
+def _kind_from_archive(archive_db: Path, filename: str) -> str | None:
+    """Look up entries.kind for a memory by filename. Returns None on any error
+    so the caller can fall through to prefix inference."""
+    if not archive_db.exists():
+        return None
+    try:
+        conn = sqlite3.connect(archive_db)
+        try:
+            row = conn.execute(
+                "SELECT kind FROM entries WHERE source = ? LIMIT 1",
+                (f"md:{filename}",),
+            ).fetchone()
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return None
+    return row[0] if row else None
+
+
+def _kind_from_slug_prefix(slug: str) -> str | None:
+    """Infer kind from the md slug when it follows the canonical
+    feedback_/project_/reference_/user_ convention."""
+    for prefix in _KIND_PREFIXES:
+        if slug.startswith(prefix):
+            return prefix[:-1]
+    return None
+
+
+def _resolve_kind(
+    fm: dict[str, str], filename: str, slug: str, archive_db: Path,
+) -> str:
+    """Resolution chain: YAML frontmatter → archive DB → slug prefix → unknown."""
+    fm_kind = fm.get("type") or fm.get("kind")
+    if fm_kind:
+        return fm_kind
+    archive_kind = _kind_from_archive(archive_db, filename)
+    if archive_kind:
+        return archive_kind
+    prefix_kind = _kind_from_slug_prefix(slug)
+    if prefix_kind:
+        return prefix_kind
+    return "unknown"
+
+
 def _scan_md_dir(base: Path, scope: str, cutoff_ts: float) -> list[dict[str, Any]]:
     if not base.exists():
         return []
+    archive_db = base / "archive.db"
     out: list[dict[str, Any]] = []
     for p in sorted(base.glob("*.md")):
         if p.name == "MEMORY.md":
@@ -36,7 +84,7 @@ def _scan_md_dir(base: Path, scope: str, cutoff_ts: float) -> list[dict[str, Any
         out.append({
             "scope": scope,
             "slug": p.stem,
-            "kind": fm.get("type", "unknown"),
+            "kind": _resolve_kind(fm, filename=p.name, slug=p.stem, archive_db=archive_db),
             "name": fm.get("name", p.stem),
             "description": fm.get("description", ""),
             "path": str(p),

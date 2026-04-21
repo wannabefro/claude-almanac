@@ -6,7 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-## 0.3.2 — 2026-04-21 — Session rollups + KG edges (v0.3 §3.1 + §3.3)
+## 0.3.3 — 2026-04-21 — Digest polish (kind resolution + Q&A provider unification)
+
+### Fixed
+
+- **Daily digest no longer shows every new memory as `[unknown]`.** Curator
+  has been writing bare markdown bodies (no YAML frontmatter) since v0.2.x,
+  so the digest collector's `fm.get("type", "unknown")` always fell through.
+  The collector now resolves kind via a chain: frontmatter → archive DB
+  lookup (`SELECT kind FROM entries WHERE source = 'md:<filename>'`) → slug
+  prefix heuristic (`feedback_`, `project_`, `reference_`, `user_`) →
+  `unknown` only as a last resort.
+- **Fast-mode digest Q&A works without the `claude` binary on PATH.**
+  Previously `claude-almanac digest ask` on the web UI subprocessed
+  `claude -p --model <m>` directly and crashed with "claude binary not
+  found" on machines that had the older provider layout. The Q&A path now
+  routes through `curators.factory.make_curator`, so any configured
+  provider (ollama, anthropic_sdk, claude_cli, codex) can answer questions.
+
+### Added
+
+- **`digest.qa_provider` / `digest.qa_model` config overrides.** Dedicated
+  Q&A tuning knobs with the fall-through chain `qa_*` → `narrative_*` →
+  `cfg.curator`. Useful when users want a low-latency interactive provider
+  (e.g. `ollama`) for Q&A while keeping a slower, higher-quality provider
+  (e.g. `codex`) for once-per-day narratives.
+
+### Notes
+
+- Deep-mode Q&A (`mode=deep`) still requires the `claude` binary because
+  it's built on `claude-agent-sdk`, which drives Claude Code's OAuth
+  session. No change there.
 
 ### Added
 

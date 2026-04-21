@@ -43,6 +43,12 @@ class DigestCfg:
     # without touching the per-turn curator path.
     narrative_provider: str | None = None
     narrative_model: str | None = None
+    # Fast-mode Q&A provider overrides. None -> reuse narrative_provider,
+    # which itself falls back to cfg.curator. Q&A is interactive (from the
+    # digest web UI), so users may want a lower-latency provider here than
+    # the narrative pass uses.
+    qa_provider: str | None = None
+    qa_model: str | None = None
 
 
 @dataclass
@@ -225,6 +231,8 @@ def _from_dict(raw: dict[str, Any]) -> Config:
             notify=dig.get("notify", True),
             narrative_provider=dig.get("narrative_provider"),
             narrative_model=dig.get("narrative_model"),
+            qa_provider=dig.get("qa_provider"),
+            qa_model=dig.get("qa_model"),
         ),
         code_index=_code_index_from_dict(raw.get("code_index", {})),
         retrieval=retrieval,
