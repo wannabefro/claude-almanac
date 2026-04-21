@@ -152,10 +152,6 @@ def test_pattern_a_user_querying_logger_by_name_still_works(hooks_file_db):
 # list skips these at index time.
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="v0.3.14 Task 3: add **/.output/** and **/*.d.ts to DEFAULT_EXCLUDES",
-)
 def test_pattern_d_default_excludes_cover_output_and_dts():
     """DEFAULT_EXCLUDES must skip .output/ trees and any *.d.ts file
     regardless of depth. dist/ and build/ are already excluded on

@@ -50,6 +50,20 @@ claude-almanac codeindex arch
 `modules.patterns: [...]` is the explicit alternative; the two are mutually
 exclusive.
 
+## Excluded paths
+
+Index-time defaults skip these trees and file patterns, so generated
+artifacts don't crowd top-3 slots:
+
+- `node_modules/`, `.venv/`, `.terraform/`, `.terragrunt-cache/`
+- `dist/`, `build/`, `.output/` — TypeScript/JS/Nuxt/Nitro build outputs
+- `*.d.ts` — TypeScript declaration files re-state signatures already
+  present in the source `.ts`
+- `*_generated.*`, `__pycache__/`, `*.egg-info/`, `_static/`, `_build/`
+
+Add repo-specific excludes via `modules.extra_excludes` in
+`.claude/code-index.yaml`. These stack on top of the defaults.
+
 ## Supported languages
 
 | Language | Method | Notes |

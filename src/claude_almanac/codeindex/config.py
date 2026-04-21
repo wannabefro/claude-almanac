@@ -19,6 +19,14 @@ DEFAULT_EXCLUDES = [
     "**/.terragrunt-cache/**",
     "**/dist/**",
     "**/build/**",
+    # TypeScript build-output trees. `.output/` is the Nuxt/Nitro convention
+    # and shows up alongside `dist/` in many frontend monorepos. Generated
+    # `.d.ts` declarations re-state signatures already present in the
+    # source `.ts`, so indexing them doubles every symbol hit (observed
+    # on 2026-04-21 with Calendar.types.d.ts duplicating Calendar.types.ts
+    # in the top-3 slots).
+    "**/.output/**",
+    "**/*.d.ts",
     "**/*_generated.*",
     "**/__pycache__/**",
     "**/*.egg-info/**",
