@@ -1,0 +1,40 @@
+tests/unit/test_config_v0_3_2.py
+  7260c9bbd9808709 16-32
+src/claude_almanac/rollups/runner.py
+  7260c9bbd9808709 45,121-130,132-139
+src/claude_almanac/core/config.py
+  7260c9bbd9808709 103-105,209
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "7b24621f1c26fdce8a48aaee5ecdcc5060831bb5",
+  "prompts": {
+    "7260c9bbd9808709": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "61df4f8a-a0d8-4e69-9565-16df65aabd12",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 40,
+      "total_deletions": 4,
+      "accepted_lines": 40,
+      "overriden_lines": 0
+    },
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 14,
+      "overriden_lines": 0
+    }
+  }
+}
