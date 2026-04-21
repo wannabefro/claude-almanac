@@ -56,8 +56,12 @@ def _stale_prior_session(
 
 
 def _transcripts_dir_for_cwd(cwd: Path) -> Path | None:
-    """Claude Code encodes cwd path into ~/.claude/projects/<encoded>."""
-    encoded = str(cwd).replace("/", "-")
+    """Claude Code encodes cwd path into ~/.claude/projects/<encoded>.
+
+    The encoding replaces both '/' and '.' with '-' so that cwd
+    ``/Users/jane.doe/code/x`` becomes ``-Users-jane-doe-code-x``.
+    """
+    encoded = str(cwd).replace("/", "-").replace(".", "-")
     return Path.home() / ".claude" / "projects" / encoded
 
 

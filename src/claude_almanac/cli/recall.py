@@ -504,7 +504,8 @@ def _cmd_rollup_now() -> None:
     import subprocess
 
     cwd = Path.cwd()
-    encoded = str(cwd).replace("/", "-")
+    # Claude Code replaces both '/' and '.' in cwd path to form the encoded dir name.
+    encoded = str(cwd).replace("/", "-").replace(".", "-")
     tdir = Path.home() / ".claude" / "projects" / encoded
     if not tdir.exists():
         print(
