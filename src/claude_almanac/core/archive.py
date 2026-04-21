@@ -62,7 +62,7 @@ def init(db: Path, *, embedder_name: str, model: str, dim: int, distance: Distan
                     f"requested {embedder_name} model={model} dim={dim}. "
                     f"Re-index required."
                 )
-            _migrate_schema(conn)
+            _migrate_schema(conn, dim=dim)
             return
         conn.executemany(
             "INSERT INTO meta(key, value) VALUES (?, ?)",
@@ -103,7 +103,9 @@ def _migrate_schema(conn: sqlite3.Connection, dim: int | None = None) -> None:
     # Infer dim from meta if not provided
     if dim is None:
         meta = {row[0]: row[1] for row in conn.execute("SELECT key, value FROM meta").fetchall()}
-        dim = int(meta.get("dim", "1024"))
+        if "dim" not in meta:
+            raise ValueError("archive meta table has no 'dim' key; DB may be corrupt")
+        dim = int(meta["dim"])
 
     # v0.3.0 → v0.3.1 migrations (entries table should exist in init path)
     tables = {row[0] for row in conn.execute(
