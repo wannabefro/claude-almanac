@@ -1,0 +1,44 @@
+tests/unit/test_rollups_archive.py
+  7260c9bbd9808709 1-58
+tests/unit/test_rollups_generator.py
+  7260c9bbd9808709 1-121
+src/claude_almanac/core/archive.py
+  7260c9bbd9808709 406-467
+src/claude_almanac/rollups/generator.py
+  7260c9bbd9808709 1-163
+src/claude_almanac/rollups/assets/rollup-prompt.md
+  7260c9bbd9808709 1-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "d25e203b1927196dbdc161881b8dfee46a27843d",
+  "prompts": {
+    "7260c9bbd9808709": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "61df4f8a-a0d8-4e69-9565-16df65aabd12",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 459,
+      "total_deletions": 8,
+      "accepted_lines": 451,
+      "overriden_lines": 0
+    },
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 14,
+      "overriden_lines": 0
+    }
+  }
+}
