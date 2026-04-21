@@ -393,11 +393,20 @@ def prune(db: Path, *, cfg: DecayCfg, now: int | None = None) -> int:
 
     cfg: a DecayCfg (imported lazily to avoid a circular dep with core.config).
     """
+    from claude_almanac.edges.store import cascade_delete_on_entry
+
     from .decay import decay_score
+
     ts = now if now is not None else int(time.time())
     min_age_cutoff = ts - cfg.prune_min_age_days * 86400
     conn = _connect(db)
     try:
+        # Check if edges table exists (v0.3.2+, not present in older DBs)
+        tables = {row[0] for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()}
+        has_edges = "edges" in tables
+
         rows = conn.execute(
             "SELECT id, created_at, last_used_at, use_count "
             "FROM entries WHERE pinned = 0 AND created_at < ?",
@@ -414,6 +423,10 @@ def prune(db: Path, *, cfg: DecayCfg, now: int | None = None) -> int:
                 to_delete.append(row_id)
         if not to_delete:
             return 0
+        # Cascade delete edges before deleting entries (only if edges table exists)
+        if has_edges:
+            for entry_id in to_delete:
+                cascade_delete_on_entry(conn, entry_id=entry_id, scope="entry@project")
         placeholders = ",".join("?" * len(to_delete))
         conn.execute(f"DELETE FROM entries WHERE id IN ({placeholders})", to_delete)
         conn.execute(f"DELETE FROM entries_vec WHERE id IN ({placeholders})", to_delete)
