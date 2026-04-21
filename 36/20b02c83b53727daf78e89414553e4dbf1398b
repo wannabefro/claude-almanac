@@ -1,0 +1,87 @@
+tests/unit/contentindex/test_search.py
+  e916cb09d91489ff 1-2
+tests/unit/test_recall_code.py
+  e916cb09d91489ff 8
+src/claude_almanac/contentindex/__init__.py
+  e916cb09d91489ff 1-22
+tests/unit/contentindex/test_retrieval_quality_fixtures.py
+  e916cb09d91489ff 19-20
+tests/unit/contentindex/test_db.py
+  e916cb09d91489ff 3
+src/claude_almanac/core/retrieve.py
+  e916cb09d91489ff 79,231
+tests/unit/codeindex/test_status.py
+  e916cb09d91489ff 2
+tests/unit/contentindex/test_retrieval_quality_probe.py
+  e916cb09d91489ff 20-23
+src/claude_almanac/cli/recall.py
+  e916cb09d91489ff 73,135,282
+src/claude_almanac/codeindex/sym.py
+  e916cb09d91489ff 19
+tests/unit/codeindex/test_sym.py
+  e916cb09d91489ff 4
+tests/unit/contentindex/test_keyword.py
+  e916cb09d91489ff 7-8
+tests/unit/contentindex/test_fuse.py
+  e916cb09d91489ff 4
+src/claude_almanac/codeindex/init.py
+  e916cb09d91489ff 20
+src/claude_almanac/codeindex/arch.py
+  e916cb09d91489ff 24
+tests/unit/codeindex/test_arch.py
+  e916cb09d91489ff 6
+src/claude_almanac/contentindex/search.py
+  e916cb09d91489ff 4-6
+src/claude_almanac/codeindex/refresh.py
+  e916cb09d91489ff 14
+src/claude_almanac/codeindex/status.py
+  e916cb09d91489ff 7
+tests/unit/contentindex/test_search_hybrid.py
+  e916cb09d91489ff 6-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "3620b02c83b53727daf78e89414553e4dbf1398b",
+  "prompts": {
+    "1c20f8991cf371a5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "746a6f1b-01bf-4f62-9df5-6ff0fb1cd4c4",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 3,
+      "overriden_lines": 0
+    },
+    "76e88aceb91d339f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c303af38-4c0f-48ea-99c7-8a137750e79e",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 22,
+      "overriden_lines": 0
+    },
+    "e916cb09d91489ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "778ee5c9-4f99-4017-9f25-a725b893877a",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 56,
+      "total_deletions": 34,
+      "accepted_lines": 53,
+      "overriden_lines": 0
+    }
+  }
+}
