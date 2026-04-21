@@ -62,6 +62,21 @@ If the upcoming turn's content matches or refines one of these, use `update_md` 
 
 {{EXISTING_MEMORIES}}
 
+### Optional: `edges` field
+
+If the memory you're writing explicitly references another existing slug from
+the memories listed in the EXISTING MEMORIES section (by name, topic, or
+obvious continuation), you MAY include an `edges` array:
+
+    {"action": "write_md", "slug": "new", "text": "...",
+     "edges": [{"type": "related", "to": "other_slug"}]}
+
+Rules:
+- Only `type: "related"` is valid.
+- `to` must match an existing slug exactly — unknown slugs are dropped silently.
+- Use sparingly. Emit an edge only when there's textual citation (the memory
+  names the other slug or directly builds on it), not for topical adjacency.
+
 ## Rules
 
 - `write_md` / `update_md` are for typed core memories (user/feedback/project/reference). Use a stable, semantic `name` so updates overwrite rather than duplicate. **Use underscores only** (no dashes) in `name` values.

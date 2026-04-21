@@ -90,6 +90,8 @@ def init(db: Path, *, embedder_name: str, model: str, dim: int, distance: Distan
             f"id INTEGER PRIMARY KEY, embedding FLOAT[{dim}])"
         )
         _create_entries_history(conn)
+        _create_rollups_tables(conn, dim=dim)
+        _create_edges_table(conn)
         conn.commit()
     finally:
         conn.close()
@@ -342,6 +344,20 @@ def set_pinned_by_slug(db: Path, *, slug: str, pinned: bool) -> int:
         return cur.rowcount
     finally:
         conn.close()
+
+
+def lookup_entry_id_by_slug(
+    conn: sqlite3.Connection, slug: str
+) -> int | None:
+    """Return the entry id for a memory slug, or None if not present.
+
+    Mirrors the convention in delete_by_slug / set_pinned_by_slug — the slug
+    is stored inside `source` as `md:<slug>`.
+    """
+    row = conn.execute(
+        "SELECT id FROM entries WHERE source = ?", (f"md:{slug}",)
+    ).fetchone()
+    return int(row[0]) if row else None
 
 
 def delete_by_slug(db: Path, *, slug: str) -> int:

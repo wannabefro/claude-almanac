@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sqlite3
 from collections.abc import Iterator
 from importlib.resources import files
 from pathlib import Path
@@ -85,6 +86,121 @@ def _run_llm(conversation_tail: str) -> str:
         return "{}"
 
 
+def _connect_archive(db: Path) -> sqlite3.Connection:
+    """Open a read/write connection to an archive DB with sqlite_vec loaded."""
+    import sqlite_vec  # type: ignore[import-untyped]
+
+    db.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db))
+    conn.enable_load_extension(True)
+    sqlite_vec.load(conn)
+    conn.enable_load_extension(False)
+    return conn
+
+
+def _read_live_text(db: Path, slug: str) -> str | None:
+    """Return the current live body text for *slug*, or None if not yet written."""
+    if not db.exists():
+        return None
+    conn = sqlite3.connect(str(db))
+    try:
+        row = conn.execute(
+            "SELECT text FROM entries WHERE source = ?", (f"md:{slug}",)
+        ).fetchone()
+        return row[0] if row else None
+    finally:
+        conn.close()
+
+
+def _emit_edges_after_write(
+    *,
+    db: Path,
+    slug: str,
+    new_text: str,
+    prior_text: str | None,
+    edge_specs: list[dict[str, Any]],
+) -> None:
+    """Emit supersedes + related edges after a write_md / update_md.
+
+    supersedes: fired automatically when the body changed (prior_text differs from
+    new_text). The live entry supersedes the most recent entries_history row for
+    that slug.
+
+    related: fired for each ``{"type": "related", "to": <slug>}`` entry in
+    *edge_specs*. Unknown target slugs are dropped silently with an INFO log.
+    Other edge types from the curator JSON are ignored in v0.3.2.
+    """
+    body_changed = prior_text is not None and prior_text != new_text
+    has_related = any(
+        spec.get("type") == "related" and spec.get("to")
+        for spec in edge_specs
+    )
+    if not body_changed and not has_related:
+        return
+
+    conn = _connect_archive(db)
+    try:
+        # Scope is always project-scoped from the curator (global entries live in
+        # the global DB; the scope string just reflects the entry's origin DB).
+        live_id = archive.lookup_entry_id_by_slug(conn, slug)
+        if live_id is None:
+            LOGGER.warning("edge-skip: live entry not found for slug %r", slug)
+            return
+
+        # Detect scope from the DB path to build the correct scope string.
+        scope_str = (
+            "entry@global"
+            if db.parent == paths.global_memory_dir()
+            else "entry@project"
+        )
+
+        from claude_almanac.edges.store import insert_edge
+
+        # --- supersedes edge ---
+        if body_changed:
+            hist_row = conn.execute(
+                "SELECT id FROM entries_history WHERE slug = ? "
+                "ORDER BY version DESC LIMIT 1",
+                (slug,),
+            ).fetchone()
+            if hist_row is not None:
+                history_id = int(hist_row[0])
+                insert_edge(
+                    conn,
+                    src_id=live_id, src_scope=scope_str,
+                    dst_id=history_id, dst_scope=scope_str,
+                    type="supersedes", created_by="curator",
+                )
+                LOGGER.info(
+                    "edge: %r (entry %d) supersedes history row %d",
+                    slug, live_id, history_id,
+                )
+
+        # --- related edges from curator JSON ---
+        for spec in edge_specs:
+            if spec.get("type") != "related":
+                continue  # only 'related' allowed from curator JSON in v0.3.2
+            target_slug = spec.get("to")
+            if not target_slug:
+                continue
+            target_id = archive.lookup_entry_id_by_slug(conn, target_slug)
+            if target_id is None:
+                LOGGER.info("edge-drop: unknown target slug %r", target_slug)
+                continue
+            insert_edge(
+                conn,
+                src_id=live_id, src_scope=scope_str,
+                dst_id=target_id, dst_scope=scope_str,
+                type="related", created_by="curator",
+            )
+            LOGGER.info(
+                "edge: %r (entry %d) related -> %r (entry %d)",
+                slug, live_id, target_slug, target_id,
+            )
+    finally:
+        conn.close()
+
+
 def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
     cfg = config.load()
     profile = get_profile(cfg.embedder.provider, cfg.embedder.model)
@@ -142,10 +258,24 @@ def _apply_decisions(decisions: list[dict[str, Any]]) -> None:
             else:
                 LOGGER.info("dedup-miss: nearest md distance=%s", dist)
                 provenance = action  # "write_md" or "update_md"
+
+            # Snapshot the prior body's text before writing so we can detect a
+            # body change and emit a supersedes edge afterward.
+            prior_text = _read_live_text(db, slug)
+
             versioning.snapshot_then_replace(
                 db, scope_dir=scope_dir, slug=slug,
                 new_text=text, new_kind=kind or "reference",
                 new_embedding=vec, provenance=provenance,
+            )
+
+            # Emit edges: supersedes (auto) + related (from curator JSON).
+            _emit_edges_after_write(
+                db=db,
+                slug=slug,
+                new_text=text,
+                prior_text=prior_text,
+                edge_specs=d.get("edges", []),
             )
 
         elif action in ("insert_archive", "archive_turn"):
