@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.10 — 2026-04-21 — Curator JSON robustness (schema-constrained + tolerant fallback)
+
+### Fixed
+
+- **Ollama curator now uses JSON-schema-constrained decoding** (`format:
+  <schema>` instead of the older `format: "json"`). The shape is a
+  permissive `{"decisions": [{...}]}` contract. Grammar enforcement at
+  token-gen prevents malformed JSON — notably the unescaped-inner-quote
+  bug where gemma4:e4b emitted `"Engineer's Ops Console"` without
+  escaping the inner `"`, breaking JSON parse at char ~1099. That
+  specific class of curator failure is now impossible: the model
+  literally can't emit an unescaped `"` inside a string value.
+- **Tolerant parser fallback in `_parse_decisions`.** For providers that
+  don't support grammar-constrained decoding (Anthropic SDK, claude_cli,
+  codex) or older Ollama versions, `_recover_unescaped_quotes` walks
+  the failed JSON, distinguishes structural `"` (followed by `,`, `}`,
+  `]`, `:`, or EOF) from genuine-inner-content `"`, and auto-escapes the
+  latter before a retry. Conservative by design — an unbalanced string
+  or ambiguous shape returns None and the original warning fires.
+
+### Dogfood verification
+
+Live-invoked the curator on a quote-heavy synthetic transcript
+mentioning `"Engineer's Ops Console"` — exactly the failure mode from
+the 2026-04-21 13:14:28 log entry. gemma4:e4b now emits `\"Engineer's
+Ops Console\"` (inner quotes escaped); the output parses cleanly on
+first try; no recovery needed.
+
 ## 0.3.9 — 2026-04-21 — Qwen3-Embedding profile (free + multi-purpose + code-aware)
 
 ### Added

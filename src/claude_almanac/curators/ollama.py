@@ -1,18 +1,45 @@
 """Ollama /api/chat curator provider.
 
-Uses ``format: "json"`` to constrain small models (gemma3:4b) to valid
-JSON output. Returns the raw ``message.content`` string; parsing lives
-in ``core/curator.py``.
+Uses a JSON schema passed via ``format: <schema>`` to grammar-constrain
+small models (gemma3:4b, gemma4:e4b) to syntactically-valid JSON with the
+expected ``{"decisions": [...]}`` shape. Grammar-constrained decoding on
+Ollama ≥ 0.5 enforces at token-gen time, so the model literally cannot
+emit unescaped ``"`` inside a string value — fixing a class of curator
+failures seen under ``format: "json"`` (which was prompt-only, not
+grammar-enforced, on small models).
+
+Returns the raw ``message.content`` string; parsing lives in
+``core/curator.py``.
 """
 from __future__ import annotations
 
 import contextlib
 import logging
 import os
+from typing import Any
 
 import httpx
 
 LOGGER = logging.getLogger("claude_almanac.curators.ollama")
+
+
+# Permissive schema: enforce top-level shape + array of objects, but allow
+# any keys/types within each decision. This keeps shape tolerance with the
+# _parse_decisions handler (which already accepts several decision shapes)
+# while closing the unescaped-quote hole that plagued format="json".
+_CURATOR_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "decisions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": True,
+            },
+        },
+    },
+    "required": ["decisions"],
+}
 
 
 class OllamaCurator:
@@ -39,7 +66,10 @@ class OllamaCurator:
                 {"role": "user", "content": user_turn},
             ],
             "stream": False,
-            "format": "json",
+            # v0.3.10: schema-constrained decoding. Grammar enforcement at
+            # token-gen prevents malformed JSON (notably unescaped inner
+            # quotes) that format="json" permitted on smaller models.
+            "format": _CURATOR_SCHEMA,
             "options": {
                 "temperature": 0,
                 # 8k >> largest observed curator payload; prevents mid-JSON truncation.

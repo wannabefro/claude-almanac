@@ -25,7 +25,12 @@ def test_invoke_posts_expected_payload_and_returns_message_content() -> None:
     body = _j.loads(sent.content)
     assert body["model"] == "gemma3:4b"
     assert body["stream"] is False
-    assert body["format"] == "json"
+    # v0.3.10: schema-constrained decoding (was format="json" pre-0.3.10).
+    # Enforces valid JSON at token-gen time, preventing the unescaped-inner-quote
+    # failure mode that slipped past format="json" on small models.
+    assert isinstance(body["format"], dict)
+    assert body["format"]["type"] == "object"
+    assert "decisions" in body["format"]["properties"]
     assert body["options"]["temperature"] == 0
     assert body["messages"] == [
         {"role": "system", "content": "SYSTEM"},

@@ -392,6 +392,70 @@ def _read_conversation_tail() -> str:
     return ""
 
 
+def _recover_unescaped_quotes(raw: str) -> str | None:
+    """Repair JSON payloads where the LLM emitted unescaped `"` inside
+    string values. Returns a candidate repaired string, or None when the
+    input looks too malformed to bother with.
+
+    Heuristic: walk the raw text, track whether we're inside a string,
+    and escape any `"` that can't plausibly terminate the current string
+    (because the next non-whitespace char isn't a valid JSON
+    structural token: `,`, `}`, `]`, `:`). Conservative by design — if
+    the next char IS structural, the quote is treated as a genuine
+    terminator. This catches the common gemma failure mode
+    (`"content": "...\"Engineer's Ops Console\" aesthetic..."`) without
+    needing an LLM round-trip.
+    """
+    if not raw or raw.count('"') < 2:
+        return None
+    out: list[str] = []
+    in_string = False
+    escape = False
+    i = 0
+    n = len(raw)
+    while i < n:
+        ch = raw[i]
+        if escape:
+            out.append(ch)
+            escape = False
+            i += 1
+            continue
+        if ch == "\\" and in_string:
+            out.append(ch)
+            escape = True
+            i += 1
+            continue
+        if ch == '"':
+            if not in_string:
+                out.append(ch)
+                in_string = True
+                i += 1
+                continue
+            # Peek forward past whitespace to classify this quote.
+            j = i + 1
+            while j < n and raw[j] in " \t\r\n":
+                j += 1
+            nxt = raw[j] if j < n else ""
+            if nxt in (",", "}", "]", ":", ""):
+                # Structural terminator — genuine string close.
+                out.append(ch)
+                in_string = False
+                i += 1
+                continue
+            # Unescaped inner quote — escape it.
+            out.append("\\")
+            out.append(ch)
+            i += 1
+            continue
+        out.append(ch)
+        i += 1
+    if in_string:
+        # Unbalanced — don't return a half-repaired string.
+        return None
+    repaired = "".join(out)
+    return repaired if repaired != raw else None
+
+
 def _strip_json_fence(raw: str) -> str:
     """Strip a ```json ... ``` (or bare ```) markdown fence from Haiku output.
 
@@ -414,12 +478,15 @@ def _strip_json_fence(raw: str) -> str:
 
 
 def _parse_decisions(raw: str) -> list[dict[str, Any]]:
-    """Parse Haiku's decision payload, tolerating three observed shapes.
+    """Parse Haiku's decision payload, tolerating observed shapes.
 
-    Haiku has been seen to return any of:
+    Has been seen to return any of:
       - `{"decisions": [ ... ]}` — the documented contract
       - `[ ... ]`                — a bare list of decisions
       - ````json\n...\n````      — any of the above wrapped in a code fence
+      - JSON with unescaped `"` inside string values — recovered via
+        _recover_unescaped_quotes (v0.3.10, belt-and-braces for Ollama <
+        grammar-constrained or for providers without schema enforcement)
 
     Returns the decision list, or [] if the payload is unparseable or empty.
     Never raises — caller (main) relies on a clean list contract.
@@ -429,12 +496,28 @@ def _parse_decisions(raw: str) -> list[dict[str, Any]]:
         return []
     try:
         payload = json.loads(cleaned)
-    except json.JSONDecodeError as exc:
-        LOGGER.warning(
-            "curator: LLM returned non-JSON (len=%d, err=%s): %s",
-            len(raw), exc, raw,
-        )
-        return []
+    except json.JSONDecodeError as primary_exc:
+        # v0.3.10: retry after auto-escaping suspect inner quotes before giving up.
+        recovered = _recover_unescaped_quotes(cleaned)
+        if recovered is not None:
+            try:
+                payload = json.loads(recovered)
+                LOGGER.info(
+                    "curator: recovered from unescaped-quote payload (len=%d)",
+                    len(raw),
+                )
+            except json.JSONDecodeError:
+                LOGGER.warning(
+                    "curator: LLM returned non-JSON (len=%d, err=%s): %s",
+                    len(raw), primary_exc, raw,
+                )
+                return []
+        else:
+            LOGGER.warning(
+                "curator: LLM returned non-JSON (len=%d, err=%s): %s",
+                len(raw), primary_exc, raw,
+            )
+            return []
     if isinstance(payload, list):
         return [d for d in payload if isinstance(d, dict)]
     if isinstance(payload, dict):
