@@ -19,7 +19,6 @@ import pytest
 from claude_almanac.codeindex import db as ci_db
 from claude_almanac.codeindex import search as ci_search
 
-
 # --- synthetic index helpers --------------------------------------------------
 
 # 2D embeddings chosen so that:

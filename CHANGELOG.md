@@ -6,6 +6,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.11 — 2026-04-21 — Hybrid code-index retrieval (vector + keyword RRF)
+
+### Added
+
+- **Keyword retrieval channel.** `claude_almanac.codeindex.keyword.search`
+  matches query tokens against `entries.symbol_name`, `entries.file_path`,
+  and the first 200 chars of sym-text via SQLite `LIKE`. Case-insensitive,
+  3-char token floor, `%`/`_` wildcards escaped. Scored by count of tokens
+  matched across the three columns, tie-broken by shorter `file_path`.
+- **Reciprocal rank fusion.** `claude_almanac.codeindex.fuse.rrf` merges
+  ranked channels via `Σ 1/(k + rank)` (Cormack et al., SIGIR '09, k=60
+  default). No per-channel score normalisation needed — crucial since
+  vector distance (qwen3 L2 ~14-29) and keyword match count (integer 1-3)
+  are on wildly different scales.
+- **Hybrid `search_and_format`.** When `hybrid=True` and a query string is
+  provided, the sym channel is served by RRF fusion over vector + keyword
+  hits (fetch 2×k per channel for reorder headroom). Arch stays
+  vector-only — arch rows have no `symbol_name` and multi-line text makes
+  keyword-on-first-line unhelpful.
+- **CLI `recall code --no-hybrid`** escape hatch for per-invocation debug
+  without touching config.
+- **`retrieval.code.hybrid_enabled` config flag** (default `true`).
+  `keyword_k` (10) and `rrf_k` (60) also tunable. Pre-0.3.11 configs
+  missing the `retrieval.code` block still load with defaults.
+- **`scripts/check_changelog.py`** CI invariant: asserts the bumped version
+  in `pyproject.toml` has a matching `## <version>` header on top of
+  CHANGELOG.md AND the predecessor version's header is still present
+  (catches the header-overwrite class of bug that hit v0.3.2 → 0.3.3).
+
+### Fixed
+
+- **`recall` subcommand flag passthrough.** `cli/main.py` now uses
+  `argparse.REMAINDER` for recall args so flags like `--no-hybrid` reach
+  the subcommand dispatcher instead of being rejected by argparse at the
+  top level.
+
+### Dogfood verification
+
+Against 2026-04-21 dogfood corpus (fender / gaffer / k-repo):
+
+| Query | v0.3.10 top-3 | v0.3.11 top-3 |
+|---|---|---|
+| gaffer `tui` | TestRubrics, Baseline, Regression (0/3 TUI) | TestRubrics, **Model (tuireport)**, Regression |
+| k-repo `segmentation` | chat/intent_router noise (0/3 in domain) | 3/3 inside `segmentation/segments_analyst/` |
+| fender `React component` | 3/3 test utilities | 2 test utilities + 1 toast type (mild churn, acceptable) |
+| gaffer `--no-hybrid tui` | N/A | matches v0.3.10 (escape hatch works) |
+
+Floor-raising change on degenerate terse queries; mild ranking churn on
+already-good queries — expected RRF tradeoff. Rollback via
+`retrieval.code.hybrid_enabled: false` in config or `--no-hybrid` flag.
+
 ## 0.3.10 — 2026-04-21 — Curator JSON robustness (schema-constrained + tolerant fallback)
 
 ### Fixed

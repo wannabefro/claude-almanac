@@ -34,6 +34,11 @@ jobs:
         run: ruff check .
       - name: Mypy
         run: mypy src/claude_almanac
+      # Invariant check: CHANGELOG.md must have a `## <version>` header matching
+      # pyproject.toml AND the predecessor's header must still be present.
+      # Prevents the header-overwrite class of bug (see v0.3.2 → 0.3.3 history).
+      - name: Changelog invariants
+        run: python scripts/check_changelog.py
       # Pytest discovers every file under tests/unit/ recursively, which
       # includes the codeindex/ sub-suite added in Plan 2. No explicit path
       # enumeration needed.
