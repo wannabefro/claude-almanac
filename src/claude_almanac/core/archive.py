@@ -387,11 +387,13 @@ def reinforce(db: Path, *, ids: list[int], now: int | None = None) -> int:
         conn.close()
 
 
-def prune(db: Path, *, cfg: DecayCfg, now: int | None = None) -> int:
+def prune(db: Path, *, cfg: DecayCfg, now: int | None = None, scope: str = "entry@project") -> int:
     """Delete unpinned entries whose decay score has fallen below cfg.prune_threshold,
     subject to a minimum-age safety floor (cfg.prune_min_age_days). Returns rows removed.
 
     cfg: a DecayCfg (imported lazily to avoid a circular dep with core.config).
+    scope: the scope string used for cascade_delete_on_entry (default "entry@project").
+           Pass "entry@global" when pruning the global archive.
     """
     from claude_almanac.edges.store import cascade_delete_on_entry
 
@@ -426,7 +428,7 @@ def prune(db: Path, *, cfg: DecayCfg, now: int | None = None) -> int:
         # Cascade delete edges before deleting entries (only if edges table exists)
         if has_edges:
             for entry_id in to_delete:
-                cascade_delete_on_entry(conn, entry_id=entry_id, scope="entry@project")
+                cascade_delete_on_entry(conn, entry_id=entry_id, scope=scope)
         placeholders = ",".join("?" * len(to_delete))
         conn.execute(f"DELETE FROM entries WHERE id IN ({placeholders})", to_delete)
         conn.execute(f"DELETE FROM entries_vec WHERE id IN ({placeholders})", to_delete)

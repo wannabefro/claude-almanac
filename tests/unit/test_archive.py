@@ -258,3 +258,73 @@ def test_prune_cascades_to_edges(tmp_path):
     conn.close()
     # both edges deleted because they touched id1
     assert edges_after == 0  # both edges deleted because they touched id1
+
+
+
+def test_prune_cascades_to_global_scope_edges(tmp_path):
+    """Verify that prune() cascades edge deletions with correct scope (entry@global)."""
+    import sqlite3
+    import time
+
+    from claude_almanac.core.archive import _connect, _migrate_schema
+    from claude_almanac.core.config import DecayCfg
+    from claude_almanac.edges.store import insert_edge
+
+    db = tmp_path / "a.db"
+    archive.init(db, embedder_name="ollama", model="bge-m3", dim=2, distance="l2")
+
+    # Ensure edges table exists (v0.3.2 migration)
+    conn = _connect(db)
+    _migrate_schema(conn, dim=2)
+    conn.close()
+
+    # Insert two entries
+    id1 = archive.insert_entry(
+        db, text="old global entry", kind="note", source="t", pinned=False, embedding=[1.0, 0.0],
+    )
+    id2 = archive.insert_entry(
+        db, text="new global entry", kind="note", source="t", pinned=False, embedding=[0.0, 1.0],
+    )
+
+    # Create edges with entry@global scope involving id1
+    conn = sqlite3.connect(str(db))
+    insert_edge(conn, src_id=id1, src_scope="entry@global",
+                dst_id=id2, dst_scope="entry@global",
+                type="related", created_by="curator")
+    insert_edge(conn, src_id=id2, src_scope="entry@global",
+                dst_id=id1, dst_scope="entry@global",
+                type="supersedes", created_by="curator")
+    conn.close()
+
+    # Verify edges exist
+    conn = sqlite3.connect(str(db))
+    edges_before = conn.execute("SELECT count(*) FROM edges").fetchone()[0]
+    conn.close()
+    assert edges_before == 2
+
+    # Mark id1 as old (created way in past) so it will be pruned
+    conn = sqlite3.connect(str(db))
+    old_time = int(time.time()) - (100 * 86400)  # 100 days ago
+    conn.execute(
+        "UPDATE entries SET created_at = ? WHERE id = ?",
+        (old_time, id1),
+    )
+    conn.commit()
+    conn.close()
+
+    # Run prune with scope="entry@global"
+    cfg = DecayCfg(
+        half_life_days=7,
+        use_count_exponent=1.0,
+        prune_threshold=100.0,  # Very high threshold, will prune old entries
+        prune_min_age_days=1,
+    )
+    pruned = archive.prune(db, cfg=cfg, scope="entry@global")
+    assert pruned == 1  # only id1 was old enough to prune
+
+    # Verify edges with entry@global scope touching id1 are deleted
+    conn = sqlite3.connect(str(db))
+    edges_after = conn.execute("SELECT count(*) FROM edges").fetchone()[0]
+    conn.close()
+    # both edges deleted because they touched id1
+    assert edges_after == 0
