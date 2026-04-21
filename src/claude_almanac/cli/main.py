@@ -31,7 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     s_recall = sub.add_parser("recall", help="Memory recall CLI")
     s_recall.add_argument("subcmd", nargs="?")
-    s_recall.add_argument("args", nargs="*")
+    # REMAINDER so flags like `--no-hybrid` or `--scope` pass through to the
+    # subcommand dispatcher instead of being rejected by argparse at this level.
+    s_recall.add_argument("args", nargs=argparse.REMAINDER)
 
     s_digest = sub.add_parser("digest", help="Digest generate/serve")
     s_digest.add_argument("subcmd", nargs="?")
