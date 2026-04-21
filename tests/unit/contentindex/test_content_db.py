@@ -1,6 +1,8 @@
 """Locks the v0.4 schema additions: kind='doc' rows + their unique index."""
 from __future__ import annotations
 
+import pytest
+
 from claude_almanac.contentindex import db as cdb
 
 
@@ -66,3 +68,63 @@ def test_sym_doc_arch_kinds_coexist(tmp_path):
     assert len(cdb.search(dbp, embedding=[0.5, 0, 0, 0], k=5, kind="sym")) == 1
     assert len(cdb.search(dbp, embedding=[0, 0.5, 0, 0], k=5, kind="doc")) == 1
     assert len(cdb.search(dbp, embedding=[0, 0, 0.5, 0], k=5, kind="arch")) == 1
+
+
+def test_upsert_sym_rejects_null_symbol_name(tmp_path):
+    dbp = str(tmp_path / "content.db")
+    cdb.init(dbp, dim=4)
+    with pytest.raises(ValueError, match="symbol_name"):
+        cdb.upsert(
+            dbp, kind="sym", text="def f(): ...",
+            file_path="a.py", symbol_name=None, module="a",
+            line_start=1, line_end=1, commit_sha="s",
+            embedding=[0.1, 0.2, 0.3, 0.4],
+        )
+
+
+def test_upsert_sym_rejects_null_file_path(tmp_path):
+    dbp = str(tmp_path / "content.db")
+    cdb.init(dbp, dim=4)
+    with pytest.raises(ValueError, match="file_path"):
+        cdb.upsert(
+            dbp, kind="sym", text="def f(): ...",
+            file_path=None, symbol_name="f", module="a",
+            line_start=1, line_end=1, commit_sha="s",
+            embedding=[0.1, 0.2, 0.3, 0.4],
+        )
+
+
+def test_upsert_doc_rejects_null_file_path(tmp_path):
+    dbp = str(tmp_path / "content.db")
+    cdb.init(dbp, dim=4)
+    with pytest.raises(ValueError, match="file_path"):
+        cdb.upsert(
+            dbp, kind="doc", text="doc body",
+            file_path=None, symbol_name="Intro", module="docs",
+            line_start=1, line_end=3, commit_sha="s",
+            embedding=[0.1, 0.2, 0.3, 0.4],
+        )
+
+
+def test_upsert_doc_rejects_null_line_start(tmp_path):
+    dbp = str(tmp_path / "content.db")
+    cdb.init(dbp, dim=4)
+    with pytest.raises(ValueError, match="line_start"):
+        cdb.upsert(
+            dbp, kind="doc", text="doc body",
+            file_path="docs/foo.md", symbol_name="Intro", module="docs",
+            line_start=None, line_end=3, commit_sha="s",
+            embedding=[0.1, 0.2, 0.3, 0.4],
+        )
+
+
+def test_upsert_arch_rejects_null_module(tmp_path):
+    dbp = str(tmp_path / "content.db")
+    cdb.init(dbp, dim=4)
+    with pytest.raises(ValueError, match="module"):
+        cdb.upsert(
+            dbp, kind="arch", text="summary",
+            file_path=None, symbol_name=None, module="",
+            line_start=None, line_end=None, commit_sha="s",
+            embedding=[0.1, 0.2, 0.3, 0.4],
+        )

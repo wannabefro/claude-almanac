@@ -70,7 +70,7 @@ def init(db_path: str, *, dim: int) -> None:
               WHERE kind='arch';
             CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_doc_key
               ON entries(file_path, line_start)
-              WHERE kind='doc';
+              WHERE kind='doc' AND file_path IS NOT NULL AND line_start IS NOT NULL;
 
             CREATE VIRTUAL TABLE IF NOT EXISTS entries_vec
               USING vec0(embedding FLOAT[{dim}]);
@@ -109,6 +109,12 @@ def upsert(
     """
     if kind not in ("sym", "doc", "arch"):
         raise ValueError(f"upsert kind must be 'sym'|'doc'|'arch', got {kind!r}")
+    if kind == "sym" and (symbol_name is None or file_path is None):
+        raise ValueError("upsert kind='sym' requires non-null symbol_name and file_path")
+    if kind == "doc" and (file_path is None or line_start is None):
+        raise ValueError("upsert kind='doc' requires non-null file_path and line_start")
+    if kind == "arch" and not module:
+        raise ValueError("upsert kind='arch' requires non-null module")
     conn = _open(db_path)
     conn.execute("BEGIN IMMEDIATE")
     try:
