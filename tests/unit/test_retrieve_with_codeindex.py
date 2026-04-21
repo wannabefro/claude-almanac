@@ -27,7 +27,7 @@ def test_retrieve_appends_code_block_when_gate_opens(monkeypatch, tmp_path):
                         lambda *a, **kw: 0)
     monkeypatch.setattr(
         "claude_almanac.core.retrieve._codeindex_block",
-        lambda vec: "## Relevant code\n- sym foo",
+        lambda *a, **kw: "## Relevant code\n- sym foo",
     )
 
     out = retrieve.run("where is `foo` defined in a.py?")

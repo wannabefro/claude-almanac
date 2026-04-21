@@ -70,7 +70,10 @@ def _search_unified(query: str, *, all_projects: bool) -> None:
     hits.sort(key=lambda h: h.distance)
     memory_hits = hits[: cfg.retrieval.top_k]
 
-    code_block = _collect_code_block(vec)
+    code_hybrid = getattr(
+        getattr(cfg.retrieval, "code", None), "hybrid_enabled", True,
+    )
+    code_block = _collect_code_block(vec, query=query, hybrid=code_hybrid)
 
     if memory_hits:
         print("## Memories")
@@ -117,7 +120,9 @@ def _collect_memory_hits(
     return hits
 
 
-def _collect_code_block(vec: list[float]) -> str:
+def _collect_code_block(
+    vec: list[float], *, query: str = "", hybrid: bool = True,
+) -> str:
     """Return formatted code-index section, or '' when no index / no hits."""
     from claude_almanac.codeindex import search as _ci_search
 
@@ -127,6 +132,7 @@ def _collect_code_block(vec: list[float]) -> str:
     try:
         return _ci_search.search_and_format(
             str(ci_db), query_vec=vec, sym_k=3, arch_k=2,
+            query=query, hybrid=hybrid,
         )
     except Exception:
         # Stale or mis-dimensioned code-index: skip silently, don't crash recall.
@@ -254,8 +260,15 @@ def _correct(slug: str, *, body: str | None) -> None:
 
 
 def _cmd_code(argv: list[str]) -> int:
-    if not argv:
-        print("usage: recall code <query>", file=sys.stderr)
+    hybrid = True  # default on; --no-hybrid disables
+    positional: list[str] = []
+    for a in argv:
+        if a == "--no-hybrid":
+            hybrid = False
+        else:
+            positional.append(a)
+    if not positional:
+        print("usage: recall code [--no-hybrid] <query>", file=sys.stderr)
         return 2
     from claude_almanac.codeindex import search as _ci_search
     dbp = paths.project_memory_dir() / "code-index.db"
@@ -263,9 +276,18 @@ def _cmd_code(argv: list[str]) -> int:
         print("no code-index.db — run `claude-almanac codeindex init`")
         return 1
     cfg = config.load()
+    # Config override if user hasn't passed --no-hybrid explicitly
+    if hybrid:
+        hybrid = getattr(
+            getattr(cfg.retrieval, "code", None), "hybrid_enabled", True,
+        )
     embedder = make_embedder(cfg.embedder.provider, cfg.embedder.model)
-    [vec] = embedder.embed([" ".join(argv)])
-    out = _ci_search.search_and_format(str(dbp), query_vec=vec, sym_k=3, arch_k=2)
+    query = " ".join(positional)
+    [vec] = embedder.embed([query])
+    out = _ci_search.search_and_format(
+        str(dbp), query_vec=vec, sym_k=3, arch_k=2,
+        query=query, hybrid=hybrid,
+    )
     print(out or "(no matches)")
     return 0
 

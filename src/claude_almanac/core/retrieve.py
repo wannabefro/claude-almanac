@@ -71,7 +71,9 @@ def format_hits(hits: list[archive.Hit]) -> str:
     return "\n".join(lines)
 
 
-def _codeindex_block(query_vec: list[float]) -> str:
+def _codeindex_block(
+    query_vec: list[float], query: str = "", *, hybrid: bool = True,
+) -> str:
     try:
         from claude_almanac.codeindex import search as ci_search
     except ImportError:
@@ -81,6 +83,7 @@ def _codeindex_block(query_vec: list[float]) -> str:
         return ""
     return ci_search.search_and_format(
         str(ci_db), query_vec=query_vec, sym_k=3, arch_k=2,
+        query=query, hybrid=hybrid,
     )
 
 
@@ -224,7 +227,10 @@ def run(prompt: str) -> str:
     if cfg.retrieval.code_autoinject:
         from claude_almanac.codeindex import autoinject
         if autoinject.should_query(prompt):
-            code_block = _codeindex_block(query_vec)
+            code_hybrid = getattr(
+                getattr(cfg.retrieval, "code", None), "hybrid_enabled", True,
+            )
+            code_block = _codeindex_block(query_vec, prompt, hybrid=code_hybrid)
             if code_block:
                 out = (out + "\n\n" + code_block) if out else code_block
     return out
