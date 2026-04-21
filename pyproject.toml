@@ -44,6 +44,7 @@ claude-almanac = "claude_almanac.cli.main:main"
 claude-almanac-retrieve-hook = "claude_almanac.hooks.retrieve:main"
 claude-almanac-curate-hook = "claude_almanac.hooks.curate:main"
 claude-almanac-upgrade-hook = "claude_almanac.hooks.upgrade:main"
+claude-almanac-rollup-hook = "claude_almanac.hooks.rollup:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/claude_almanac"]

@@ -29,6 +29,26 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude-almanac-rollup-hook"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude-almanac-rollup-hook"
+          }
+        ]
+      }
     ]
   }
 }
