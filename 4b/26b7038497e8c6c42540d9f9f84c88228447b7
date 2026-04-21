@@ -1,0 +1,42 @@
+tests/unit/test_archive.py
+  7260c9bbd9808709 191-260
+src/claude_almanac/core/archive.py
+  7260c9bbd9808709 404-409,426-429
+src/claude_almanac/edges/store.py
+  7260c9bbd9808709 1-110
+tests/unit/test_edges_store.py
+  7260c9bbd9808709 1-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "4b26b7038497e8c6c42540d9f9f84c88228447b7",
+  "prompts": {
+    "7260c9bbd9808709": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "61df4f8a-a0d8-4e69-9565-16df65aabd12",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 267,
+      "total_deletions": 7,
+      "accepted_lines": 261,
+      "overriden_lines": 0
+    },
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 21,
+      "overriden_lines": 0
+    }
+  }
+}
