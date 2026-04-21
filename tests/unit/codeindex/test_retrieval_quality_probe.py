@@ -72,10 +72,6 @@ def hooks_file_db(tmp_path):
     return dbp
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="v0.3.14 Task 2: structural-symbol penalty for file-path-only matches",
-)
 def test_pattern_a_function_outranks_module_logger(hooks_file_db):
     """Query that hits only via file_path should rank the behavioral
     function above the module-level LOGGER constant."""
@@ -86,10 +82,6 @@ def test_pattern_a_function_outranks_module_logger(hooks_file_db):
     assert names.index("process_widget_submission") < names.index("LOGGER")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="v0.3.14 Task 2: same penalty should demote __init__ on file-path-only matches",
-)
 def test_pattern_a_dunder_init_penalized_on_filepath_only_match(tmp_path):
     """Package ``__init__`` must not outrank a deeper-path domain function
     when the query hits only via file_path.
@@ -101,14 +93,16 @@ def test_pattern_a_dunder_init_penalized_on_filepath_only_match(tmp_path):
     """
     dbp = str(tmp_path / "pattern_a_init.db")
     ci_db.init(dbp, dim=2)
-    # Short file_path — wins tiebreak on v0.3.13.
+    # Short file_path — wins tiebreak on v0.3.13. Deliberately avoid the
+    # token 'pipeline' anywhere in symbol_name or text so the match is
+    # truly file_path-only (the shape the penalty targets).
     ci_db.upsert_sym(
         dbp, kind="sym",
-        text="from .core import run_pipeline\n\n__all__ = ['run_pipeline']\n",
+        text="from .core import runner_main\n",
         file_path="pipeline/__init__.py",
         symbol_name="__init__",
         module="pipeline",
-        line_start=1, line_end=3,
+        line_start=1, line_end=1,
         commit_sha="sha1",
         embedding=[0.5, 0.5],
     )
@@ -117,12 +111,12 @@ def test_pattern_a_dunder_init_penalized_on_filepath_only_match(tmp_path):
     ci_db.upsert_sym(
         dbp, kind="sym",
         text=(
-            "def run_pipeline(config: Config) -> Result:\n"
+            "def runner_main(config: Config) -> Result:\n"
             "    \"\"\"Execute the pipeline end-to-end.\"\"\"\n"
             "    ..."
         ),
         file_path="pipeline/execution/runner.py",
-        symbol_name="run_pipeline",
+        symbol_name="runner_main",
         module="pipeline",
         line_start=10, line_end=30,
         commit_sha="sha1",
@@ -130,9 +124,9 @@ def test_pattern_a_dunder_init_penalized_on_filepath_only_match(tmp_path):
     )
     hits = ci_keyword.search(dbp, query="pipeline", k=5)
     names = [h["symbol_name"] for h in hits]
-    assert "run_pipeline" in names
+    assert "runner_main" in names
     assert "__init__" in names
-    assert names.index("run_pipeline") < names.index("__init__")
+    assert names.index("runner_main") < names.index("__init__")
 
 
 def test_pattern_a_user_querying_logger_by_name_still_works(hooks_file_db):
