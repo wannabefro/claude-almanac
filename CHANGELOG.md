@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.5 — 2026-04-21 — Auto-migrate stale archive DBs on setup
+
+### Fixed
+
+- **`recall search-all` no longer crashes on worktrees / orphaned project
+  dirs that hold pre-v0.3.1 archive DBs.** Old DBs without the
+  `last_used_at` column or `edges` table made `archive.search` raise
+  `sqlite3.OperationalError: no such column: e.last_used_at` as soon as
+  the query loop reached one of them. `claude-almanac setup` (fired on
+  every `uv tool` upgrade via the upgrade hook) now walks every
+  `projects/<key>/archive.db` + `global/archive.db`, runs `ensure_schema`
+  on each, and reports how many were migrated. Self-heals without user
+  action after upgrade.
+
 ## 0.3.4 — 2026-04-21 — Polish (cwd robustness + setup hints + .gitignore)
 
 ### Fixed

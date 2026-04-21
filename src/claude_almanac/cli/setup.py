@@ -125,6 +125,69 @@ def _migrate_curator_provider() -> None:
             print(f"  warning: ollama pull failed: {e}")
 
 
+def _migrate_all_archives() -> None:
+    """Walk every project + global archive.db and run ensure_schema on each.
+
+    Older worktrees / orphaned project dirs may hold archive.db files that
+    pre-date v0.3.1's `last_used_at` / `use_count` columns or v0.3.2's
+    rollups + edges tables. If any such DB is ever touched by a code path
+    expecting current schema (recall search-all being the common one), the
+    query fails with `no such column`. Running ensure_schema on every DB
+    during setup auto-heals them before any retrieval path sees them.
+    """
+    from claude_almanac.core import archive
+    from claude_almanac.embedders.profiles import get as get_profile
+
+    cfg = core_config.load()
+    try:
+        profile = get_profile(cfg.embedder.provider, cfg.embedder.model)
+    except KeyError:
+        # No known profile for the configured embedder — skip migration; user
+        # probably needs to fix config before anything works anyway.
+        return
+
+    candidate_dbs: list[Path] = []
+    # Global scope
+    global_db = paths.global_memory_dir() / "archive.db"
+    if global_db.exists():
+        candidate_dbs.append(global_db)
+    # All project scopes (worktrees, cwd-hashed, git-hashed)
+    projs = paths.projects_memory_dir()
+    if projs.exists():
+        for d in projs.iterdir():
+            if d.is_dir():
+                db = d / "archive.db"
+                if db.exists():
+                    candidate_dbs.append(db)
+
+    fixed = 0
+    for db in candidate_dbs:
+        try:
+            conn = archive._connect(db)
+        except Exception:
+            continue
+        try:
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(entries)").fetchall()}
+            # Quick probe: v0.3.1+ has last_used_at, v0.3.2+ has edges table
+            needs_migration = (
+                "last_used_at" not in cols
+                or conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='edges'"
+                ).fetchone() is None
+            )
+            if not needs_migration:
+                continue
+            archive.ensure_schema(conn, profile=profile)
+            fixed += 1
+        except Exception as e:
+            print(f"  warning: failed to migrate {db}: {e}", file=sys.stderr)
+        finally:
+            conn.close()
+
+    if fixed:
+        print(f"migrated {fixed} archive DB(s) to current schema")
+
+
 def _print_provider_suggestions() -> None:
     """Info-only: note which curator providers are available on this machine.
 
@@ -174,6 +237,7 @@ def _do_install() -> None:
     elif core_config.materialize_missing_fields():
         print(f"updated {cfg_path} with new default fields")
     _migrate_curator_provider()
+    _migrate_all_archives()
     _print_provider_suggestions()
     cfg = core_config.load()
     _stamp_installed_version()
