@@ -96,10 +96,17 @@ class EdgesRetrievalCfg:
 
 @dataclass
 class CodeRetrievalCfg:
-    """Settings for the code-index retrieval channel (v0.3.11)."""
+    """Settings for the code-index retrieval channel (v0.3.11+)."""
     hybrid_enabled: bool = True
     keyword_k: int = 10
     rrf_k: int = 60
+    # v0.3.14: low-confidence distance floor. Vector-only sym hits whose
+    # distance exceeds this value are dropped so irrelevant queries
+    # surface no-match (instead of returning the 3 "nearest" unrelated
+    # symbols). None → use the embedder profile's
+    # ``min_confidence_distance``. Set to a positive float to override,
+    # or 0 / negative to disable.
+    min_confidence_distance: float | None = None
 
 
 @dataclass
@@ -228,6 +235,7 @@ def _from_dict(raw: dict[str, Any]) -> Config:
             hybrid_enabled=code_raw.get("hybrid_enabled", True),
             keyword_k=code_raw.get("keyword_k", 10),
             rrf_k=code_raw.get("rrf_k", 60),
+            min_confidence_distance=code_raw.get("min_confidence_distance"),
         ),
     )
 

@@ -30,3 +30,11 @@ class EmbedderProfile:
     are tie-broken by decay score. 0.0 disables banding (pure distance sort).
     Rule-of-thumb: roughly 5–15% of the provider's typical distance range.
     """
+    min_confidence_distance: float | None = None
+    """Code-index low-confidence filter: drop vector-only sym hits whose
+    distance exceeds this threshold (v0.3.14). Prevents no-real-match
+    queries from surfacing the 3 "nearest" unrelated symbols. ``None``
+    disables the filter. Calibrate against a probe fixture: should sit
+    just above relevant-query distances and below nonsense-query
+    distances. Hits present in the keyword channel bypass the filter.
+    """

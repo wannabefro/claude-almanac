@@ -215,10 +215,6 @@ def cooking_db(tmp_path):
     return dbp
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="v0.3.14 Task 4: low-confidence distance filter",
-)
 def test_pattern_e_off_topic_query_returns_no_matches(cooking_db):
     """Query for an unrelated concept (blockchain) against a cooking
     repo. All hits have large L2 distance; the filter drops them and
@@ -229,6 +225,7 @@ def test_pattern_e_off_topic_query_returns_no_matches(cooking_db):
         cooking_db, query_vec=[0.05, 0.95],
         sym_k=3, arch_k=0,
         query="blockchain wallet", hybrid=True,
+        min_confidence_distance=0.95,
     )
     assert out == "", (
         "low-confidence hits must be dropped, not surfaced under a "
@@ -243,5 +240,34 @@ def test_pattern_e_on_topic_query_still_returns_results(cooking_db):
         cooking_db, query_vec=[0.89, 0.11],
         sym_k=3, arch_k=0,
         query="knead dough bread", hybrid=True,
+        min_confidence_distance=0.95,
+    )
+    assert "knead_dough" in out
+
+
+def test_pattern_e_threshold_none_disables_filter(cooking_db):
+    """Default behavior when ``min_confidence_distance`` is None: filter
+    is off, even nonsense queries surface their nearest-k. Locks that
+    existing callers without the new knob aren't silently changed."""
+    out = ci_search.search_and_format(
+        cooking_db, query_vec=[0.05, 0.95],
+        sym_k=3, arch_k=0,
+        query="blockchain wallet", hybrid=True,
+    )
+    assert "knead_dough" in out or "simmer_stock" in out or "fold_butter" in out
+
+
+def test_pattern_e_keyword_confirmed_hit_bypasses_filter(cooking_db):
+    """A hit present in the keyword channel is kept even when its
+    vector distance exceeds the confidence threshold — keyword
+    confirmation is an independent signal of relevance."""
+    # Query embeds far from every symbol (same vector as off-topic test),
+    # but 'knead' matches knead_dough's symbol_name on the keyword
+    # channel → kept despite large vector distance.
+    out = ci_search.search_and_format(
+        cooking_db, query_vec=[0.05, 0.95],
+        sym_k=3, arch_k=0,
+        query="knead", hybrid=True,
+        min_confidence_distance=0.95,
     )
     assert "knead_dough" in out

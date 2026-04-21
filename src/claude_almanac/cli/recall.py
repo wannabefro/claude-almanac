@@ -70,10 +70,17 @@ def _search_unified(query: str, *, all_projects: bool) -> None:
     hits.sort(key=lambda h: h.distance)
     memory_hits = hits[: cfg.retrieval.top_k]
 
-    code_hybrid = getattr(
-        getattr(cfg.retrieval, "code", None), "hybrid_enabled", True,
+    from claude_almanac.codeindex import search as _ci_search
+    code_cfg = getattr(cfg.retrieval, "code", None)
+    code_hybrid = getattr(code_cfg, "hybrid_enabled", True)
+    code_min_conf = _ci_search.resolve_min_confidence(
+        getattr(code_cfg, "min_confidence_distance", None),
+        embedder.name, embedder.model,
     )
-    code_block = _collect_code_block(vec, query=query, hybrid=code_hybrid)
+    code_block = _collect_code_block(
+        vec, query=query, hybrid=code_hybrid,
+        min_confidence_distance=code_min_conf,
+    )
 
     if memory_hits:
         print("## Memories")
@@ -122,6 +129,7 @@ def _collect_memory_hits(
 
 def _collect_code_block(
     vec: list[float], *, query: str = "", hybrid: bool = True,
+    min_confidence_distance: float | None = None,
 ) -> str:
     """Return formatted code-index section, or '' when no index / no hits."""
     from claude_almanac.codeindex import search as _ci_search
@@ -133,6 +141,7 @@ def _collect_code_block(
         return _ci_search.search_and_format(
             str(ci_db), query_vec=vec, sym_k=3, arch_k=2,
             query=query, hybrid=hybrid,
+            min_confidence_distance=min_confidence_distance,
         )
     except Exception:
         # Stale or mis-dimensioned code-index: skip silently, don't crash recall.
@@ -284,9 +293,15 @@ def _cmd_code(argv: list[str]) -> int:
     embedder = make_embedder(cfg.embedder.provider, cfg.embedder.model)
     query = " ".join(positional)
     [vec] = embedder.embed([query])
+    code_cfg = getattr(cfg.retrieval, "code", None)
+    code_min_conf = _ci_search.resolve_min_confidence(
+        getattr(code_cfg, "min_confidence_distance", None),
+        embedder.name, embedder.model,
+    )
     out = _ci_search.search_and_format(
         str(dbp), query_vec=vec, sym_k=3, arch_k=2,
         query=query, hybrid=hybrid,
+        min_confidence_distance=code_min_conf,
     )
     print(out or "(no matches)")
     return 0

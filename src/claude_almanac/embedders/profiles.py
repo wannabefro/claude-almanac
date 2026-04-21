@@ -23,6 +23,11 @@ _PROFILES: dict[tuple[str, str], EmbedderProfile] = {
         dedup_distance=0.5,
         # Typical L2 range on normalized bge-m3 is 0-1.414; 0.1 is ~7% of ceiling.
         rank_band=0.1,
+        # Code-index low-confidence cutoff. On the 2026-04-21 probe against
+        # claude-almanac, relevant queries cluster at d<0.85 and unrelated
+        # queries ("blockchain wallet", "auth") start at d≈0.98. 0.95
+        # sits just above the relevant cluster and filters nonsense.
+        min_confidence_distance=0.95,
     ),
     # Cloud embedders return normalized vectors; distances are tighter.
     # Values are placeholders pending calibration harness run in Task 19;
@@ -32,11 +37,15 @@ _PROFILES: dict[tuple[str, str], EmbedderProfile] = {
         dedup_distance=0.25,
         # Cosine distance in [0, 2]; 0.05 is a conservative tiebreak width.
         rank_band=0.05,
+        # Cosine-normalized hits typically sit well below 0.5 when relevant;
+        # a 0.5 cutoff drops unrelated hits without trimming near-matches.
+        min_confidence_distance=0.5,
     ),
     ("voyage", "voyage-3-large"): EmbedderProfile(
         provider="voyage", model="voyage-3-large", dim=1024, distance="cosine",
         dedup_distance=0.22,
         rank_band=0.05,
+        min_confidence_distance=0.5,
     ),
     # Qwen3-Embedding: multi-purpose (text + code), officially on Ollama.
     # 0.6B → 1024 dim (drop-in with bge-m3 — same vec-table layout).
@@ -50,16 +59,23 @@ _PROFILES: dict[tuple[str, str], EmbedderProfile] = {
         provider="ollama", model="qwen3-embedding:0.6b",
         dim=1024, distance="l2",
         dedup_distance=0.5, rank_band=0.1,
+        # Calibrated on claude-almanac code-index 2026-04-21: relevant
+        # queries cluster at d<0.85 ("curator ollama" → 0.641 top hit),
+        # unrelated queries start at d≈0.98 ("auth") / d≈1.06
+        # ("blockchain wallet"). 0.95 is the gap.
+        min_confidence_distance=0.95,
     ),
     ("ollama", "qwen3-embedding:4b"): EmbedderProfile(
         provider="ollama", model="qwen3-embedding:4b",
         dim=2560, distance="l2",
         dedup_distance=0.5, rank_band=0.1,
+        min_confidence_distance=0.95,
     ),
     ("ollama", "qwen3-embedding:8b"): EmbedderProfile(
         provider="ollama", model="qwen3-embedding:8b",
         dim=4096, distance="l2",
         dedup_distance=0.5, rank_band=0.1,
+        min_confidence_distance=0.95,
     ),
 }
 

@@ -73,6 +73,7 @@ def format_hits(hits: list[archive.Hit]) -> str:
 
 def _codeindex_block(
     query_vec: list[float], query: str = "", *, hybrid: bool = True,
+    min_confidence_distance: float | None = None,
 ) -> str:
     try:
         from claude_almanac.codeindex import search as ci_search
@@ -84,6 +85,7 @@ def _codeindex_block(
     return ci_search.search_and_format(
         str(ci_db), query_vec=query_vec, sym_k=3, arch_k=2,
         query=query, hybrid=hybrid,
+        min_confidence_distance=min_confidence_distance,
     )
 
 
@@ -226,11 +228,18 @@ def run(prompt: str) -> str:
     out = format_hits(hits)
     if cfg.retrieval.code_autoinject:
         from claude_almanac.codeindex import autoinject
+        from claude_almanac.codeindex import search as _ci_search
         if autoinject.should_query(prompt):
-            code_hybrid = getattr(
-                getattr(cfg.retrieval, "code", None), "hybrid_enabled", True,
+            code_cfg = getattr(cfg.retrieval, "code", None)
+            code_hybrid = getattr(code_cfg, "hybrid_enabled", True)
+            code_min_conf = _ci_search.resolve_min_confidence(
+                getattr(code_cfg, "min_confidence_distance", None),
+                embedder.name, embedder.model,
             )
-            code_block = _codeindex_block(query_vec, prompt, hybrid=code_hybrid)
+            code_block = _codeindex_block(
+                query_vec, prompt, hybrid=code_hybrid,
+                min_confidence_distance=code_min_conf,
+            )
             if code_block:
                 out = (out + "\n\n" + code_block) if out else code_block
     return out
