@@ -1,0 +1,25 @@
+src/claude_almanac/codeindex/fuse.py
+  76e88aceb91d339f 1-53
+tests/unit/codeindex/test_fuse.py
+  76e88aceb91d339f 1-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "047511fe68c155acf0535d2e2af2b33dbbeb261d",
+  "prompts": {
+    "76e88aceb91d339f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c303af38-4c0f-48ea-99c7-8a137750e79e",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 142,
+      "total_deletions": 12,
+      "accepted_lines": 130,
+      "overriden_lines": 0
+    }
+  }
+}
