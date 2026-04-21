@@ -1,0 +1,31 @@
+pyproject.toml
+  76e88aceb91d339f 7
+plugin.json
+  76e88aceb91d339f 3
+.github/workflows/ci.yml
+  76e88aceb91d339f 37-41
+CHANGELOG.md
+  76e88aceb91d339f 9-59
+scripts/check_changelog.py
+  76e88aceb91d339f 1-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "2f421d30ac4b5f3e5825baca083be15139790548",
+  "prompts": {
+    "76e88aceb91d339f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c303af38-4c0f-48ea-99c7-8a137750e79e",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 173,
+      "total_deletions": 3,
+      "accepted_lines": 173,
+      "overriden_lines": 0
+    }
+  }
+}
