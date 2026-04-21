@@ -95,12 +95,21 @@ class EdgesRetrievalCfg:
 
 
 @dataclass
+class CodeRetrievalCfg:
+    """Settings for the code-index retrieval channel (v0.3.11)."""
+    hybrid_enabled: bool = True
+    keyword_k: int = 10
+    rrf_k: int = 60
+
+
+@dataclass
 class RetrievalCfg:
     top_k: int = 5
     code_autoinject: bool = True
     decay: DecayCfg = field(default_factory=DecayCfg)
     rollups: RollupRetrievalCfg = field(default_factory=RollupRetrievalCfg)
     edges: EdgesRetrievalCfg = field(default_factory=EdgesRetrievalCfg)
+    code: CodeRetrievalCfg = field(default_factory=CodeRetrievalCfg)
 
 
 @dataclass
@@ -190,6 +199,7 @@ def _from_dict(raw: dict[str, Any]) -> Config:
     decay_raw = retrieval_raw.get("decay") or {}
     rollups_raw = retrieval_raw.get("rollups") or {}
     edges_raw = retrieval_raw.get("edges") or {}
+    code_raw = retrieval_raw.get("code") or {}
     retrieval = RetrievalCfg(
         top_k=retrieval_raw.get("top_k", 5),
         code_autoinject=retrieval_raw.get("code_autoinject", True),
@@ -213,6 +223,11 @@ def _from_dict(raw: dict[str, Any]) -> Config:
             expand_hops=edges_raw.get("expand_hops", 1),
             expand_bonus=edges_raw.get("expand_bonus", 0.25),
             skip_superseded=edges_raw.get("skip_superseded", True),
+        ),
+        code=CodeRetrievalCfg(
+            hybrid_enabled=code_raw.get("hybrid_enabled", True),
+            keyword_k=code_raw.get("keyword_k", 10),
+            rrf_k=code_raw.get("rrf_k", 60),
         ),
     )
 
