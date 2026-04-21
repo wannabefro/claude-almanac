@@ -5,15 +5,18 @@ import sys
 import time as _time
 from datetime import date as _date
 from pathlib import Path
+from typing import Literal
 
 from claude_almanac.core import archive, config, paths
 from claude_almanac.embedders import make_embedder
 
 USAGE = """Usage: claude-almanac recall <subcommand> [args]
 
-  search <query>          semantic search over global + current-project archives
-  search-all <query>      fan out across ALL project archives
-  code <query>            semantic search over the current repo's code-index
+  search <query>          unified: memories + current-repo code-index
+  search-all <query>      unified cross-project: all-project memories + current-repo code-index
+  memories <query>        memory-only: global + current-project archives
+  memories-all <query>    memory-only: fan out across ALL project archives
+  code <query>            code-index only: semantic search over the current repo's code-index
   list [type]             list markdown memories (type: user|feedback|project|reference)
   show <slug>             print a memory file body
   history <slug>          print version history of a memory
@@ -39,17 +42,60 @@ def _print_hits(hits: list[archive.Hit]) -> None:
         print(f"- [{h.kind}] {h.source} {preview}")
 
 
-def _search(query: str, *, all_projects: bool) -> None:
+def _search_memories(query: str, *, all_projects: bool) -> None:
+    """Memory-only search over archive DBs. Used by `recall memories`."""
     cfg = config.load()
     embedder = make_embedder(cfg.embedder.provider, cfg.embedder.model)
     [vec] = embedder.embed([query])
+    hits = _collect_memory_hits(vec, cfg, all_projects=all_projects,
+                                embedder_name=embedder.name,
+                                dim=embedder.dim, distance=embedder.distance)
+    hits.sort(key=lambda h: h.distance)
+    _print_hits(hits[: cfg.retrieval.top_k])
+
+
+def _search_unified(query: str, *, all_projects: bool) -> None:
+    """Combined search over memories + current-repo code-index.
+
+    Prints the memory section first, then the code-index section (when
+    the per-repo code-index.db exists). Used by `recall search`.
+    """
+    cfg = config.load()
+    embedder = make_embedder(cfg.embedder.provider, cfg.embedder.model)
+    [vec] = embedder.embed([query])
+
+    hits = _collect_memory_hits(vec, cfg, all_projects=all_projects,
+                                embedder_name=embedder.name,
+                                dim=embedder.dim, distance=embedder.distance)
+    hits.sort(key=lambda h: h.distance)
+    memory_hits = hits[: cfg.retrieval.top_k]
+
+    code_block = _collect_code_block(vec)
+
+    if memory_hits:
+        print("## Memories")
+        _print_hits(memory_hits)
+    elif not code_block:
+        print("(no matches)")
+        return
+    if code_block:
+        if memory_hits:
+            print()
+        print(code_block)
+
+
+def _collect_memory_hits(
+    vec: list[float], cfg: config.Config, *, all_projects: bool,
+    embedder_name: str, dim: int, distance: Literal["l2", "cosine"],
+) -> list[archive.Hit]:
+    """Shared memory-hit collector used by both unified and memory-only paths."""
     global_db = paths.global_memory_dir() / "archive.db"
     archive.init(
         global_db,
-        embedder_name=embedder.name,
+        embedder_name=embedder_name,
         model=cfg.embedder.model,
-        dim=embedder.dim,
-        distance=embedder.distance,
+        dim=dim,
+        distance=distance,
     )
     dbs = [global_db]
     if all_projects:
@@ -68,8 +114,23 @@ def _search(query: str, *, all_projects: bool) -> None:
     hits: list[archive.Hit] = []
     for db in dbs:
         hits.extend(archive.search(db, query_embedding=vec, top_k=cfg.retrieval.top_k))
-    hits.sort(key=lambda h: h.distance)
-    _print_hits(hits[: cfg.retrieval.top_k])
+    return hits
+
+
+def _collect_code_block(vec: list[float]) -> str:
+    """Return formatted code-index section, or '' when no index / no hits."""
+    from claude_almanac.codeindex import search as _ci_search
+
+    ci_db = paths.project_memory_dir() / "code-index.db"
+    if not ci_db.exists():
+        return ""
+    try:
+        return _ci_search.search_and_format(
+            str(ci_db), query_vec=vec, sym_k=3, arch_k=2,
+        )
+    except Exception:
+        # Stale or mis-dimensioned code-index: skip silently, don't crash recall.
+        return ""
 
 
 def _list(kind_filter: str | None) -> None:
@@ -547,9 +608,13 @@ def run(argv: list[str]) -> None:
         return
     cmd, *rest = argv
     if cmd == "search":
-        _search(" ".join(rest), all_projects=False)
+        _search_unified(" ".join(rest), all_projects=False)
     elif cmd == "search-all":
-        _search(" ".join(rest), all_projects=True)
+        _search_unified(" ".join(rest), all_projects=True)
+    elif cmd == "memories":
+        _search_memories(" ".join(rest), all_projects=False)
+    elif cmd == "memories-all":
+        _search_memories(" ".join(rest), all_projects=True)
     elif cmd == "code":
         _cmd_code(rest)
     elif cmd == "list":

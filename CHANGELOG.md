@@ -6,6 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.6 — 2026-04-21 — Unified `recall search` (memories + code-index)
+
+### Added
+
+- **`recall search` now blends archive memories with the current repo's
+  code-index.** Both sections render in a single output (memories first,
+  then a `## Relevant code` block with symbol hits). Gracefully omits the
+  code section when `code-index.db` is missing or empty — never fails
+  recall just because the code-index is absent / stale.
+- **`recall memories <query>`** + **`recall memories-all <query>`** —
+  memory-only variants for users who explicitly want to exclude code
+  symbols. `recall code <query>` (code-only) is unchanged.
+
+### Changed
+
+- **Default `code_index.enabled: true` in shipped config** (was `false`).
+  Users still need to run `claude-almanac codeindex init` per-repo with a
+  `.claude/code-index.yaml` to actually populate an index; the flag only
+  governs auto-inject + whether recall-search queries the index.
+
+### Known follow-ups
+
+- **Code-index dim mismatch is not yet auto-healed on upgrade.** Stale
+  `code-index.db` files created by very old installs can hold a wrong-dim
+  vec table (`FLOAT[2]` instead of the embedder's real dim). Symptom:
+  `sqlite3.OperationalError: Dimension mismatch for query vector`.
+  Workaround: delete the file and re-run `claude-almanac codeindex init`.
+  A follow-up release will extend `setup`'s auto-migration to cover
+  code-index dims the same way archive DBs are now handled.
+
 ## 0.3.5 — 2026-04-21 — Auto-migrate stale archive DBs on setup
 
 ### Fixed
