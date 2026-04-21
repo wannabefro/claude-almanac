@@ -1,0 +1,48 @@
+tests/unit/test_hooks_rollup.py
+  7260c9bbd9808709 1-61
+src/claude_almanac/hooks/rollup.py
+  7260c9bbd9808709 1-56
+src/claude_almanac/rollups/runner.py
+  7260c9bbd9808709 1-175
+src/claude_almanac/rollups/triggers.py
+  7260c9bbd9808709 1-49
+tests/unit/test_rollups_triggers.py
+  7260c9bbd9808709 1-44
+hooks/hooks.json
+  7260c9bbd9808709 32-51
+pyproject.toml
+  7260c9bbd9808709 47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "92fa246ca2c5be70b6e7d5ebf163f39a47e1846e",
+  "prompts": {
+    "7260c9bbd9808709": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "61df4f8a-a0d8-4e69-9565-16df65aabd12",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 415,
+      "total_deletions": 9,
+      "accepted_lines": 406,
+      "overriden_lines": 0
+    },
+    "8f761abaa2c072a7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "71acc6df-884c-4b34-a059-8f58e95384a1",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 14,
+      "overriden_lines": 0
+    }
+  }
+}
