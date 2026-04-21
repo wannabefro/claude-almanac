@@ -1,0 +1,40 @@
+src/claude_almanac/codeindex/keyword.py
+  1c20f8991cf371a5 1,9-17,27-43,67-70,78-88,90-91,95,101-104,110-111,114-115,118-123,127-146,150-156
+tests/unit/codeindex/test_retrieval_quality_probe.py
+  1c20f8991cf371a5 96-98,101,105,114,119,127,129
+tests/unit/codeindex/test_keyword.py
+  1c20f8991cf371a5 99-197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "b4bba427f2f3e4bf19bb30a14a83221a738eef92",
+  "prompts": {
+    "1c20f8991cf371a5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "746a6f1b-01bf-4f62-9df5-6ff0fb1cd4c4",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 237,
+      "total_deletions": 76,
+      "accepted_lines": 196,
+      "overriden_lines": 0
+    },
+    "76e88aceb91d339f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c303af38-4c0f-48ea-99c7-8a137750e79e",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 22,
+      "overriden_lines": 0
+    }
+  }
+}
