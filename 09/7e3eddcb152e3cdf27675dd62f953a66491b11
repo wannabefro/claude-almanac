@@ -1,0 +1,31 @@
+src/claude_almanac/cli/recall.py
+  76e88aceb91d339f 73-76,123-125,135,263-271,279-283,285-290
+tests/unit/codeindex/test_search_hybrid.py
+  76e88aceb91d339f 1-86
+src/claude_almanac/codeindex/search.py
+  76e88aceb91d339f 5-23,29-31,33,35-39,41-43
+tests/unit/test_retrieve_with_codeindex.py
+  76e88aceb91d339f 30
+src/claude_almanac/core/retrieve.py
+  76e88aceb91d339f 74-76,86,230-233
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "097e3eddcb152e3cdf27675dd62f953a66491b11",
+  "prompts": {
+    "76e88aceb91d339f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c303af38-4c0f-48ea-99c7-8a137750e79e",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 154,
+      "total_deletions": 12,
+      "accepted_lines": 154,
+      "overriden_lines": 0
+    }
+  }
+}
