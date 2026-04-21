@@ -25,11 +25,36 @@ MAX_CALLSITES = 3
 _CODE_EXTS = {"py", "ts", "tsx", "js", "jsx", "go", "java", "rs"}
 
 
-def compose_text(signature: str, references: list[Any]) -> str:
-    lines = [signature, "", "// used in:"]
-    for ref in references[:MAX_CALLSITES]:
-        snippet = ref.snippet[:SNIPPET_CHARS]
-        lines.append(f"{ref.file_rel}:{ref.line}  {snippet}")
+def compose_text(
+    signature: str,
+    references: list[Any],
+    *,
+    file_rel: str = "",
+    module: str = "",
+    kind: str = "",
+    name: str = "",
+) -> str:
+    """Build the text embedded into entries_vec for one symbol.
+
+    v0.3.8: includes file path + module + kind + name as a header line so
+    queries like "archive migration schema" land on `ensure_schema` in
+    `core/archive.py` via path-token overlap, not just the bare signature.
+    General-text embedders (bge-m3, nomic-embed-text) benefit disproportionately
+    from this enrichment because they're not code-specialized — they ride on
+    natural-language tokens, and paths are the richest semantic anchor in the
+    symbol surface.
+    """
+    header_parts = [p for p in (file_rel, kind and f"[{kind}]", name) if p]
+    lines: list[str] = []
+    if header_parts:
+        lines.append("// " + "  ".join(header_parts))
+    lines.append(signature)
+    if references:
+        lines.append("")
+        lines.append("// used in:")
+        for ref in references[:MAX_CALLSITES]:
+            snippet = ref.snippet[:SNIPPET_CHARS]
+            lines.append(f"{ref.file_rel}:{ref.line}  {snippet}")
     return "\n".join(lines)
 
 
@@ -47,7 +72,13 @@ def extract_file(*, db_path: str, repo_root: str, module: str, file_abs: str,
     public_syms = [s for s in syms if s.visibility == "public"]
     if not public_syms:
         return 0
-    texts = [compose_text(s.signature, []) for s in public_syms]
+    texts = [
+        compose_text(
+            s.signature, [],
+            file_rel=file_rel, module=module, kind=s.kind, name=s.name,
+        )
+        for s in public_syms
+    ]
     try:
         vecs = embedder.embed(texts)
     except Exception as e:

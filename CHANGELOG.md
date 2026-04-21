@@ -6,6 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.8 — 2026-04-21 — Code-index retrieval quality (enriched sym text)
+
+### Changed
+
+- **`codeindex/sym.py::compose_text` now embeds a header line** with
+  `file_rel`, `kind`, and `name` in front of the bare signature. Before:
+  the sym extractor embedded just `def foo(...)` — a bge-m3 embedding of
+  20–80 chars without any path or module context. After: each symbol's
+  embedded text starts with e.g.
+  `// src/claude_almanac/core/archive.py  [function]  ensure_schema`
+  before the signature. General-text embedders (bge-m3, and community
+  free alternatives like `nomic-embed-text` / `mxbai-embed-large`) ride
+  heavily on natural-language token overlap — path components are the
+  strongest semantic anchor available without a code-specialized model.
+
+### Dogfood verification
+
+Re-running the 5 code-retrieval queries against this repo:
+
+- `archive migration schema` previously returned
+  `projects_memory_dir / MAX_TRANSCRIPT_CHARS / project_memory_dir` (all
+  off-topic). After enrichment: top-3 are all in `core/archive.py`
+  (`nearest / prune / init`). Four other queries that already hit
+  correctly (curator / rollup / decay / edges) continued to hit.
+- Rebuild cost: trivial. 229 symbols re-extracted + re-embedded in
+  ~11 s on this repo.
+
+### Migration note
+
+The existing `code-index.db` on disk still holds pre-enrichment embeddings.
+Users need a one-time rebuild to benefit:
+
+    claude-almanac codeindex init    # overwrites the stale rows
+
+(No auto-migrate because the schema didn't change, only the embedded
+text content did; deciding when to pay for the rebuild is the user's
+call. v0.3.7's dim-mismatch migration only fires when the vec
+dimension changes.)
+
 ## 0.3.7 — 2026-04-21 — Code-index robustness (stale-sha + dim-mismatch)
 
 ### Fixed

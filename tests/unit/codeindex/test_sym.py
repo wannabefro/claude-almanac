@@ -52,6 +52,7 @@ def test_compose_text_format():
         line = 12
         snippet = "call_site"
     text = sym.compose_text("def foo():", [_Ref()])
+    # No header when path/module/kind/name kwargs aren't supplied.
     assert text.splitlines()[0] == "def foo():"
     assert "// used in:" in text
     assert "src/a.py:12" in text
@@ -59,7 +60,27 @@ def test_compose_text_format():
 
 def test_compose_text_no_refs():
     text = sym.compose_text("def foo():", [])
-    assert text.splitlines()[0] == "def foo():"
-    assert "// used in:" in text
-    # no ref lines follow
-    assert len(text.splitlines()) == 3  # sig, blank, header
+    # Bare signature only — no "used in" section without refs.
+    assert text == "def foo():"
+
+
+def test_compose_text_enriches_with_path_and_kind():
+    """v0.3.8: file_rel + kind + name land in the embedded text so
+    general-text embedders pick up path tokens for semantic queries."""
+    text = sym.compose_text(
+        "def ensure_schema(conn, *, profile):",
+        [],
+        file_rel="src/claude_almanac/core/archive.py",
+        module="src/claude_almanac",
+        kind="function",
+        name="ensure_schema",
+    )
+    assert "src/claude_almanac/core/archive.py" in text
+    assert "[function]" in text
+    assert "ensure_schema" in text
+    # Signature is still present
+    assert "def ensure_schema(conn, *, profile):" in text
+    # Header precedes signature
+    lines = text.splitlines()
+    assert lines[0].startswith("// ")
+    assert lines[1] == "def ensure_schema(conn, *, profile):"
