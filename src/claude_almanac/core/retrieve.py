@@ -76,7 +76,7 @@ def _codeindex_block(
     min_confidence_distance: float | None = None,
 ) -> str:
     try:
-        from claude_almanac.codeindex import search as ci_search
+        from claude_almanac.contentindex import search as ci_search
     except ImportError:
         return ""
     ci_db = paths.project_memory_dir() / "code-index.db"
@@ -228,7 +228,7 @@ def run(prompt: str) -> str:
     out = format_hits(hits)
     if cfg.retrieval.code_autoinject:
         from claude_almanac.codeindex import autoinject
-        from claude_almanac.codeindex import search as _ci_search
+        from claude_almanac.contentindex import search as _ci_search
         if autoinject.should_query(prompt):
             code_cfg = getattr(cfg.retrieval, "code", None)
             code_hybrid = getattr(code_cfg, "hybrid_enabled", True)

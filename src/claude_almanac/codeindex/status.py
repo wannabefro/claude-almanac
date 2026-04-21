@@ -4,7 +4,7 @@ from __future__ import annotations
 import pathlib
 import sqlite3
 
-from claude_almanac.codeindex import db as _db
+from claude_almanac.contentindex import db as _db
 from claude_almanac.core import paths
 
 

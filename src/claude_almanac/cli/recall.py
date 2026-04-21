@@ -70,7 +70,7 @@ def _search_unified(query: str, *, all_projects: bool) -> None:
     hits.sort(key=lambda h: h.distance)
     memory_hits = hits[: cfg.retrieval.top_k]
 
-    from claude_almanac.codeindex import search as _ci_search
+    from claude_almanac.contentindex import search as _ci_search
     code_cfg = getattr(cfg.retrieval, "code", None)
     code_hybrid = getattr(code_cfg, "hybrid_enabled", True)
     code_min_conf = _ci_search.resolve_min_confidence(
@@ -132,7 +132,7 @@ def _collect_code_block(
     min_confidence_distance: float | None = None,
 ) -> str:
     """Return formatted code-index section, or '' when no index / no hits."""
-    from claude_almanac.codeindex import search as _ci_search
+    from claude_almanac.contentindex import search as _ci_search
 
     ci_db = paths.project_memory_dir() / "code-index.db"
     if not ci_db.exists():
@@ -279,7 +279,7 @@ def _cmd_code(argv: list[str]) -> int:
     if not positional:
         print("usage: recall code [--no-hybrid] <query>", file=sys.stderr)
         return 2
-    from claude_almanac.codeindex import search as _ci_search
+    from claude_almanac.contentindex import search as _ci_search
     dbp = paths.project_memory_dir() / "code-index.db"
     if not dbp.exists():
         print("no code-index.db — run `claude-almanac codeindex init`")

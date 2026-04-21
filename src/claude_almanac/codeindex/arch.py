@@ -20,8 +20,8 @@ from importlib.resources import files
 os.environ.pop("DEVELOPER_DIR", None)
 
 from claude_almanac.codeindex import config as _cfg
-from claude_almanac.codeindex import db as _db
 from claude_almanac.codeindex.log import emit
+from claude_almanac.contentindex import db as _db
 from claude_almanac.core import paths
 from claude_almanac.embedders import (
     make_embedder as _make_embedder,  # re-exported for tests to patch

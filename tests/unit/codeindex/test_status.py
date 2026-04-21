@@ -1,5 +1,5 @@
-from claude_almanac.codeindex import db as ci_db
 from claude_almanac.codeindex import status as ci_status
+from claude_almanac.contentindex import db as ci_db
 
 
 def test_status_reports_missing_db(tmp_path, capsys, monkeypatch):

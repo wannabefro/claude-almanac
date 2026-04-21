@@ -1,6 +1,6 @@
 import pytest
 
-from claude_almanac.codeindex import db
+from claude_almanac.contentindex import db
 
 
 def _init(tmp_path, dim=2):

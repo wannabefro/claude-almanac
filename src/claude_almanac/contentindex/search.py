@@ -1,9 +1,9 @@
 """Query the code-index DB and format results for retrieve injection."""
 from __future__ import annotations
 
-from claude_almanac.codeindex import db as _db
-from claude_almanac.codeindex import fuse as _fuse
-from claude_almanac.codeindex import keyword as _keyword
+from claude_almanac.contentindex import db as _db
+from claude_almanac.contentindex import fuse as _fuse
+from claude_almanac.contentindex import keyword as _keyword
 from claude_almanac.embedders import profiles as _embedder_profiles
 
 

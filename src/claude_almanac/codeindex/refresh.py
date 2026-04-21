@@ -9,9 +9,9 @@ import time
 os.environ.pop("DEVELOPER_DIR", None)
 
 from claude_almanac.codeindex import config as _cfg
-from claude_almanac.codeindex import db as _db
 from claude_almanac.codeindex import sym as _sym
 from claude_almanac.codeindex.log import emit
+from claude_almanac.contentindex import db as _db
 from claude_almanac.core import config as _app_config
 from claude_almanac.core import paths
 from claude_almanac.embedders import make_embedder as _make_embedder

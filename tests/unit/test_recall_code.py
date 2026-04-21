@@ -5,7 +5,7 @@ from claude_almanac.cli import recall
 
 def test_recall_code_prints_hits(tmp_path, capsys, monkeypatch):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
-    from claude_almanac.codeindex import db as ci_db
+    from claude_almanac.contentindex import db as ci_db
     from claude_almanac.core import paths
     dbp = paths.project_memory_dir() / "code-index.db"
     dbp.parent.mkdir(parents=True, exist_ok=True)

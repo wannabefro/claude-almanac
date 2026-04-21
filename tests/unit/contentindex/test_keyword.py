@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from claude_almanac.codeindex import db as ci_db
-from claude_almanac.codeindex import keyword as ci_keyword
+from claude_almanac.contentindex import db as ci_db
+from claude_almanac.contentindex import keyword as ci_keyword
 
 
 @pytest.fixture

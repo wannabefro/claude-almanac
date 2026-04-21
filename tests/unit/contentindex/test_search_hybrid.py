@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from claude_almanac.codeindex import db as ci_db
-from claude_almanac.codeindex import search as ci_search
+from claude_almanac.contentindex import db as ci_db
+from claude_almanac.contentindex import search as ci_search
 
 
 @pytest.fixture

@@ -1,7 +1,7 @@
 """Reciprocal rank fusion for hybrid code retrieval (v0.3.11)."""
 from __future__ import annotations
 
-from claude_almanac.codeindex import fuse
+from claude_almanac.contentindex import fuse
 
 
 def _row(i: int) -> dict[str, object]:

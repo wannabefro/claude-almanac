@@ -1,5 +1,5 @@
-from claude_almanac.codeindex import db as ci_db
-from claude_almanac.codeindex import search as ci_search
+from claude_almanac.contentindex import db as ci_db
+from claude_almanac.contentindex import search as ci_search
 
 
 def test_format_hits_renders_sym_and_arch_sections(tmp_path):
