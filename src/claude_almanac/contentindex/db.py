@@ -1,17 +1,19 @@
 """sqlite-vec-backed content-index store.
 
 Path-agnostic engine: the caller supplies ``db_path`` on every entry point.
-Today the codeindex subsystem uses ``paths.project_memory_dir() /
-'code-index.db'``; the documents subsystem landing in Task 3 will use
-``content-index.db`` under the same dir. The schema below is shared across
-both callers — ``kind`` distinguishes rows.
+All callers now use ``paths.project_memory_dir() / 'content-index.db'`` —
+the schema is shared across codeindex (kind='sym', 'arch') and documents
+(kind='doc') rows; ``kind`` distinguishes them.
 
 Schema:
   entries(id, kind, text, file_path, symbol_name, module, line_start, line_end,
           commit_sha, created_at)
   entries_vec(rowid -> embedding FLOAT[<dim>])
   modules_dirty(module -> marked_sha, marked_at)
-Unique keys: (file_path, symbol_name) for kind='sym'; (module) for kind='arch'.
+Unique keys:
+  - (file_path, symbol_name) for kind='sym'
+  - (file_path, line_start)  for kind='doc'
+  - (module)                 for kind='arch'
 """
 from __future__ import annotations
 
@@ -66,6 +68,9 @@ def init(db_path: str, *, dim: int) -> None:
             CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_arch_key
               ON entries(module)
               WHERE kind='arch';
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_doc_key
+              ON entries(file_path, line_start)
+              WHERE kind='doc';
 
             CREATE VIRTUAL TABLE IF NOT EXISTS entries_vec
               USING vec0(embedding FLOAT[{dim}]);
@@ -80,7 +85,7 @@ def init(db_path: str, *, dim: int) -> None:
         conn.close()
 
 
-def upsert_sym(
+def upsert(
     db_path: str,
     *,
     kind: str,
@@ -93,18 +98,17 @@ def upsert_sym(
     commit_sha: str,
     embedding: list[float],
 ) -> int:
-    """Insert or update an entry keyed by (file_path, symbol_name) or (module).
-
-    ``kind`` must be one of the two DB-level sentinels:
-      - ``'sym'`` — a per-symbol entry (unique on file_path + symbol_name)
-      - ``'arch'`` — a per-module architectural summary (unique on module)
+    """Insert or update an entry. Kind-aware unique-key semantics:
+      - ``'sym'``  — unique on (file_path, symbol_name)
+      - ``'doc'``  — unique on (file_path, line_start)
+      - ``'arch'`` — unique on (module)
 
     Raw ``SymbolRef.kind`` values like ``'function'`` or ``'class'`` must be
     mapped to ``'sym'`` before calling this; passing them through unchanged is
     the bug this guard exists to surface.
     """
-    if kind not in ("sym", "arch"):
-        raise ValueError(f"upsert_sym kind must be 'sym' or 'arch', got {kind!r}")
+    if kind not in ("sym", "doc", "arch"):
+        raise ValueError(f"upsert kind must be 'sym'|'doc'|'arch', got {kind!r}")
     conn = _open(db_path)
     conn.execute("BEGIN IMMEDIATE")
     try:
@@ -113,7 +117,12 @@ def upsert_sym(
                 "SELECT id FROM entries WHERE kind='sym' AND file_path=? AND symbol_name=?",
                 (file_path, symbol_name),
             ).fetchone()
-        else:
+        elif kind == "doc":
+            row = conn.execute(
+                "SELECT id FROM entries WHERE kind='doc' AND file_path=? AND line_start=?",
+                (file_path, line_start),
+            ).fetchone()
+        else:  # arch
             row = conn.execute(
                 "SELECT id FROM entries WHERE kind='arch' AND module=?",
                 (module,),

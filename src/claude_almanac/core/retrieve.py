@@ -6,8 +6,8 @@ decay score ranks earlier. Pinned memories treat score as 1.0. Controlled by
 cfg.retrieval.decay.
 
 Code-index integration: gated by `config.retrieval.code_autoinject` AND by
-`codeindex.autoinject.should_query(prompt)`. When the per-repo code-index.db
-does not exist the code block is silently omitted.
+`codeindex.autoinject.should_query(prompt)`. When the per-repo
+content-index.db does not exist the code block is silently omitted.
 
 v0.3.2 retrieval extensions (all gated, default off unless config adds the
 `retrieval.edges` / `retrieval.rollups` sections — see Task 8):
@@ -80,7 +80,7 @@ def _codeindex_block(
         from claude_almanac.contentindex import search as ci_search
     except ImportError:
         return ""
-    ci_db = paths.project_memory_dir() / "code-index.db"
+    ci_db = paths.project_memory_dir() / "content-index.db"
     if not ci_db.exists():
         return ""
     return ci_search.search_and_format(

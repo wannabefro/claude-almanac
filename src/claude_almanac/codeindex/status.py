@@ -21,9 +21,9 @@ def _count(db_path: str, kind: str) -> int:
 
 def main(repo_root: str) -> int:
     repo_root = str(pathlib.Path(repo_root).resolve())
-    dbp = paths.project_memory_dir() / "code-index.db"
+    dbp = paths.project_memory_dir() / "content-index.db"
     if not dbp.exists():
-        print(f"no code-index.db at {dbp} — run `claude-almanac codeindex init`")
+        print(f"no content-index.db at {dbp} — run `claude-almanac codeindex init`")
         return 1
     sym_n = _count(str(dbp), "sym")
     arch_n = _count(str(dbp), "arch")

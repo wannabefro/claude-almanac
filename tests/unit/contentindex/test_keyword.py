@@ -27,7 +27,7 @@ def indexed_db(tmp_path):
          "// tests/test_baseline.py  [function]  TestBaseline"),
     ]
     for i, (name, fp, mod, text) in enumerate(symbols):
-        ci_db.upsert_sym(
+        ci_db.upsert(
             dbp, kind="sym", text=text, file_path=fp, symbol_name=name,
             module=mod, line_start=1, line_end=1, commit_sha="sha1",
             embedding=[float(i), float(i)],
@@ -127,7 +127,7 @@ def structural_penalty_db(tmp_path):
     on the query 'routes api', so the penalty is what separates them."""
     dbp = str(tmp_path / "penalty.db")
     ci_db.init(dbp, dim=2)
-    ci_db.upsert_sym(
+    ci_db.upsert(
         dbp, kind="sym",
         text="LOGGER = logging.getLogger(__name__)",
         file_path="src/routes/api_v1.py",
@@ -137,7 +137,7 @@ def structural_penalty_db(tmp_path):
         commit_sha="sha1",
         embedding=[0.1, 0.1],
     )
-    ci_db.upsert_sym(
+    ci_db.upsert(
         dbp, kind="sym",
         text='MAX_BATCH = 250',
         file_path="src/routes/api_v1.py",
@@ -147,7 +147,7 @@ def structural_penalty_db(tmp_path):
         commit_sha="sha1",
         embedding=[0.2, 0.2],
     )
-    ci_db.upsert_sym(
+    ci_db.upsert(
         dbp, kind="sym",
         text=(
             "def handle_submission(request: Request) -> Response:\n"
@@ -204,7 +204,7 @@ def test_text_body_match_bypasses_penalty(tmp_path):
     dbp = str(tmp_path / "text_match.db")
     ci_db.init(dbp, dim=2)
     # LOGGER whose text contains 'handler' — query matches text, not file_path.
-    ci_db.upsert_sym(
+    ci_db.upsert(
         dbp, kind="sym",
         text="LOGGER = build_handler_logger()",
         file_path="src/core/base.py",

@@ -46,7 +46,7 @@ def hooks_file_db(tmp_path):
     """
     dbp = str(tmp_path / "pattern_a.db")
     ci_db.init(dbp, dim=2)
-    ci_db.upsert_sym(
+    ci_db.upsert(
         dbp, kind="sym",
         text="LOGGER = logging.getLogger(__name__)",
         file_path="src/widgets/hooks.py",
@@ -56,7 +56,7 @@ def hooks_file_db(tmp_path):
         commit_sha="sha1",
         embedding=[0.5, 0.5],
     )
-    ci_db.upsert_sym(
+    ci_db.upsert(
         dbp, kind="sym",
         text=(
             "def process_widget_submission(payload: dict) -> None:\n"
@@ -99,7 +99,7 @@ def test_pattern_a_dunder_init_penalized_on_filepath_only_match(tmp_path):
     # Short file_path — wins tiebreak on v0.3.13. Deliberately avoid the
     # token 'pipeline' anywhere in symbol_name or text so the match is
     # truly file_path-only (the shape the penalty targets).
-    ci_db.upsert_sym(
+    ci_db.upsert(
         dbp, kind="sym",
         text="from .core import runner_main\n",
         file_path="pipeline/__init__.py",
@@ -111,7 +111,7 @@ def test_pattern_a_dunder_init_penalized_on_filepath_only_match(tmp_path):
     )
     # Longer file_path — loses tiebreak on v0.3.13 despite being the
     # domain function the user actually wants.
-    ci_db.upsert_sym(
+    ci_db.upsert(
         dbp, kind="sym",
         text=(
             "def runner_main(config: Config) -> Result:\n"
@@ -207,7 +207,7 @@ def cooking_db(tmp_path):
         ("fold_butter",  "src/cooking/pastry.py", [0.85, 0.15]),
     ]
     for name, fp, emb in rows:
-        ci_db.upsert_sym(
+        ci_db.upsert(
             dbp, kind="sym",
             text=f"def {name}(): ...",
             file_path=fp,
@@ -304,7 +304,7 @@ def test_pattern_a_vector_logger_demoted_when_unnamed(tmp_path):
     """
     dbp = str(tmp_path / "demote.db")
     ci_db.init(dbp, dim=2)
-    ci_db.upsert_sym(
+    ci_db.upsert(
         dbp, kind="sym",
         text="LOGGER = logging.getLogger(__name__)",
         file_path="src/events/bus.py",
@@ -314,7 +314,7 @@ def test_pattern_a_vector_logger_demoted_when_unnamed(tmp_path):
         commit_sha="sha1",
         embedding=[0.40, 0.60],  # close to query vector
     )
-    ci_db.upsert_sym(
+    ci_db.upsert(
         dbp, kind="sym",
         text=(
             "def process_event(evt: Event) -> None:\n"
@@ -349,7 +349,7 @@ def test_pattern_a_vector_logger_preserved_when_named(tmp_path):
     LOGGER in the DB, user asks for LOGGER, the hit surfaces."""
     dbp = str(tmp_path / "demote_named.db")
     ci_db.init(dbp, dim=2)
-    ci_db.upsert_sym(
+    ci_db.upsert(
         dbp, kind="sym",
         text="LOGGER = logging.getLogger(__name__)",
         file_path="src/core/base.py",
@@ -373,7 +373,7 @@ def test_pattern_a_demotion_no_query_tokens_skipped(tmp_path):
     intent, so we preserve vector rank. Locks a defensive branch."""
     dbp = str(tmp_path / "demote_empty.db")
     ci_db.init(dbp, dim=2)
-    ci_db.upsert_sym(
+    ci_db.upsert(
         dbp, kind="sym",
         text="LOGGER = logging.getLogger(__name__)",
         file_path="src/core/base.py",

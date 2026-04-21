@@ -41,7 +41,7 @@ def test_arch_writes_summary_when_both_flags_true(tmp_path):
     _make_cfg(tmp_path, send_flag=True)
     # Pre-populate DB + mark module dirty
     from claude_almanac.core import paths
-    ci_dbp = paths.project_memory_dir() / "code-index.db"
+    ci_dbp = paths.project_memory_dir() / "content-index.db"
     ci_dbp.parent.mkdir(parents=True, exist_ok=True)
     ci_db.init(str(ci_dbp), dim=2)
     ci_db.mark_dirty(str(ci_dbp), module="m", sha="sha1")
@@ -62,7 +62,7 @@ def test_run_one_returns_false_on_embedder_failure(tmp_path):
     # Minimal direct run_one call: both flags True, _haiku returns a summary,
     # embedder.embed raises. Expect False + arch.embed_fail emitted.
     from claude_almanac.core import paths
-    dbp = paths.project_memory_dir() / "code-index.db"
+    dbp = paths.project_memory_dir() / "content-index.db"
     dbp.parent.mkdir(parents=True, exist_ok=True)
     ci_db.init(str(dbp), dim=2)
 

@@ -28,9 +28,9 @@ def _refresh_one(repo_path: str) -> int:
     prev_cwd = os.getcwd()
     try:
         os.chdir(repo_path)
-        db_path = paths.project_memory_dir() / "code-index.db"
+        db_path = paths.project_memory_dir() / "content-index.db"
         if not db_path.exists():
-            print(f"[{repo_path}] no code-index.db — running init")
+            print(f"[{repo_path}] no content-index.db — running init")
             rc = _init.main(repo_path)
             if rc:
                 return rc

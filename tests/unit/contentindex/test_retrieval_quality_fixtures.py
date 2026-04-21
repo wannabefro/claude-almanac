@@ -88,7 +88,7 @@ def indexed_db(tmp_path):
     dbp = str(tmp_path / "fixture.db")
     ci_db.init(dbp, dim=2)
     for sym in FIXTURE_SYMBOLS:
-        ci_db.upsert_sym(
+        ci_db.upsert(
             dbp,
             kind="sym",
             text=sym["text"],

@@ -95,7 +95,7 @@ def _git_target_sha(repo_root: str, default_branch: str) -> str:
 
 
 def _ci_db_path() -> pathlib.Path:
-    p = paths.project_memory_dir() / "code-index.db"
+    p = paths.project_memory_dir() / "content-index.db"
     p.parent.mkdir(parents=True, exist_ok=True)
     return p
 
@@ -143,10 +143,10 @@ def run_one(*, db_path: str, repo_root: str, module_name: str,
         emit(log_path, component="code-index", level="info", event="arch.dedup_skip",
              module=module_name, distance=f"{existing_distance:.3f}")
         return True
-    _db.upsert_sym(db_path, kind="arch", text=summary, file_path=None,
-                   symbol_name=None, module=module_name,
-                   line_start=None, line_end=None,
-                   commit_sha=commit_sha, embedding=vec)
+    _db.upsert(db_path, kind="arch", text=summary, file_path=None,
+               symbol_name=None, module=module_name,
+               line_start=None, line_end=None,
+               commit_sha=commit_sha, embedding=vec)
     emit(log_path, component="code-index", level="info", event="arch.upsert",
          module=module_name, dur_ms=int((time.time() - t0) * 1000))
     return True
@@ -161,7 +161,7 @@ def main(repo_root: str, *, global_send_code_to_llm: bool) -> int:
         return 0
     dbp = _ci_db_path()
     if not dbp.exists():
-        print("no code-index.db — run `claude-almanac codeindex init` first")
+        print("no content-index.db — run `claude-almanac codeindex init` first")
         return 1
     dirty = _db.list_dirty(str(dbp))
     if not dirty:

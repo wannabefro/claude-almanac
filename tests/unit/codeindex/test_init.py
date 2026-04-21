@@ -35,6 +35,6 @@ def test_init_creates_db_and_sidecar(tmp_path, monkeypatch):
     assert rc == 0
 
     from claude_almanac.core import paths
-    dbp = paths.project_memory_dir() / "code-index.db"
+    dbp = paths.project_memory_dir() / "content-index.db"
     assert dbp.exists()
     assert (paths.project_memory_dir() / "repo_root").read_text() == str(tmp_path)

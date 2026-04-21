@@ -102,7 +102,7 @@ def test_refresh_all_continues_on_per_repo_failure(tmp_path, monkeypatch, capsys
     # DB exists so refresh runs directly without init.
     db = tmp_path / "dbdir"
     db.mkdir()
-    (db / "code-index.db").write_text("")
+    (db / "content-index.db").write_text("")
     monkeypatch.setattr(
         "claude_almanac.core.paths.project_memory_dir", lambda: db,
     )

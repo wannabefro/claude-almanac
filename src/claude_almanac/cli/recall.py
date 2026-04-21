@@ -58,7 +58,7 @@ def _search_unified(query: str, *, all_projects: bool) -> None:
     """Combined search over memories + current-repo code-index.
 
     Prints the memory section first, then the code-index section (when
-    the per-repo code-index.db exists). Used by `recall search`.
+    the per-repo content-index.db exists). Used by `recall search`.
     """
     cfg = config.load()
     embedder = make_embedder(cfg.embedder.provider, cfg.embedder.model)
@@ -135,7 +135,7 @@ def _collect_code_block(
     from claude_almanac.codeindex.scoring import CODE_PROFILE
     from claude_almanac.contentindex import search as _ci_search
 
-    ci_db = paths.project_memory_dir() / "code-index.db"
+    ci_db = paths.project_memory_dir() / "content-index.db"
     if not ci_db.exists():
         return ""
     try:
@@ -283,9 +283,9 @@ def _cmd_code(argv: list[str]) -> int:
         return 2
     from claude_almanac.codeindex.scoring import CODE_PROFILE
     from claude_almanac.contentindex import search as _ci_search
-    dbp = paths.project_memory_dir() / "code-index.db"
+    dbp = paths.project_memory_dir() / "content-index.db"
     if not dbp.exists():
-        print("no code-index.db — run `claude-almanac codeindex init`")
+        print("no content-index.db — run `claude-almanac codeindex init`")
         return 1
     cfg = config.load()
     # Config override if user hasn't passed --no-hybrid explicitly

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from .db import init as init_db
 from .db import search as vector_search
-from .db import upsert_sym as upsert
+from .db import upsert
 from .fuse import rrf
 from .keyword import search as keyword_search
 from .search import (

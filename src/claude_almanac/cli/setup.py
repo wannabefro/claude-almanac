@@ -219,17 +219,17 @@ def _migrate_all_archives() -> None:
 
 
 def _migrate_all_code_indexes() -> None:
-    """Walk every project's code-index.db and rename stale ones aside.
+    """Walk every project's content-index.db and rename stale ones aside.
 
-    A code-index.db's `entries_vec` virtual table pins the embedding
+    A content-index.db's `entries_vec` virtual table pins the embedding
     dimension at creation time (FLOAT[N]). If the embedder's dim changes
     (bge-m3 swap, model upgrade, or a legacy default-2 wrong-dim bug from
     old installs), every upsert / query fails with
     `sqlite3.OperationalError: Dimension mismatch`.
 
     We can't migrate vectors across dims — the embeddings have to be
-    recomputed. This helper renames any mismatched code-index.db to
-    `code-index.db.stale-<detected-dim>` so the user can inspect or
+    recomputed. This helper renames any mismatched content-index.db to
+    `content-index.db.stale-<detected-dim>` so the user can inspect or
     discard, then prints a one-line note pointing them at
     `claude-almanac codeindex init`.
     """
@@ -247,7 +247,7 @@ def _migrate_all_code_indexes() -> None:
     if projs.exists():
         for d in projs.iterdir():
             if d.is_dir():
-                db = d / "code-index.db"
+                db = d / "content-index.db"
                 if db.exists():
                     candidate_dbs.append(db)
 
@@ -256,7 +256,7 @@ def _migrate_all_code_indexes() -> None:
         detected = _detect_code_index_dim(db)
         if detected is None or detected == expected_dim:
             continue
-        stale = db.with_name(f"code-index.db.stale-{detected}")
+        stale = db.with_name(f"content-index.db.stale-{detected}")
         try:
             db.rename(stale)
         except OSError as e:

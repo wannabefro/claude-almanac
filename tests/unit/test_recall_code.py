@@ -7,13 +7,13 @@ def test_recall_code_prints_hits(tmp_path, capsys, monkeypatch):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
     from claude_almanac.contentindex import db as ci_db
     from claude_almanac.core import paths
-    dbp = paths.project_memory_dir() / "code-index.db"
+    dbp = paths.project_memory_dir() / "content-index.db"
     dbp.parent.mkdir(parents=True, exist_ok=True)
     ci_db.init(str(dbp), dim=2)
-    ci_db.upsert_sym(str(dbp), kind="sym", text="def foo(): pass\n",
-                     file_path="src/a.py", symbol_name="foo", module="src",
-                     line_start=1, line_end=1, commit_sha="sha1",
-                     embedding=[1.0, 0.0])
+    ci_db.upsert(str(dbp), kind="sym", text="def foo(): pass\n",
+                 file_path="src/a.py", symbol_name="foo", module="src",
+                 line_start=1, line_end=1, commit_sha="sha1",
+                 embedding=[1.0, 0.0])
 
     fake_embedder = MagicMock()
     fake_embedder.embed.return_value = [[1.0, 0.0]]
@@ -29,4 +29,4 @@ def test_recall_code_no_db_message(tmp_path, capsys, monkeypatch):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
     recall.run(["code", "anything"])
     out = capsys.readouterr().out + capsys.readouterr().err
-    assert "no code-index" in out.lower()
+    assert "no content-index" in out.lower()

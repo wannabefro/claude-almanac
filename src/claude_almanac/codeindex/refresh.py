@@ -34,7 +34,7 @@ def _git(args: list[str], cwd: str) -> str:
 
 
 def _ci_db_path() -> pathlib.Path:
-    p = paths.project_memory_dir() / "code-index.db"
+    p = paths.project_memory_dir() / "content-index.db"
     p.parent.mkdir(parents=True, exist_ok=True)
     return p
 
@@ -48,7 +48,7 @@ def main(repo_root: str) -> int:
     if not dbp.exists():
         emit(log_path, component="code-index", level="warn",
              event="refresh.no_db", repo=repo_root)
-        print("no code-index.db — run `claude-almanac codeindex init` first")
+        print("no content-index.db — run `claude-almanac codeindex init` first")
         return 1
     app_cfg = _app_config.load()
     embedder = _make_embedder(app_cfg.embedder.provider, app_cfg.embedder.model)

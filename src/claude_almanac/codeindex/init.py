@@ -1,6 +1,6 @@
 """First-time code-index build for the current repo.
 
-Writes <project_data_dir>/code-index.db + a `repo_root` sidecar so the
+Writes <project_data_dir>/content-index.db + a `repo_root` sidecar so the
 refresh command can locate the repo from the DB alone.
 """
 from __future__ import annotations
@@ -24,7 +24,7 @@ from claude_almanac.embedders import make_embedder as _make_embedder
 
 
 def _ci_db_path() -> pathlib.Path:
-    p = paths.project_memory_dir() / "code-index.db"
+    p = paths.project_memory_dir() / "content-index.db"
     p.parent.mkdir(parents=True, exist_ok=True)
     return p
 

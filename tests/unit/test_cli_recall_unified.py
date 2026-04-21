@@ -13,7 +13,7 @@ def test_search_unified_prints_memory_section_when_code_index_absent(
     tmp_path, monkeypatch, capsys,
 ):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
-    # No code-index.db exists → code block is empty; only memory section prints.
+    # No content-index.db exists → code block is empty; only memory section prints.
     with (
         patch.object(recall, "_collect_memory_hits", return_value=[]),
         patch.object(recall, "_collect_code_block", return_value=""),

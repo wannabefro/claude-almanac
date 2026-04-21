@@ -88,7 +88,7 @@ def extract_file(*, db_path: str, repo_root: str, module: str, file_abs: str,
     written = 0
     for s, text, vec in zip(public_syms, texts, vecs, strict=True):
         try:
-            _db.upsert_sym(
+            _db.upsert(
                 db_path, kind="sym", text=text, file_path=file_rel,
                 symbol_name=s.name, module=module,
                 line_start=s.line_start, line_end=s.line_end,

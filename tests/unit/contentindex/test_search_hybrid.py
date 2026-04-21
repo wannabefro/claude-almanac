@@ -26,7 +26,7 @@ def indexed_db(tmp_path):
          "// tests/test_regression.py  [function]  TestRegression", [0.52, 0.48]),
     ]
     for name, fp, mod, text, emb in symbols:
-        ci_db.upsert_sym(
+        ci_db.upsert(
             dbp, kind="sym", text=text, file_path=fp, symbol_name=name,
             module=mod, line_start=1, line_end=1, commit_sha="sha1",
             embedding=emb,
