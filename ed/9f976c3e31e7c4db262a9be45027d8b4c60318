@@ -1,0 +1,35 @@
+pyproject.toml
+  7260c9bbd9808709 7
+CHANGELOG.md
+  7260c9bbd9808709 9-36
+plugin.json
+  7260c9bbd9808709 3
+src/claude_almanac/curators/ollama.py
+  7260c9bbd9808709 3-12,19,26-44,69-72
+src/claude_almanac/core/curator.py
+  7260c9bbd9808709 395-458,481,483,487-489,499-520
+tests/unit/test_curators_ollama.py
+  7260c9bbd9808709 28-33
+tests/unit/test_curator_unescaped_quotes.py
+  7260c9bbd9808709 1-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "ed9f976c3e31e7c4db262a9be45027d8b4c60318",
+  "prompts": {
+    "7260c9bbd9808709": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "61df4f8a-a0d8-4e69-9565-16df65aabd12",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 270,
+      "total_deletions": 15,
+      "accepted_lines": 837,
+      "overriden_lines": 0
+    }
+  }
+}
