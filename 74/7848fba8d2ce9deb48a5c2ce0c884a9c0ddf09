@@ -1,0 +1,23 @@
+src/claude_almanac/cli/main.py
+  76e88aceb91d339f 34-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "747848fba8d2ce9deb48a5c2ce0c884a9c0ddf09",
+  "prompts": {
+    "76e88aceb91d339f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c303af38-4c0f-48ea-99c7-8a137750e79e",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 1,
+      "accepted_lines": 3,
+      "overriden_lines": 0
+    }
+  }
+}
