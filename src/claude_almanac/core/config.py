@@ -15,7 +15,12 @@ from . import paths
 @dataclass
 class EmbedderCfg:
     provider: str = "ollama"
-    model: str = "bge-m3"
+    # v0.3.9: default flipped from bge-m3 to qwen3-embedding:0.6b.
+    # Same dim (1024) so vec tables are wire-compatible, but qwen3 is
+    # multi-purpose (text + code + cross-lingual) and scores higher on
+    # MTEB. Existing users migrate via `claude-almanac migrate-embedder`;
+    # pre-upgrade configs with explicit `model:` retain their choice.
+    model: str = "qwen3-embedding:0.6b"
     api_key_env: str | None = None
 
 

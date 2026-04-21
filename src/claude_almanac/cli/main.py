@@ -56,6 +56,16 @@ def build_parser() -> argparse.ArgumentParser:
     s_cal = sub.add_parser("calibrate", help="Embedder calibration helper")
     s_cal.add_argument("args", nargs="*")
 
+    s_reembed = sub.add_parser(
+        "migrate-embedder",
+        help="Re-embed every archive.db + rollups_vec to the configured embedder "
+             "(preserves all entry metadata, histories, and edges)",
+    )
+    s_reembed.add_argument(
+        "--dry-run", action="store_true",
+        help="Report what would change without touching any DB",
+    )
+
     s_tail = sub.add_parser("tail", help="Stream merged logs across subsystems")
     follow = s_tail.add_mutually_exclusive_group()
     follow.add_argument("--follow", dest="follow", action="store_true",
@@ -103,6 +113,11 @@ def cmd_calibrate(args: argparse.Namespace) -> None:
     _cal.run(list(args.args))
 
 
+def cmd_migrate_embedder(args: argparse.Namespace) -> None:
+    from claude_almanac.core import reembed
+    raise SystemExit(reembed.run(dry_run=bool(args.dry_run)))
+
+
 def cmd_tail(args: argparse.Namespace) -> None:
     from . import tail as _tail
     argv: list[str] = []
@@ -127,6 +142,7 @@ def main(argv: list[str] | None = None) -> None:
         "recall": cmd_recall,
         "digest": cmd_digest,
         "codeindex": cmd_codeindex,
+        "migrate-embedder": cmd_migrate_embedder,
         "calibrate": cmd_calibrate,
         "tail": cmd_tail,
     }

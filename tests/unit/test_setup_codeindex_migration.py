@@ -54,6 +54,7 @@ def test_detect_code_index_dim_handles_nonexistent():
 
 def test_migrate_renames_stale_dim_db(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path / "cfg"))
     from claude_almanac.core import paths as paths_mod
     # Seed a stale DB with wrong dim (2 — the old bug).
     stale_root = paths_mod.projects_memory_dir() / "stale-proj"
@@ -72,11 +73,16 @@ def test_migrate_renames_stale_dim_db(tmp_path, monkeypatch, capsys):
 
 def test_migrate_leaves_matching_dim_db_alone(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path / "cfg"))
     from claude_almanac.core import paths as paths_mod
     from claude_almanac.embedders.profiles import get
     good_root = paths_mod.projects_memory_dir() / "good-proj"
     good_db = good_root / "code-index.db"
-    profile = get("ollama", "bge-m3")
+    # Seed at the DEFAULT embedder's dim so the DB is considered "matching"
+    # by _migrate_all_code_indexes under test isolation.
+    from claude_almanac.core.config import default_config
+    default_model = default_config().embedder.model
+    profile = get("ollama", default_model)
     _seed_codeindex_db(good_db, dim=profile.dim)
 
     setup_mod._migrate_all_code_indexes()
@@ -89,4 +95,5 @@ def test_migrate_leaves_matching_dim_db_alone(tmp_path, monkeypatch, capsys):
 
 def test_migrate_handles_empty_projects_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path / "cfg"))
     setup_mod._migrate_all_code_indexes()  # must not raise

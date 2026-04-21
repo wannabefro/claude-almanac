@@ -4,7 +4,8 @@ from claude_almanac.core import config
 def test_default_config_has_ollama():
     c = config.default_config()
     assert c.embedder.provider == "ollama"
-    assert c.embedder.model == "bge-m3"
+    # v0.3.9: default flipped from bge-m3 to qwen3-embedding:0.6b.
+    assert c.embedder.model == "qwen3-embedding:0.6b"
     assert c.digest.enabled is False
 
 

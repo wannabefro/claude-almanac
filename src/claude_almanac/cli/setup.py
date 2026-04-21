@@ -125,6 +125,36 @@ def _migrate_curator_provider() -> None:
             print(f"  warning: ollama pull failed: {e}")
 
 
+def _ensure_embedder_pulled() -> None:
+    """Pull the configured Ollama embedder model if it isn't already local.
+
+    Fresh installs (and v0.3.9 upgrade from bge-m3 → qwen3-embedding) rely on
+    the model being present in Ollama. Skip silently for non-Ollama providers
+    and when Ollama isn't reachable — those surface their own errors on first use.
+    """
+    cfg = core_config.load()
+    if cfg.embedder.provider != "ollama":
+        return
+    if not _ollama_reachable():
+        return
+    model = cfg.embedder.model
+    host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+    # Ollama's /api/tags lists locally-pulled models. Probe before pulling so
+    # we don't spam progress output every setup run.
+    try:
+        r = httpx.get(f"{host.rstrip('/')}/api/tags", timeout=3.0)
+        tags = {m.get("name", "") for m in (r.json().get("models") or [])}
+    except (httpx.HTTPError, ValueError, KeyError):
+        tags = set()
+    if model in tags or f"{model}:latest" in tags:
+        return
+    print(f"embedder: ollama / {model} — pulling model...")
+    try:
+        _ollama_pull(model)
+    except httpx.HTTPError as e:
+        print(f"  warning: ollama pull failed: {e}")
+
+
 def _migrate_all_archives() -> None:
     """Walk every project + global archive.db and run ensure_schema on each.
 
@@ -322,6 +352,7 @@ def _do_install() -> None:
     elif core_config.materialize_missing_fields():
         print(f"updated {cfg_path} with new default fields")
     _migrate_curator_provider()
+    _ensure_embedder_pulled()
     _migrate_all_archives()
     _migrate_all_code_indexes()
     _print_provider_suggestions()

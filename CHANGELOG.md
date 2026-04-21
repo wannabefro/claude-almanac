@@ -6,6 +6,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.3.9 — 2026-04-21 — Qwen3-Embedding profile (free + multi-purpose + code-aware)
+
+### Added
+
+- **Profile entries for `qwen3-embedding:{0.6b,4b,8b}`**. Alibaba's
+  Qwen3-Embedding family is officially on the Ollama library, free,
+  trained for text + code + cross-lingual retrieval in one model,
+  and scores ~70.58 MTEB at the 8B size (beating bge-m3 ~68.5).
+- **Live-verified on this repo:** `qwen3-embedding:0.6b` hits 5/5
+  dogfood queries (vs bge-m3's 4/5 even after the v0.3.8 sym-text
+  enrichment). The one bge-m3 missed — `"archive migration schema"` —
+  returns `ensure_schema` at rank #1 with qwen3. Same 1024 dim as
+  bge-m3, so archive/code-index vec tables are wire-compatible.
+
+### Upgrade path
+
+Qwen3 is a swap-in replacement for bge-m3 on the archive schema side
+(same dim) but `archive.assert_compatible` fails-loud on model mismatch
+— by design, since the vector space is different and cross-embedder
+search returns garbage. Users who want to upgrade:
+
+1. `ollama pull qwen3-embedding:0.6b` (or `4b` / `8b` — see sizes below)
+2. Edit `~/.config/claude-almanac/config.yaml`:
+   ```yaml
+   embedder:
+     provider: ollama
+     model: qwen3-embedding:0.6b
+   ```
+3. Rebuild existing indexes:
+   - Archives: delete `archive.db` files under
+     `<data_dir>/{global,projects/*}/`, then `claude-almanac setup`
+     (re-ingests memories from the `.md` files alongside).
+   - Code indexes: delete `code-index.db` files, then
+     `claude-almanac codeindex init` per-repo.
+
+Size tradeoffs:
+
+| Variant | Params | Dim | Use case |
+|---|---|---|---|
+| `qwen3-embedding:0.6b` | 600 M | 1024 | Drop-in for bge-m3 users |
+| `qwen3-embedding:4b`   | 4 B   | 2560 | Higher retrieval quality; vec rebuild required |
+| `qwen3-embedding:8b`   | 8 B   | 4096 | MTEB-leading quality; full rebuild |
+
+bge-m3 remains the shipped default — changing it would force every
+user to rebuild every archive + code-index without warning. This
+release only adds the profile so users who opt in don't have to
+hand-configure `dedup_distance` / `rank_band`. A follow-up release
+may ship an automated `claude-almanac migrate-embedder` command to
+rebuild in-place.
+
 ## 0.3.8 — 2026-04-21 — Code-index retrieval quality (enriched sym text)
 
 ### Changed

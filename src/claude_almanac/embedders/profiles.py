@@ -38,6 +38,29 @@ _PROFILES: dict[tuple[str, str], EmbedderProfile] = {
         dedup_distance=0.22,
         rank_band=0.05,
     ),
+    # Qwen3-Embedding: multi-purpose (text + code), officially on Ollama.
+    # 0.6B → 1024 dim (drop-in with bge-m3 — same vec-table layout).
+    # 4B   → 2560 dim (requires rebuild to swap from bge-m3).
+    # 8B   → 4096 dim (ditto).
+    # Ollama returns normalized vectors → same "L2 in [0, sqrt(2)]" regime as bge-m3.
+    # Thresholds below are bge-m3-inherited defaults; recalibrate via
+    # `python -m claude_almanac.embedders.calibrate` on a representative
+    # fixture if dedup quality matters.
+    ("ollama", "qwen3-embedding:0.6b"): EmbedderProfile(
+        provider="ollama", model="qwen3-embedding:0.6b",
+        dim=1024, distance="l2",
+        dedup_distance=0.5, rank_band=0.1,
+    ),
+    ("ollama", "qwen3-embedding:4b"): EmbedderProfile(
+        provider="ollama", model="qwen3-embedding:4b",
+        dim=2560, distance="l2",
+        dedup_distance=0.5, rank_band=0.1,
+    ),
+    ("ollama", "qwen3-embedding:8b"): EmbedderProfile(
+        provider="ollama", model="qwen3-embedding:8b",
+        dim=4096, distance="l2",
+        dedup_distance=0.5, rank_band=0.1,
+    ),
 }
 
 
