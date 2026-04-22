@@ -254,17 +254,7 @@ def run(prompt: str) -> str:
                 embedder.name, embedder.model,
                 profile=CODE_PROFILE,
             )
-            # Task 7 will add cfg.content_index; for now, fall back to the
-            # legacy cfg.code_index, and default docs_autoinject=True when
-            # neither section exists yet.
-            content_cfg = (
-                getattr(cfg, "content_index", None)
-                or getattr(cfg, "code_index", None)
-            )
-            docs_autoinject = (
-                getattr(content_cfg, "docs_autoinject", True)
-                if content_cfg is not None else True
-            )
+            docs_autoinject = cfg.content_index.docs_autoinject
             code_block = _codeindex_block(
                 query_vec, prompt, hybrid=code_hybrid,
                 min_confidence_distance=code_min_conf,

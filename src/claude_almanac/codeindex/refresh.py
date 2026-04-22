@@ -48,7 +48,7 @@ def main(repo_root: str) -> int:
     if not dbp.exists():
         emit(log_path, component="code-index", level="warn",
              event="refresh.no_db", repo=repo_root)
-        print("no content-index.db — run `claude-almanac codeindex init` first")
+        print("no content-index.db — run `claude-almanac content init` first")
         return 1
     app_cfg = _app_config.load()
     embedder = _make_embedder(app_cfg.embedder.provider, app_cfg.embedder.model)

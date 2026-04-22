@@ -46,7 +46,7 @@ def test_codeindex_init_then_recall_code_finds_symbol(isolated_data_dir):
         "CLAUDE_ALMANAC_DATA_DIR": os.environ["CLAUDE_ALMANAC_DATA_DIR"],
     }
     init = subprocess.run(
-        ["claude-almanac", "codeindex", "init", "--repo", str(repo)],
+        ["claude-almanac", "content", "init", "--repo", str(repo)],
         cwd=str(repo), env=env, capture_output=True, text=True, timeout=120,
     )
     assert init.returncode == 0, init.stderr

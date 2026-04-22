@@ -16,7 +16,7 @@ You are a senior reviewer whose single focus is the code-index trust boundary in
 
 Prioritize in this order:
 
-1. **Dual-flag gate is intact.** In `arch.py`, the gate must read both `load_repo_config().send_code_to_llm` AND `load_config().code_index.send_code_to_llm`. Either missing or either defaulted to True in new code is a **blocker**.
+1. **Dual-flag gate is intact.** In `arch.py`, the gate must read both `load_repo_config().send_code_to_llm` AND `load_config().content_index.send_code_to_llm`. Either missing or either defaulted to True in new code is a **blocker**.
 
 2. **Defaults remain False.** Grep the diff for new `send_code_to_llm` defaults. Any `= True` default in a config field, factory default, or CLI flag is a **blocker** regardless of intent — defaults degrade silently and are the failure mode this gate exists to prevent.
 

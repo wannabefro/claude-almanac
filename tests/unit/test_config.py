@@ -41,26 +41,52 @@ def test_save_config_writes_yaml(tmp_path, monkeypatch):
     assert loaded == c
 
 
-def test_default_code_index_has_safe_off_by_default():
+def test_default_content_index_has_safe_off_by_default():
     c = config.default_config()
-    assert c.code_index.daily_refresh is False
-    assert c.code_index.refresh_hour == 4
+    assert c.content_index.daily_refresh is False
+    assert c.content_index.refresh_hour == 4
     assert c.auto_upgrade is False
 
 
-def test_load_code_index_refresh_flag(tmp_path, monkeypatch):
+def test_load_content_index_refresh_flag(tmp_path, monkeypatch):
     cfg = tmp_path / "config.yaml"
     cfg.write_text(
-        "code_index:\n"
+        "content_index:\n"
         "  daily_refresh: true\n"
         "  refresh_hour: 5\n"
         "auto_upgrade: true\n"
     )
     monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path))
     c = config.load()
-    assert c.code_index.daily_refresh is True
-    assert c.code_index.refresh_hour == 5
+    assert c.content_index.daily_refresh is True
+    assert c.content_index.refresh_hour == 5
     assert c.auto_upgrade is True
+
+
+def test_content_index_config_defaults():
+    from claude_almanac.core.config import Config, ContentIndexCfg
+    c = Config()
+    assert isinstance(c.content_index, ContentIndexCfg)
+    assert c.content_index.enabled is False
+    assert c.content_index.send_code_to_llm is False
+    assert c.content_index.daily_refresh is False
+    assert c.content_index.refresh_hour == 4
+    assert c.content_index.docs_autoinject is True
+
+
+def test_content_index_loads_from_yaml():
+    from claude_almanac.core.config import load_config_from_text
+    cfg = load_config_from_text(
+        "content_index:\n"
+        "  enabled: true\n"
+        "  daily_refresh: true\n"
+        "  refresh_hour: 5\n"
+        "  docs_autoinject: false\n"
+    )
+    assert cfg.content_index.enabled is True
+    assert cfg.content_index.daily_refresh is True
+    assert cfg.content_index.refresh_hour == 5
+    assert cfg.content_index.docs_autoinject is False
 
 
 def test_materialize_missing_fields_writes_defaults(tmp_path, monkeypatch):

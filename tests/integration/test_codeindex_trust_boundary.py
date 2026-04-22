@@ -28,10 +28,10 @@ def test_cli_refuses_arch_when_global_flag_false(tmp_path, capsys, monkeypatch):
     from claude_almanac.cli import main as cli_main
     with patch("claude_almanac.core.config.load") as cfg_load, \
          patch("claude_almanac.codeindex.arch._haiku") as haiku:
-        cfg_load.return_value.code_index.send_code_to_llm = False
+        cfg_load.return_value.content_index.send_code_to_llm = False
         # Graceful exit path: arch.main() returns 0, dispatcher doesn't
         # sys.exit on rc=0, so cli_main.main() returns normally.
-        cli_main.main(["codeindex", "arch", "--repo", str(tmp_path)])
+        cli_main.main(["content", "arch", "--repo", str(tmp_path)])
     haiku.assert_not_called()
 
 
@@ -41,6 +41,6 @@ def test_cli_refuses_arch_when_repo_flag_false(tmp_path, capsys, monkeypatch):
     from claude_almanac.cli import main as cli_main
     with patch("claude_almanac.core.config.load") as cfg_load, \
          patch("claude_almanac.codeindex.arch._haiku") as haiku:
-        cfg_load.return_value.code_index.send_code_to_llm = True
-        cli_main.main(["codeindex", "arch", "--repo", str(tmp_path)])
+        cfg_load.return_value.content_index.send_code_to_llm = True
+        cli_main.main(["content", "arch", "--repo", str(tmp_path)])
     haiku.assert_not_called()

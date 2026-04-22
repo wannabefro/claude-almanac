@@ -19,7 +19,9 @@ from claude_almanac.platform import get_scheduler
 
 DIGEST_UNIT_NAME = "com.claude-almanac.digest"
 DIGEST_SERVER_UNIT_NAME = "com.claude-almanac.server"
-CODEINDEX_UNIT_NAME = "com.claude-almanac.codeindex-refresh"
+CONTENTINDEX_UNIT_NAME = "com.claude-almanac.contentindex-refresh"
+# Legacy name installed by v0.3.x; setup removes it on upgrade.
+LEGACY_CODEINDEX_UNIT_NAME = "com.claude-almanac.codeindex-refresh"
 
 
 def _installed_version() -> str:
@@ -231,7 +233,7 @@ def _migrate_all_code_indexes() -> None:
     recomputed. This helper renames any mismatched content-index.db to
     `content-index.db.stale-<detected-dim>` so the user can inspect or
     discard, then prints a one-line note pointing them at
-    `claude-almanac codeindex init`.
+    `claude-almanac content init`.
     """
     from claude_almanac.embedders.profiles import get as get_profile
 
@@ -270,8 +272,8 @@ def _migrate_all_code_indexes() -> None:
 
     if renamed:
         print(
-            f"renamed {renamed} stale code-index DB(s); "
-            "run `claude-almanac codeindex init` in the affected repo(s) to rebuild"
+            f"renamed {renamed} stale content-index DB(s); "
+            "run `claude-almanac content init` in the affected repo(s) to rebuild"
         )
 
 
@@ -336,6 +338,29 @@ def _print_provider_suggestions() -> None:
     )
 
 
+def _reinstall_units_under_new_names() -> None:
+    """Remove legacy v0.3.x unit names so the new contentindex-named units
+    take their place.
+
+    v0.4 renames the `com.claude-almanac.codeindex-refresh` unit to
+    `com.claude-almanac.contentindex-refresh`. We can't migrate the launchd
+    plist / systemd unit in place (the program path also changed: `codeindex
+    refresh` → `content refresh`), so the safest sequence is:
+
+      1. best-effort uninstall of the legacy unit (no-op if never installed)
+      2. the installer below registers the new-named unit fresh
+
+    The new install happens later in `_do_install`, so this helper is
+    idempotent and cheap to run every setup.
+    """
+    try:
+        sched = get_scheduler()
+    except Exception:
+        return
+    with contextlib.suppress(Exception):
+        sched.uninstall(LEGACY_CODEINDEX_UNIT_NAME)
+
+
 def run(*, uninstall: bool, purge_data: bool) -> None:
     if uninstall:
         _do_uninstall(purge_data=purge_data)
@@ -362,8 +387,9 @@ def _do_install() -> None:
     if ok:
         print("embedder reachable")
     scheduler = get_scheduler() if (
-        cfg.digest.enabled or cfg.code_index.daily_refresh
+        cfg.digest.enabled or cfg.content_index.daily_refresh
     ) else None
+    _reinstall_units_under_new_names()
     if cfg.digest.enabled:
         assert scheduler is not None
         scheduler.install_daily(
@@ -381,25 +407,25 @@ def _do_install() -> None:
         print(f"installed digest server unit: {DIGEST_SERVER_UNIT_NAME}")
     else:
         print("digest disabled (set digest.enabled: true in config.yaml to enable)")
-    if cfg.code_index.daily_refresh:
+    if cfg.content_index.daily_refresh:
         assert scheduler is not None
         if not cfg.digest.repos:
-            print("code_index.daily_refresh: true but digest.repos is empty; "
+            print("content_index.daily_refresh: true but digest.repos is empty; "
                   "skipping install")
         else:
             scheduler.install_daily(
-                CODEINDEX_UNIT_NAME,
+                CONTENTINDEX_UNIT_NAME,
                 [sys.executable, "-m", "claude_almanac.cli.main",
-                 "codeindex", "refresh", "--all"],
-                cfg.code_index.refresh_hour,
+                 "content", "refresh", "--all"],
+                cfg.content_index.refresh_hour,
             )
-            print(f"installed daily codeindex refresh unit: {CODEINDEX_UNIT_NAME} "
-                  f"(hour={cfg.code_index.refresh_hour}, "
+            print(f"installed daily contentindex refresh unit: {CONTENTINDEX_UNIT_NAME} "
+                  f"(hour={cfg.content_index.refresh_hour}, "
                   f"repos={len(cfg.digest.repos)})")
     else:
         # Clean up the unit if the user just toggled the flag off.
         with contextlib.suppress(Exception):
-            (scheduler or get_scheduler()).uninstall(CODEINDEX_UNIT_NAME)
+            (scheduler or get_scheduler()).uninstall(CONTENTINDEX_UNIT_NAME)
     print("setup complete. next: add repos to digest.repos in config.yaml")
 
 
@@ -407,7 +433,11 @@ def _do_uninstall(*, purge_data: bool) -> None:
     scheduler = get_scheduler()
     scheduler.uninstall(DIGEST_UNIT_NAME)
     scheduler.uninstall("com.claude-almanac.server")
-    scheduler.uninstall(CODEINDEX_UNIT_NAME)
+    scheduler.uninstall(CONTENTINDEX_UNIT_NAME)
+    # Best-effort remove the legacy v0.3.x unit too so a clean uninstall
+    # doesn't leave orphan launchd/systemd jobs behind.
+    with contextlib.suppress(Exception):
+        scheduler.uninstall(LEGACY_CODEINDEX_UNIT_NAME)
     print("uninstalled platform units")
     if purge_data:
         ans = input(f"delete all data under {paths.data_dir()}? type 'yes': ")

@@ -299,7 +299,7 @@ def _cmd_code(argv: list[str]) -> int:
     from claude_almanac.contentindex import search as _ci_search
     dbp = paths.project_memory_dir() / "content-index.db"
     if not dbp.exists():
-        print("no content-index.db — run `claude-almanac codeindex init`")
+        print("no content-index.db — run `claude-almanac content init`")
         return 1
     cfg = config.load()
     # Config override if user hasn't passed --no-hybrid explicitly
@@ -340,7 +340,7 @@ def _cmd_docs(argv: list[str]) -> int:
     from claude_almanac.documents.scoring import DOC_PROFILE
     dbp = paths.project_memory_dir() / "content-index.db"
     if not dbp.exists():
-        print("no content-index.db — run `claude-almanac codeindex init`")
+        print("no content-index.db — run `claude-almanac content init`")
         return 1
     cfg = config.load()
     # Config override if user hasn't passed --no-hybrid explicitly

@@ -95,8 +95,8 @@ def test_install_registers_codeindex_refresh_when_enabled(tmp_path, monkeypatch)
     )
     from claude_almanac.core import config as core_config
     cfg = core_config.default_config()
-    cfg.code_index.daily_refresh = True
-    cfg.code_index.refresh_hour = 3
+    cfg.content_index.daily_refresh = True
+    cfg.content_index.refresh_hour = 3
     cfg.digest.repos = [core_config.RepoCfg(path=str(tmp_path), alias="x")]
     monkeypatch.setattr("claude_almanac.cli.setup.core_config.load", lambda: cfg)
     from claude_almanac.cli import setup as cli_setup
@@ -106,11 +106,11 @@ def test_install_registers_codeindex_refresh_when_enabled(tmp_path, monkeypatch)
     ]
     codeindex_call = next(
         c for c in daily_calls
-        if c.args[0] == "com.claude-almanac.codeindex-refresh"
+        if c.args[0] == "com.claude-almanac.contentindex-refresh"
     )
     assert codeindex_call.args[2] == 3
-    # The command ends with the --all flag so the cron walks code_index.repos.
-    assert codeindex_call.args[1][-3:] == ["codeindex", "refresh", "--all"]
+    # The command ends with the --all flag so the cron walks digest.repos.
+    assert codeindex_call.args[1][-3:] == ["content", "refresh", "--all"]
 
 
 def test_install_uninstalls_codeindex_when_flag_off(tmp_path, monkeypatch):
@@ -130,7 +130,7 @@ def test_install_uninstalls_codeindex_when_flag_off(tmp_path, monkeypatch):
         c for c in fake_scheduler.method_calls if c[0] == "uninstall"
     ]
     assert any(
-        c.args[0] == "com.claude-almanac.codeindex-refresh"
+        c.args[0] == "com.claude-almanac.contentindex-refresh"
         for c in uninstall_calls
     )
 
@@ -147,7 +147,7 @@ def test_uninstall_removes_codeindex_unit(tmp_path, monkeypatch):
     )
     from claude_almanac.cli import setup as cli_setup
     cli_setup.run(uninstall=True, purge_data=False)
-    assert "com.claude-almanac.codeindex-refresh" in uninstalled
+    assert "com.claude-almanac.contentindex-refresh" in uninstalled
 
 
 def test_setup_migration_sets_anthropic_when_api_key_present(tmp_path, monkeypatch, capsys):

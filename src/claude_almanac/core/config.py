@@ -57,11 +57,12 @@ class DigestCfg:
 
 
 @dataclass
-class CodeIndexCfg:
+class ContentIndexCfg:
     enabled: bool = False
     send_code_to_llm: bool = False
     daily_refresh: bool = False
     refresh_hour: int = 4
+    docs_autoinject: bool = True
 
 
 @dataclass
@@ -143,7 +144,7 @@ class Config:
     embedder: EmbedderCfg = field(default_factory=EmbedderCfg)
     curator: CuratorCfg = field(default_factory=CuratorCfg)
     digest: DigestCfg = field(default_factory=DigestCfg)
-    code_index: CodeIndexCfg = field(default_factory=CodeIndexCfg)
+    content_index: ContentIndexCfg = field(default_factory=ContentIndexCfg)
     retrieval: RetrievalCfg = field(default_factory=RetrievalCfg)
     thresholds: ThresholdsCfg = field(default_factory=ThresholdsCfg)
     rollup: RollupCfg = field(default_factory=RollupCfg)
@@ -183,12 +184,13 @@ def save(cfg: Config) -> None:
         yaml.safe_dump(asdict(cfg), f, sort_keys=False)
 
 
-def _code_index_from_dict(raw: dict[str, Any]) -> CodeIndexCfg:
-    return CodeIndexCfg(
+def _content_index_from_dict(raw: dict[str, Any]) -> ContentIndexCfg:
+    return ContentIndexCfg(
         enabled=raw.get("enabled", False),
         send_code_to_llm=raw.get("send_code_to_llm", False),
         daily_refresh=raw.get("daily_refresh", False),
         refresh_hour=raw.get("refresh_hour", 4),
+        docs_autoinject=raw.get("docs_autoinject", True),
     )
 
 
@@ -262,7 +264,7 @@ def _from_dict(raw: dict[str, Any]) -> Config:
             qa_provider=dig.get("qa_provider"),
             qa_model=dig.get("qa_model"),
         ),
-        code_index=_code_index_from_dict(raw.get("code_index", {})),
+        content_index=_content_index_from_dict(raw.get("content_index", {})),
         retrieval=retrieval,
         thresholds=ThresholdsCfg(**raw.get("thresholds", {})),
         rollup=rollup_cfg,

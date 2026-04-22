@@ -1,4 +1,4 @@
-"""Dispatch `claude-almanac codeindex <init|refresh|arch|status>`."""
+"""Dispatch `claude-almanac content <init|refresh|arch|status>`."""
 from __future__ import annotations
 
 import argparse
@@ -18,7 +18,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 def _refresh_one(repo_path: str) -> int:
     """Refresh a single repo. Run init first when the DB is missing so a
-    brand-new entry in code_index.repos doesn't require a manual bootstrap.
+    brand-new entry in digest.repos doesn't require a manual bootstrap.
     Path resolution uses cwd (see paths.project_key), so we chdir in."""
     from claude_almanac.codeindex import init as _init
     from claude_almanac.codeindex import refresh as _refresh
@@ -71,7 +71,7 @@ def cmd_arch(args: argparse.Namespace) -> int:
     app_cfg = _app_config.load()
     return _arch.main(
         _repo_or_cwd(args),
-        global_send_code_to_llm=app_cfg.code_index.send_code_to_llm,
+        global_send_code_to_llm=app_cfg.content_index.send_code_to_llm,
     )
 
 
@@ -91,7 +91,7 @@ DISPATCH = {
 def run(args: argparse.Namespace) -> None:
     fn = DISPATCH.get(args.ci_cmd)
     if fn is None:
-        print("usage: claude-almanac codeindex {init|refresh|arch|status}",
+        print("usage: claude-almanac content {init|refresh|arch|status}",
               file=sys.stderr)
         sys.exit(2)
     rc = fn(args)

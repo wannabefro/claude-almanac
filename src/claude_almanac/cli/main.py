@@ -39,10 +39,10 @@ def build_parser() -> argparse.ArgumentParser:
     s_digest.add_argument("subcmd", nargs="?")
     s_digest.add_argument("args", nargs="*")
 
-    s_ci = sub.add_parser("codeindex", help="Code-index subsystem")
+    s_ci = sub.add_parser("content", help="Content-index subsystem (symbols + docs)")
     ci_sub = s_ci.add_subparsers(dest="ci_cmd")
     for name, help_ in (
-        ("init",    "Initial symbol indexing for the current repo"),
+        ("init",    "Initial symbol + doc indexing for the current repo"),
         ("refresh", "Incremental re-index against origin's default branch"),
         ("arch",    "Module-level arch summaries (requires send_code_to_llm)"),
         ("status",  "Show DB health and dirty-module queue"),
@@ -52,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Repo root; defaults to current working directory")
         if name == "refresh":
             sp.add_argument("--all", dest="all_repos", action="store_true",
-                            help="Refresh every repo listed in code_index.repos "
+                            help="Refresh every repo listed in digest.repos "
                                  "(auto-init missing DBs). Overrides --repo.")
 
     s_cal = sub.add_parser("calibrate", help="Embedder calibration helper")
@@ -100,7 +100,7 @@ def cmd_recall(args: argparse.Namespace) -> None:
     _recall.run([args.subcmd, *args.args] if args.subcmd else [])
 
 
-def cmd_codeindex(args: argparse.Namespace) -> None:
+def cmd_content(args: argparse.Namespace) -> None:
     from . import codeindex as _ci
     _ci.run(args)
 
@@ -143,7 +143,7 @@ def main(argv: list[str] | None = None) -> None:
         "setup": cmd_setup,
         "recall": cmd_recall,
         "digest": cmd_digest,
-        "codeindex": cmd_codeindex,
+        "content": cmd_content,
         "migrate-embedder": cmd_migrate_embedder,
         "calibrate": cmd_calibrate,
         "tail": cmd_tail,

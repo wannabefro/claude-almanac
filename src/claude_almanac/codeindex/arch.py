@@ -161,7 +161,7 @@ def main(repo_root: str, *, global_send_code_to_llm: bool) -> int:
         return 0
     dbp = _ci_db_path()
     if not dbp.exists():
-        print("no content-index.db — run `claude-almanac codeindex init` first")
+        print("no content-index.db — run `claude-almanac content init` first")
         return 1
     dirty = _db.list_dirty(str(dbp))
     if not dirty:
