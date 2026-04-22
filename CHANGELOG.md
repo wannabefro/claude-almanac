@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.4.1 — 2026-04-21 — Hotfix: wire doc ingest into content init/refresh
+
+### Fixed
+
+- `claude-almanac content init` and `content refresh` now actually run
+  the documents-subsystem ingest. v0.4.0 shipped with the CLI
+  commands calling only the sym pass; `recall docs` returned
+  `(no matches)` for anyone using the stock CLI flow because the
+  `content-index.db` never accumulated doc rows. The integration smoke
+  test (which calls `documents.ingest.index_repo` directly) did not
+  catch the gap. Adding test coverage for the CLI dispatch path.
+
 ## 0.4.0 — 2026-04-21 — Documents subsystem + content-index engine refactor
 
 ### Added

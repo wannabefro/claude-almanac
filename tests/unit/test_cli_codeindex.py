@@ -1,3 +1,5 @@
+import argparse
+import pathlib
 from unittest.mock import patch
 
 from claude_almanac.cli import main as cli_main
@@ -133,3 +135,159 @@ def test_refresh_all_errors_when_repos_empty(monkeypatch, capsys):
         cli_main.main(["content", "refresh", "--all"])
     assert e.value.code == 1
     assert "digest.repos" in capsys.readouterr().err
+
+
+# --- v0.4.1 hotfix: CLI wires documents.ingest/refresh into init/refresh ---
+
+
+def _make_code_index_yaml(repo: pathlib.Path, *, docs_enabled: bool = True) -> None:
+    """Write a minimal `.claude/code-index.yaml` under ``repo`` so
+    `codeindex.config.load()` succeeds in dispatch tests."""
+    (repo / ".claude").mkdir(parents=True, exist_ok=True)
+    docs_block = "docs:\n  enabled: false\n" if not docs_enabled else ""
+    (repo / ".claude" / "code-index.yaml").write_text(
+        "default_branch: main\n"
+        "modules:\n"
+        "  patterns: []\n"
+        + docs_block
+    )
+
+
+def test_cmd_init_runs_doc_ingest_when_enabled(tmp_path, monkeypatch):
+    """After sym init succeeds, cmd_init must call documents.ingest.index_repo
+    with the docs patterns/excludes/chunk sizes from the repo-local config."""
+    import pathlib as _pl
+
+    from claude_almanac.cli import codeindex as ci
+    from claude_almanac.core import config as core_config
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _make_code_index_yaml(repo, docs_enabled=True)
+
+    # Stub sym init (covered elsewhere) so we can focus on the doc wiring.
+    monkeypatch.setattr(
+        "claude_almanac.codeindex.init.main", lambda r: 0,
+    )
+    # Stub embedder construction.
+    class _FakeEmb:
+        dim = 4
+        distance = "l2"
+        name = "fake"
+        model = "fake"
+        def embed(self, texts): return [[0.0] * 4 for _ in texts]
+    monkeypatch.setattr(
+        "claude_almanac.embedders.make_embedder",
+        lambda provider, model: _FakeEmb(),
+    )
+    monkeypatch.setattr(
+        core_config, "load", lambda: core_config.default_config(),
+    )
+    # Route data/logs to tmp_path so we don't dirty real XDG state.
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
+
+    calls: list[dict] = []
+
+    def _fake_index_repo(**kwargs):
+        calls.append(kwargs)
+        return 7  # chunks written
+
+    import claude_almanac.documents.ingest as _di
+    monkeypatch.setattr(_di, "index_repo", _fake_index_repo)
+
+    ns = argparse.Namespace(repo=str(repo))
+    rc = ci.cmd_init(ns)
+    assert rc == 0
+    assert len(calls) == 1, "documents.ingest.index_repo should run once"
+    kw = calls[0]
+    assert kw["repo_root"] == str(_pl.Path(repo).resolve()) or kw["repo_root"] == str(repo)
+    # Default DocsCfg patterns + chunk sizes propagated.
+    assert kw["chunk_max_chars"] == 2000
+    assert kw["chunk_overlap_chars"] == 200
+    assert "docs/**" in kw["patterns"]
+    assert isinstance(kw["excludes"], list)
+
+
+def test_cmd_init_skips_doc_ingest_when_docs_disabled(tmp_path, monkeypatch):
+    """If `.claude/code-index.yaml` has `docs.enabled: false`, cmd_init
+    must NOT invoke documents.ingest.index_repo."""
+    from claude_almanac.cli import codeindex as ci
+    from claude_almanac.core import config as core_config
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _make_code_index_yaml(repo, docs_enabled=False)
+
+    monkeypatch.setattr(
+        "claude_almanac.codeindex.init.main", lambda r: 0,
+    )
+    monkeypatch.setattr(
+        core_config, "load", lambda: core_config.default_config(),
+    )
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
+
+    calls: list[dict] = []
+
+    def _fake_index_repo(**kwargs):
+        calls.append(kwargs)
+        return 0
+
+    import claude_almanac.documents.ingest as _di
+    monkeypatch.setattr(_di, "index_repo", _fake_index_repo)
+
+    ns = argparse.Namespace(repo=str(repo))
+    rc = ci.cmd_init(ns)
+    assert rc == 0
+    assert calls == [], "docs.enabled=false must skip documents.ingest"
+
+
+def test_cmd_refresh_runs_doc_refresh(tmp_path, monkeypatch):
+    """cmd_refresh must invoke both codeindex.refresh and documents.refresh
+    when `docs.enabled` is True (default)."""
+    from claude_almanac.cli import codeindex as ci
+    from claude_almanac.core import config as core_config
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _make_code_index_yaml(repo, docs_enabled=True)
+
+    # Both sym refresh and doc refresh should be invoked.
+    refresh_calls: list[str] = []
+    doc_refresh_calls: list[dict] = []
+
+    monkeypatch.setattr(
+        "claude_almanac.codeindex.refresh.main",
+        lambda r: refresh_calls.append(r) or 0,
+    )
+
+    class _FakeEmb:
+        dim = 4
+        distance = "l2"
+        name = "fake"
+        model = "fake"
+        def embed(self, texts): return [[0.0] * 4 for _ in texts]
+    monkeypatch.setattr(
+        "claude_almanac.embedders.make_embedder",
+        lambda provider, model: _FakeEmb(),
+    )
+    monkeypatch.setattr(
+        core_config, "load", lambda: core_config.default_config(),
+    )
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
+
+    def _fake_refresh_repo(**kwargs):
+        doc_refresh_calls.append(kwargs)
+        return 0
+
+    import claude_almanac.documents.refresh as _dr
+    monkeypatch.setattr(_dr, "refresh_repo", _fake_refresh_repo)
+
+    ns = argparse.Namespace(repo=str(repo), all_repos=False)
+    rc = ci.cmd_refresh(ns)
+    assert rc == 0
+    assert refresh_calls == [str(repo)]
+    assert len(doc_refresh_calls) == 1
+    kw = doc_refresh_calls[0]
+    assert kw["chunk_max_chars"] == 2000
+    assert kw["chunk_overlap_chars"] == 200
+    assert "docs/**" in kw["patterns"]
