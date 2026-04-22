@@ -11,6 +11,7 @@ _DEFAULT_TIMEOUT = {
     # Subprocess-based providers pay CLI boot overhead (~10-45s) per call.
     "claude_cli": 120,
     "codex": 120,
+    "claude_agent_sdk": 120,
 }
 
 
@@ -29,4 +30,7 @@ def make_curator(cfg: Config) -> Curator:
     if cc.provider == "codex":
         from .codex import CodexCurator
         return CodexCurator(model=cc.model, timeout_s=timeout)
+    if cc.provider == "claude_agent_sdk":
+        from .agent_sdk import ClaudeAgentSdkCurator
+        return ClaudeAgentSdkCurator(model=cc.model, timeout_s=timeout)
     raise ValueError(f"unknown curator provider: {cc.provider!r}")
