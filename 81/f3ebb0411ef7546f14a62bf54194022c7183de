@@ -1,0 +1,69 @@
+src/claude_almanac/documents/extractors/markdown.py
+  e916cb09d91489ff 1-176
+src/claude_almanac/documents/extractors/__init__.py
+  e916cb09d91489ff 1-4
+tests/unit/documents/test_chunk_boundaries.py
+  e916cb09d91489ff 1-37
+tests/unit/documents/fixtures/oversized.md
+  e916cb09d91489ff 1-3
+tests/unit/documents/fixtures/simple.md
+  e916cb09d91489ff 1-26
+tests/unit/documents/test_markdown_extractor.py
+  e916cb09d91489ff 1-112
+src/claude_almanac/documents/extractors/base.py
+  e916cb09d91489ff 1-29
+tests/unit/documents/fixtures/single_h1.md
+  e916cb09d91489ff 1-3
+tests/unit/documents/fixtures/no_headings.md
+  e916cb09d91489ff 1-3
+tests/unit/documents/fixtures/deep_nesting.md
+  e916cb09d91489ff 1-11
+src/claude_almanac/documents/__init__.py
+  e916cb09d91489ff 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "81f3ebb0411ef7546f14a62bf54194022c7183de",
+  "prompts": {
+    "1c20f8991cf371a5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "746a6f1b-01bf-4f62-9df5-6ff0fb1cd4c4",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 3,
+      "overriden_lines": 0
+    },
+    "76e88aceb91d339f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c303af38-4c0f-48ea-99c7-8a137750e79e",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 22,
+      "overriden_lines": 0
+    },
+    "e916cb09d91489ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "778ee5c9-4f99-4017-9f25-a725b893877a",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 412,
+      "total_deletions": 6,
+      "accepted_lines": 407,
+      "overriden_lines": 0
+    }
+  }
+}
