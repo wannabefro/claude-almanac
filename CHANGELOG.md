@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.4.2 — 2026-04-21 — Claude Agent SDK curator provider
+
+### Added
+
+- **`claude_agent_sdk` curator provider** — new curator backend that runs
+  against Claude (e.g. Haiku 4.5) via the `claude-agent-sdk` package,
+  authenticating with `CLAUDE_CODE_OAUTH_TOKEN` (no Anthropic API key
+  required). Suitable for users with a Claude subscription who want
+  higher-quality structured-JSON curation than local Ollama models
+  provide. Stop-hook curation runs in a background fork, so the
+  ~8–10s per-call subprocess warm-start is acceptable.
+
+  Enable via `~/.config/claude-almanac/config.yaml`:
+
+  ```yaml
+  curator:
+    provider: claude_agent_sdk
+    model: claude-haiku-4-5-20251001
+    timeout_s: 120
+  ```
+
+  The factory recognizes the new provider alongside `ollama`,
+  `anthropic_sdk`, `claude_cli`, and `codex`.
+
 ## 0.4.1 — 2026-04-21 — Hotfix: wire doc ingest into content init/refresh
 
 ### Fixed
