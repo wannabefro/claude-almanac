@@ -9,6 +9,30 @@ from claude_almanac.contentindex import db as cdb
 from claude_almanac.documents import ingest
 
 
+def test_expand_pattern_normalizes_bare_double_star():
+    """Python 3.12's Path.glob('docs/**') matches only directories; in
+    3.13+ it also matches files. Normalize bare ** patterns to explicit
+    **/*.md + **/*.mdx so the engine behaves the same across versions."""
+    assert ingest._expand_pattern("docs/**") == ["docs/**/*.md", "docs/**/*.mdx"]
+    assert ingest._expand_pattern("**") == ["**/*.md", "**/*.mdx"]
+    assert ingest._expand_pattern("README.md") == ["README.md"]
+    assert ingest._expand_pattern("docs/**/*.md") == ["docs/**/*.md"]
+    assert ingest._expand_pattern("*.md") == ["*.md"]
+
+
+def test_discover_finds_files_under_bare_double_star(tmp_path):
+    """Regression for CI failure on Python 3.12 — `docs/**` as a
+    user-supplied pattern must surface .md/.mdx files even though
+    Path.glob on 3.12 treats trailing ** as directories-only."""
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs/top.md").write_text("# x\n")
+    (tmp_path / "docs/sub").mkdir()
+    (tmp_path / "docs/sub/nested.mdx").write_text("# y\n")
+    found = ingest._discover(str(tmp_path), ["docs/**"], [])
+    assert "docs/top.md" in found
+    assert "docs/sub/nested.mdx" in found
+
+
 class _FakeEmbedder:
     """Deterministic embedder for ingest tests — embedding = hash-driven
     unit vector so rows are distinguishable but reproducible."""

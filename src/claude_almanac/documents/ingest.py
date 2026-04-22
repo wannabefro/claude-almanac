@@ -20,6 +20,24 @@ from claude_almanac.documents.extractors.markdown import extract
 _DOC_EXTS = {".md", ".mdx"}
 
 
+def _expand_pattern(pat: str) -> list[str]:
+    """Expand shorthand patterns into Python-version-safe globs.
+
+    In Python <3.13, ``Path.glob("docs/**")`` matches only directories; in
+    3.13+ it matches files too. To behave consistently across versions,
+    expand bare ``**`` (or suffix-less directory globs ending in ``/**``)
+    to explicit ``/**/*.md`` + ``/**/*.mdx`` patterns. Already-explicit
+    patterns (e.g. ``docs/**/*.md`` or ``README.md``) pass through
+    unchanged.
+    """
+    if pat == "**":
+        return ["**/*.md", "**/*.mdx"]
+    if pat.endswith("/**"):
+        prefix = pat[: -len("/**")]
+        return [f"{prefix}/**/*.md", f"{prefix}/**/*.mdx"]
+    return [pat]
+
+
 def _discover(
     repo_root: str, patterns: list[str], excludes: list[str],
 ) -> list[str]:
@@ -29,16 +47,17 @@ def _discover(
     root = Path(repo_root)
     all_excludes = DEFAULT_EXCLUDES + DEFAULT_DOC_EXCLUDES + list(excludes)
     seen: set[str] = set()
-    for pat in patterns:
-        for match in root.glob(pat):
-            if not match.is_file():
-                continue
-            if match.suffix.lower() not in _DOC_EXTS:
-                continue
-            rel = str(PurePosixPath(match.relative_to(root)))
-            if _excluded(rel, all_excludes):
-                continue
-            seen.add(rel)
+    for raw_pat in patterns:
+        for pat in _expand_pattern(raw_pat):
+            for match in root.glob(pat):
+                if not match.is_file():
+                    continue
+                if match.suffix.lower() not in _DOC_EXTS:
+                    continue
+                rel = str(PurePosixPath(match.relative_to(root)))
+                if _excluded(rel, all_excludes):
+                    continue
+                seen.add(rel)
     return sorted(seen)
 
 

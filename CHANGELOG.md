@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.4.3 — 2026-04-21 — Hotfix: docs/** glob on Python &lt;3.13
+
+### Fixed
+
+- `documents/ingest._discover` now normalizes bare `**` patterns (e.g.
+  `docs/**`) to explicit `docs/**/*.md` + `docs/**/*.mdx` globs before
+  calling `Path.glob`. Python 3.12's `Path.glob("docs/**")` matches only
+  directories (3.13+ matches files too), which caused the
+  `test_doc_retrieval_smoke` integration gate to fail on the release
+  CI runner and blocked PyPI publish for v0.4.0, v0.4.1, and v0.4.2.
+  User-facing `patterns:` configs using `docs/**` shorthand now work
+  identically across Python 3.11–3.14.
+
 ## 0.4.2 — 2026-04-21 — Claude Agent SDK curator provider
 
 ### Added
