@@ -8,7 +8,7 @@ import glob
 import json
 import os
 import pathlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import yaml
 
@@ -38,9 +38,33 @@ MAX_FILE_BYTES = 256 * 1024
 
 SERENA_EXTS = {"py", "ts", "tsx", "js", "jsx", "go", "java", "rs"}
 
+DEFAULT_DOC_PATTERNS = [
+    "docs/**",
+    "README.md",
+    "CHANGELOG.md",
+    "*.md",
+]
+
+DEFAULT_DOC_EXCLUDES: list[str] = []  # stacks on DEFAULT_EXCLUDES
+
 
 class ConfigError(Exception):
     pass
+
+
+@dataclass
+class DocsCfg:
+    """v0.4 per-repo documents-subsystem config (``docs:`` block in
+    ``.claude/code-index.yaml`` — renamed to ``content-index.yaml`` in
+    Task 7). Defaults aim to match the common case: index ``docs/``,
+    top-level READMEs + CHANGELOGs, and any markdown at the repo root,
+    with modestly sized chunks suited to ~2KB bodies.
+    """
+    enabled: bool = True
+    patterns: list[str] = field(default_factory=lambda: list(DEFAULT_DOC_PATTERNS))
+    extra_excludes: list[str] = field(default_factory=list)
+    chunk_max_chars: int = 2000
+    chunk_overlap_chars: int = 200
 
 
 @dataclass
@@ -53,6 +77,7 @@ class Config:
     extra_excludes: list[str]
     send_code_to_llm: bool
     min_files_for_arch: int
+    docs: DocsCfg = field(default_factory=DocsCfg)
 
     @property
     def excludes(self) -> list[str]:
@@ -102,6 +127,8 @@ def load(repo_root: str) -> Config:
             raise ConfigError("code-index.yaml modules.patterns must be a list")
         patterns = list(raw_patterns or [])
 
+    docs_cfg = _parse_docs_cfg(data.get("docs"))
+
     return Config(
         repo_root=str(root),
         default_branch=default_branch,
@@ -111,6 +138,31 @@ def load(repo_root: str) -> Config:
         extra_excludes=list(modules.get("extra_excludes") or []),
         send_code_to_llm=bool(data.get("send_code_to_llm", False)),
         min_files_for_arch=int(data.get("min_files_for_arch", 3)),
+        docs=docs_cfg,
+    )
+
+
+def _parse_docs_cfg(raw: object) -> DocsCfg:
+    """Parse the optional ``docs:`` YAML block. Missing/None -> defaults."""
+    if raw is None:
+        return DocsCfg()
+    if not isinstance(raw, dict):
+        raise ConfigError("code-index.yaml 'docs' block must be a mapping")
+    patterns_raw = raw.get("patterns")
+    if patterns_raw is not None and not isinstance(patterns_raw, list):
+        raise ConfigError("docs.patterns must be a list")
+    excludes_raw = raw.get("extra_excludes")
+    if excludes_raw is not None and not isinstance(excludes_raw, list):
+        raise ConfigError("docs.extra_excludes must be a list")
+    return DocsCfg(
+        enabled=bool(raw.get("enabled", True)),
+        patterns=(
+            list(patterns_raw) if patterns_raw is not None
+            else list(DEFAULT_DOC_PATTERNS)
+        ),
+        extra_excludes=list(excludes_raw or []),
+        chunk_max_chars=int(raw.get("chunk_max_chars", 2000)),
+        chunk_overlap_chars=int(raw.get("chunk_overlap_chars", 200)),
     )
 
 
