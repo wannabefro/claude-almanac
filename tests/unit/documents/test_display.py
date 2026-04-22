@@ -51,3 +51,30 @@ def test_format_doc_hit_empty_text_safe():
     }
     out = format_doc_hit(hit)
     assert "- [doc] docs/a.md:1-1" in out
+
+
+def test_format_doc_hit_empty_body_drops_trailing_sentinel():
+    hit = {"text": "", "file_path": "docs/a.md", "line_start": 1, "line_end": 1}
+    assert format_doc_hit(hit) == "- [doc] docs/a.md:1-1"
+
+
+def test_format_doc_hit_missing_crumb_only_has_body():
+    hit = {
+        "text": "first line\nsecond",
+        "file_path": "docs/a.md",
+        "line_start": 1,
+        "line_end": 2,
+    }
+    # No `// [doc] ...` header → crumb is empty, first body line is "first line".
+    assert format_doc_hit(hit) == "- [doc] docs/a.md:1-2 — first line"
+
+
+def test_format_doc_hit_crumb_without_body():
+    hit = {
+        "text": "// docs/a.md [doc] Crumb",
+        "file_path": "docs/a.md",
+        "line_start": 1,
+        "line_end": 1,
+    }
+    # Header line but no body after it → no trailing `—` sentinel.
+    assert format_doc_hit(hit) == "- [doc] docs/a.md:1-1 → Crumb"

@@ -55,3 +55,20 @@ def test_search_and_format_kind_filter_isolates_docs(mixed_db):
     assert "Running" in out
     # sym row 'run' lives at src/cli.py; kind filter should drop it entirely.
     assert "src/cli.py" not in out
+
+
+def test_doc_only_output_uses_docs_top_level_header(mixed_db):
+    """When only doc rows surface, the top-level header is `## Relevant docs`
+    (not `## Relevant code`), and the `### Docs` sub-heading is dropped
+    — doc hits list directly under the top-level header."""
+    out = csearch.search_and_format(
+        mixed_db, query_vec=[0.11, 0.89],
+        sym_k=0, arch_k=0, doc_k=3, kind="doc",
+        query="running", hybrid=True,
+        scoring={"doc": DOC_PROFILE},
+    )
+    assert out.startswith("## Relevant docs")
+    assert "## Relevant code" not in out
+    # In doc-only mode, no ### Docs subheading — list hits directly.
+    assert "### Docs" not in out
+    assert "- [doc] docs/cli.md:1-5" in out

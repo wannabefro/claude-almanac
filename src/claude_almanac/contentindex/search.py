@@ -14,9 +14,11 @@ for the v0.3.14 code-index behavior. Omitting ``scoring`` (or passing
 ``ScoringProfile()``) gives plain keyword-count scoring with no demotion
 — the shape future ``kind='doc'`` callers will use.
 
-The ``"## Relevant code"`` header emitted by ``search_and_format`` is
-currently code-specific; Task 6 will make it kind-aware so ``doc`` hits
-render under their own heading.
+``search_and_format`` emits ``## Relevant code`` as the top-level header
+when sym or arch rows are present, with ``### Docs`` as a sub-section
+for accompanying doc hits. When ONLY doc rows surface (e.g. ``recall
+docs``), the top-level header becomes ``## Relevant docs`` and the
+``### Docs`` sub-heading is omitted for tightness.
 """
 from __future__ import annotations
 
@@ -251,6 +253,16 @@ def search_and_format(db_path: str, *, query_vec: list[float],
     sym_rows = [r for r in results if r["kind"] == "sym"]
     arch_rows = [r for r in results if r["kind"] == "arch"]
     doc_rows = [r for r in results if r["kind"] == "doc"]
+    # Doc-only output uses `## Relevant docs` as the top-level header so the
+    # `recall docs` CLI doesn't read as "code with a docs sub-section". Mixed
+    # sym/arch/doc output keeps `## Relevant code` with `### Docs` underneath.
+    has_code = bool(sym_rows or arch_rows)
+    if not has_code and doc_rows:
+        from claude_almanac.documents.display import format_doc_hit
+        lines = ["## Relevant docs"]
+        for r in doc_rows:
+            lines.append(format_doc_hit(r))
+        return "\n".join(lines)
     lines = ["## Relevant code"]
     if sym_rows:
         lines.append("### Symbols")
