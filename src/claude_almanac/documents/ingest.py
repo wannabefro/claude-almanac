@@ -7,7 +7,11 @@ import posixpath
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from claude_almanac.codeindex.config import DEFAULT_EXCLUDES, _excluded
+from claude_almanac.codeindex.config import (
+    DEFAULT_DOC_EXCLUDES,
+    DEFAULT_EXCLUDES,
+    _excluded,
+)
 from claude_almanac.codeindex.log import emit
 from claude_almanac.contentindex import db as _db
 from claude_almanac.core import paths
@@ -23,7 +27,7 @@ def _discover(
     in ``patterns`` and not matching any glob in ``excludes + DEFAULT_EXCLUDES``.
     """
     root = Path(repo_root)
-    all_excludes = DEFAULT_EXCLUDES + list(excludes)
+    all_excludes = DEFAULT_EXCLUDES + DEFAULT_DOC_EXCLUDES + list(excludes)
     seen: set[str] = set()
     for pat in patterns:
         for match in root.glob(pat):

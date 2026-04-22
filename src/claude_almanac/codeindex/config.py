@@ -143,7 +143,11 @@ def load(repo_root: str) -> Config:
 
 
 def _parse_docs_cfg(raw: object) -> DocsCfg:
-    """Parse the optional ``docs:`` YAML block. Missing/None -> defaults."""
+    """Parse the optional ``docs:`` YAML block. Missing/None -> defaults.
+
+    ``patterns: []`` is ambiguous with "use defaults" and would silently
+    disable doc ingest — callers who want that should set ``enabled:
+    false`` instead. So we surface an explicit error."""
     if raw is None:
         return DocsCfg()
     if not isinstance(raw, dict):
@@ -151,6 +155,11 @@ def _parse_docs_cfg(raw: object) -> DocsCfg:
     patterns_raw = raw.get("patterns")
     if patterns_raw is not None and not isinstance(patterns_raw, list):
         raise ConfigError("docs.patterns must be a list")
+    if isinstance(patterns_raw, list) and len(patterns_raw) == 0:
+        raise ConfigError(
+            "docs.patterns is empty; set enabled: false to disable docs "
+            "indexing, or add at least one pattern"
+        )
     excludes_raw = raw.get("extra_excludes")
     if excludes_raw is not None and not isinstance(excludes_raw, list):
         raise ConfigError("docs.extra_excludes must be a list")

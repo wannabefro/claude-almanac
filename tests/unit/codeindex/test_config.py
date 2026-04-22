@@ -78,3 +78,30 @@ def test_is_sym_capable_majority_python():
 def test_is_sym_capable_majority_shell():
     mix = {"py": 3, "sh": 10}
     assert not ci_config.is_sym_capable(mix)
+
+
+def test_docs_patterns_empty_list_raises(tmp_path):
+    """Empty ``docs.patterns: []`` is ambiguous with "use defaults" and
+    would silently disable ingest, so we raise explicitly."""
+    _write_yaml(
+        tmp_path,
+        "default_branch: main\n"
+        "modules:\n  patterns: ['src']\n"
+        "docs:\n  patterns: []\n",
+    )
+    with pytest.raises(ci_config.ConfigError, match="patterns is empty"):
+        ci_config.load(str(tmp_path))
+
+
+def test_docs_missing_patterns_uses_defaults(tmp_path):
+    """When ``docs.patterns`` is absent (not explicitly empty), the
+    parser falls back to DEFAULT_DOC_PATTERNS — empty-list is the
+    only case that raises."""
+    _write_yaml(
+        tmp_path,
+        "default_branch: main\n"
+        "modules:\n  patterns: ['src']\n"
+        "docs:\n  enabled: true\n",
+    )
+    cfg = ci_config.load(str(tmp_path))
+    assert cfg.docs.patterns == list(ci_config.DEFAULT_DOC_PATTERNS)

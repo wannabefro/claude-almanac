@@ -23,33 +23,26 @@ from claude_almanac.documents.ingest import _discover, index_repo
 __all__ = ["refresh_repo"]
 
 
-def _indexed_files(db_path: str) -> set[str]:
+def _indexed_files_with_mtime(db_path: str) -> dict[str, float]:
+    """Single-query fetch of per-file latest ``created_at`` as epoch
+    seconds. Replaces the previous N+1 pattern that ran one ``ORDER BY
+    created_at`` query per file (`_file_latest_created_at`). For a
+    200-file docs tree that's 200 single-row queries per refresh."""
     conn = sqlite3.connect(db_path)
     try:
-        return {
-            r[0] for r in conn.execute(
-                "SELECT DISTINCT file_path FROM entries WHERE kind='doc'"
-            ).fetchall() if r[0]
-        }
+        rows = conn.execute(
+            "SELECT file_path, MAX(created_at) FROM entries "
+            "WHERE kind='doc' AND file_path IS NOT NULL "
+            "GROUP BY file_path"
+        ).fetchall()
     finally:
         conn.close()
-
-
-def _file_latest_created_at(db_path: str, file_path: str) -> float | None:
-    conn = sqlite3.connect(db_path)
-    try:
-        row = conn.execute(
-            "SELECT created_at FROM entries "
-            "WHERE kind='doc' AND file_path=? "
-            "ORDER BY created_at DESC LIMIT 1",
-            (file_path,),
-        ).fetchone()
-    finally:
-        conn.close()
-    if row is None:
-        return None
-    # created_at is ISO8601 UTC; parse for comparison.
-    return datetime.fromisoformat(row[0]).timestamp()
+    out: dict[str, float] = {}
+    for fp, ts in rows:
+        if fp and ts:
+            # created_at is ISO8601 UTC.
+            out[fp] = datetime.fromisoformat(ts).timestamp()
+    return out
 
 
 def refresh_repo(
@@ -65,10 +58,10 @@ def refresh_repo(
 ) -> int:
     """Incremental refresh. Returns the number of chunks re-ingested."""
     current = set(_discover(repo_root, patterns, excludes))
-    indexed = _indexed_files(db_path)
+    indexed_mtime = _indexed_files_with_mtime(db_path)
 
     # Delete rows for files no longer on disk.
-    gone = indexed - current
+    gone = set(indexed_mtime.keys()) - current
     if gone:
         _db.delete_by_file_kind(db_path, kind="doc", file_paths=gone)
 
@@ -80,8 +73,8 @@ def refresh_repo(
             mtime = os.path.getmtime(abs_path)
         except OSError:
             continue
-        latest = _file_latest_created_at(db_path, rel)
-        if latest is None or mtime > latest:
+        db_mtime = indexed_mtime.get(rel)
+        if db_mtime is None or mtime > db_mtime:
             to_reingest.append(rel)
 
     if not to_reingest:

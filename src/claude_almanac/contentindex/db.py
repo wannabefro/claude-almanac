@@ -171,14 +171,16 @@ def delete_by_file_kind(
 
     Returns number of entries rows deleted.
     """
-    paths = list(file_paths)
-    if not paths:
+    # Local name is `file_list` to avoid shadowing the `core.paths` module
+    # alias we use everywhere else in the codebase.
+    file_list = list(file_paths)
+    if not file_list:
         return 0
     conn = _open(db_path)
     try:
         conn.execute("BEGIN IMMEDIATE")
         total = 0
-        for fp in paths:
+        for fp in file_list:
             ids = [r[0] for r in conn.execute(
                 "SELECT id FROM entries WHERE kind=? AND file_path=?",
                 (kind, fp),
