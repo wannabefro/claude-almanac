@@ -88,3 +88,26 @@ def test_run_dispatch_memories_all():
 def test_collect_code_block_returns_empty_when_no_index(tmp_path, monkeypatch):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
     assert recall._collect_code_block([0.1] * 1024) == ""
+
+
+def test_cmd_docs_reports_missing_db(tmp_path, monkeypatch, capsys):
+    """When there's no content-index.db, _cmd_docs reports a hint and
+    returns 1 without raising."""
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path))
+    rc = recall._cmd_docs(["architecture overview"])
+    assert rc == 1
+    out = capsys.readouterr().out
+    assert "no content-index.db" in out
+
+
+def test_cmd_docs_missing_query_usage():
+    rc = recall._cmd_docs([])
+    assert rc == 2
+
+
+def test_run_dispatch_docs_goes_to_cmd_docs():
+    with patch.object(recall, "_cmd_docs") as docs:
+        recall.run(["docs", "hello"])
+    docs.assert_called_once()
+    (args,), _kwargs = docs.call_args
+    assert args == ["hello"]

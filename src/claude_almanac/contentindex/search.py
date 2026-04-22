@@ -140,41 +140,85 @@ def _hybrid_sym(
     return fused
 
 
+def _hybrid_doc(
+    db_path: str, query_vec: list[float], query: str, k: int,
+    module: str | None,
+    scoring: ScoringProfile,
+) -> list[dict[str, object]]:
+    """Vector + keyword channels fused via RRF for kind='doc' rows.
+
+    Mirrors ``_hybrid_sym`` but omits the low-confidence distance filter
+    (doc chunks don't have the v0.3.14 hijacker problem — DOC_PROFILE is
+    a no-op today). If the profile enables vector demotion, un-named
+    structural entries are moved to the back before fusion."""
+    fetch = max(k * 2, 10)
+    vec_hits = _db.search(
+        db_path, embedding=query_vec, k=fetch, kind="doc", module=module,
+    )
+    kw_hits = _keyword.search(
+        db_path, query=query, k=fetch, kind="doc", scoring=scoring,
+    )
+    if scoring.demote_structural_in_vector:
+        vec_hits = _demote_structural_unnamed(
+            vec_hits, query, structural_names=scoring.structural_names,
+        )
+    fused = _fuse.rrf([vec_hits, kw_hits], top_k=k)
+    for r in fused:
+        r.setdefault("kind", "doc")
+    return fused
+
+
 def search_and_format(db_path: str, *, query_vec: list[float],
                       sym_k: int, arch_k: int,
+                      doc_k: int = 0,
                       module: str | None = None,
                       kind: str | None = None,
                       query: str | None = None,
                       hybrid: bool = False,
                       min_confidence_distance: float | None = None,
-                      scoring: ScoringProfile | None = None) -> str:
+                      scoring: dict[str, ScoringProfile] | ScoringProfile
+                        | None = None) -> str:
     """Format content-index hits as a markdown block.
 
-    The header is currently hard-coded to ``## Relevant code`` because
-    today's only caller is the codeindex retrieve path (sym + arch).
-    Task 6 will make this kind-aware so ``doc`` hits render under a
-    ``## Relevant docs`` heading when documents/ starts feeding the
-    engine.
+    The top-level ``"## Relevant code"`` heading now covers three
+    sub-sections: ``### Symbols`` (sym), ``### Modules`` (arch), and
+    ``### Docs`` (doc). ``core/retrieve.py`` handles any additional
+    structure in the auto-inject flow.
 
-    ``scoring`` (v0.4): supplies the per-kind scoring rules. Defaults to
-    a no-op :class:`ScoringProfile` so tests and future ``doc`` callers
-    can omit it. Code-index callers pass
-    :data:`claude_almanac.codeindex.scoring.CODE_PROFILE`.
+    ``scoring`` (v0.4): either a per-kind ``{kind: ScoringProfile}`` dict
+    or a single ``ScoringProfile`` (interpreted as the sym profile, for
+    v0.3 legacy callers). Defaults to an empty dict so tests and
+    ``doc``-only callers can omit it. Code-index callers pass
+    :data:`claude_almanac.codeindex.scoring.CODE_PROFILE`; doc callers
+    pass :data:`claude_almanac.documents.scoring.DOC_PROFILE`.
 
     ``min_confidence_distance`` (v0.3.14): if set, drops vector-only sym
     hits whose distance exceeds the threshold so no-match queries return
     an empty string instead of the 3 nearest unrelated symbols. Arch
     hits are not filtered — module summaries are coarser and a
     too-strict cutoff would blank arch injection too aggressively.
+    Doc hits are likewise not filtered here (DOC_PROFILE is a no-op
+    today; doc-specific tuning is deferred to v0.4.1).
     """
-    effective_scoring = scoring if scoring is not None else ScoringProfile()
+    # Normalize scoring → dict
+    scoring_map: dict[str, ScoringProfile]
+    if scoring is None:
+        scoring_map = {}
+    elif isinstance(scoring, ScoringProfile):
+        # legacy single-profile form: assume sym (keeps Task 1–2 tests green)
+        scoring_map = {"sym": scoring}
+    else:
+        scoring_map = scoring
+    sym_scoring = scoring_map.get("sym", ScoringProfile())
+    doc_scoring = scoring_map.get("doc", ScoringProfile())
+
     results: list[dict[str, object]] = []
     use_hybrid = hybrid and bool(query)
-    if kind in (None, "sym"):
+    if kind in (None, "sym") and sym_k > 0:
         if use_hybrid:
             results += _hybrid_sym(
                 db_path, query_vec, query or "", sym_k, module,
-                effective_scoring,
+                sym_scoring,
                 min_confidence_distance,
             )
         else:
@@ -185,16 +229,28 @@ def search_and_format(db_path: str, *, query_vec: list[float],
             results += _filter_low_confidence(
                 vec_hits, [], min_confidence_distance,
             )
-    if kind in (None, "arch"):
+    if kind in (None, "arch") and arch_k > 0:
         # Arch stays vector-only. Arch rows have no symbol_name and the text
         # is a multi-line module summary, so the keyword channel's first-line
         # match wouldn't help.
         results += _db.search(db_path, embedding=query_vec, k=arch_k,
                               kind="arch", module=module)
+    if kind in (None, "doc") and doc_k > 0:
+        if use_hybrid:
+            results += _hybrid_doc(
+                db_path, query_vec, query or "", doc_k, module,
+                doc_scoring,
+            )
+        else:
+            results += _db.search(
+                db_path, embedding=query_vec, k=doc_k,
+                kind="doc", module=module,
+            )
     if not results:
         return ""
     sym_rows = [r for r in results if r["kind"] == "sym"]
     arch_rows = [r for r in results if r["kind"] == "arch"]
+    doc_rows = [r for r in results if r["kind"] == "doc"]
     lines = ["## Relevant code"]
     if sym_rows:
         lines.append("### Symbols")
@@ -209,4 +265,9 @@ def search_and_format(db_path: str, *, query_vec: list[float],
             text = r.get("text")
             short = (text if isinstance(text, str) else "").replace("\n", " ")[:160]
             lines.append(f'- [arch] {r["module"]} — {short}')
+    if doc_rows:
+        from claude_almanac.documents.display import format_doc_hit
+        lines.append("### Docs")
+        for r in doc_rows:
+            lines.append(format_doc_hit(r))
     return "\n".join(lines)

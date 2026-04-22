@@ -71,24 +71,37 @@ def format_hits(hits: list[archive.Hit]) -> str:
     return "\n".join(lines)
 
 
-def _codeindex_block(
+def _contentindex_block(
     query_vec: list[float], query: str = "", *, hybrid: bool = True,
     min_confidence_distance: float | None = None,
+    docs_autoinject: bool = True,
+    scoring: dict[str, Any] | None = None,
 ) -> str:
     try:
         from claude_almanac.codeindex.scoring import CODE_PROFILE
         from claude_almanac.contentindex import search as ci_search
+        from claude_almanac.documents.scoring import DOC_PROFILE
     except ImportError:
         return ""
     ci_db = paths.project_memory_dir() / "content-index.db"
     if not ci_db.exists():
         return ""
+    doc_k = 3 if docs_autoinject else 0
+    effective_scoring = scoring if scoring is not None else {
+        "sym": CODE_PROFILE, "doc": DOC_PROFILE,
+    }
     return ci_search.search_and_format(
-        str(ci_db), query_vec=query_vec, sym_k=3, arch_k=2,
+        str(ci_db), query_vec=query_vec, sym_k=3, arch_k=2, doc_k=doc_k,
         query=query, hybrid=hybrid,
         min_confidence_distance=min_confidence_distance,
-        scoring=CODE_PROFILE,
+        scoring=effective_scoring,
     )
+
+
+# Preserve the old private name as an alias for mocking in tests that
+# predate the rename (test_retrieve_with_codeindex.py patches _codeindex_block).
+# Both names point to the same function.
+_codeindex_block = _contentindex_block
 
 
 def _resolve_band(cfg_band: float, embedder: Embedder) -> float:
@@ -230,17 +243,33 @@ def run(prompt: str) -> str:
     out = format_hits(hits)
     if cfg.retrieval.code_autoinject:
         from claude_almanac.codeindex import autoinject
+        from claude_almanac.codeindex.scoring import CODE_PROFILE
         from claude_almanac.contentindex import search as _ci_search
+        from claude_almanac.documents.scoring import DOC_PROFILE
         if autoinject.should_query(prompt):
             code_cfg = getattr(cfg.retrieval, "code", None)
             code_hybrid = getattr(code_cfg, "hybrid_enabled", True)
             code_min_conf = _ci_search.resolve_min_confidence(
                 getattr(code_cfg, "min_confidence_distance", None),
                 embedder.name, embedder.model,
+                profile=CODE_PROFILE,
+            )
+            # Task 7 will add cfg.content_index; for now, fall back to the
+            # legacy cfg.code_index, and default docs_autoinject=True when
+            # neither section exists yet.
+            content_cfg = (
+                getattr(cfg, "content_index", None)
+                or getattr(cfg, "code_index", None)
+            )
+            docs_autoinject = (
+                getattr(content_cfg, "docs_autoinject", True)
+                if content_cfg is not None else True
             )
             code_block = _codeindex_block(
                 query_vec, prompt, hybrid=code_hybrid,
                 min_confidence_distance=code_min_conf,
+                docs_autoinject=docs_autoinject,
+                scoring={"sym": CODE_PROFILE, "doc": DOC_PROFILE},
             )
             if code_block:
                 out = (out + "\n\n" + code_block) if out else code_block

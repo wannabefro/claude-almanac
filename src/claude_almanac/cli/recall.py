@@ -5,18 +5,19 @@ import sys
 import time as _time
 from datetime import date as _date
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from claude_almanac.core import archive, config, paths
 from claude_almanac.embedders import make_embedder
 
 USAGE = """Usage: claude-almanac recall <subcommand> [args]
 
-  search <query>          unified: memories + current-repo code-index
+  search <query>          unified: memories + current-repo code-index + docs
   search-all <query>      unified cross-project: all-project memories + current-repo code-index
   memories <query>        memory-only: global + current-project archives
   memories-all <query>    memory-only: fan out across ALL project archives
   code <query>            code-index only: semantic search over the current repo's code-index
+  docs <query>            doc-only: semantic search over the current repo's markdown docs
   list [type]             list markdown memories (type: user|feedback|project|reference)
   show <slug>             print a memory file body
   history <slug>          print version history of a memory
@@ -70,7 +71,9 @@ def _search_unified(query: str, *, all_projects: bool) -> None:
     hits.sort(key=lambda h: h.distance)
     memory_hits = hits[: cfg.retrieval.top_k]
 
+    from claude_almanac.codeindex.scoring import CODE_PROFILE
     from claude_almanac.contentindex import search as _ci_search
+    from claude_almanac.documents.scoring import DOC_PROFILE
     code_cfg = getattr(cfg.retrieval, "code", None)
     code_hybrid = getattr(code_cfg, "hybrid_enabled", True)
     code_min_conf = _ci_search.resolve_min_confidence(
@@ -80,6 +83,8 @@ def _search_unified(query: str, *, all_projects: bool) -> None:
     code_block = _collect_code_block(
         vec, query=query, hybrid=code_hybrid,
         min_confidence_distance=code_min_conf,
+        doc_k=3,
+        scoring={"sym": CODE_PROFILE, "doc": DOC_PROFILE},
     )
 
     if memory_hits:
@@ -130,20 +135,29 @@ def _collect_memory_hits(
 def _collect_code_block(
     vec: list[float], *, query: str = "", hybrid: bool = True,
     min_confidence_distance: float | None = None,
+    doc_k: int = 0,
+    scoring: dict[str, Any] | None = None,
 ) -> str:
-    """Return formatted code-index section, or '' when no index / no hits."""
+    """Return formatted code-index section, or '' when no index / no hits.
+
+    ``doc_k`` (v0.4): when > 0, also surface doc-kind hits under a
+    ``### Docs`` sub-heading.
+    ``scoring`` (v0.4): optional per-kind profile dict; defaults to
+    ``CODE_PROFILE`` (back-compat for callers that don't pass a dict).
+    """
     from claude_almanac.codeindex.scoring import CODE_PROFILE
     from claude_almanac.contentindex import search as _ci_search
 
     ci_db = paths.project_memory_dir() / "content-index.db"
     if not ci_db.exists():
         return ""
+    effective_scoring = scoring if scoring is not None else CODE_PROFILE
     try:
         return _ci_search.search_and_format(
-            str(ci_db), query_vec=vec, sym_k=3, arch_k=2,
+            str(ci_db), query_vec=vec, sym_k=3, arch_k=2, doc_k=doc_k,
             query=query, hybrid=hybrid,
             min_confidence_distance=min_confidence_distance,
-            scoring=CODE_PROFILE,
+            scoring=effective_scoring,
         )
     except Exception:
         # Stale or mis-dimensioned code-index: skip silently, don't crash recall.
@@ -306,6 +320,41 @@ def _cmd_code(argv: list[str]) -> int:
         query=query, hybrid=hybrid,
         min_confidence_distance=code_min_conf,
         scoring=CODE_PROFILE,
+    )
+    print(out or "(no matches)")
+    return 0
+
+
+def _cmd_docs(argv: list[str]) -> int:
+    hybrid = True  # default on; --no-hybrid disables
+    positional: list[str] = []
+    for a in argv:
+        if a == "--no-hybrid":
+            hybrid = False
+        else:
+            positional.append(a)
+    if not positional:
+        print("usage: recall docs [--no-hybrid] <query>", file=sys.stderr)
+        return 2
+    from claude_almanac.contentindex import search as _ci_search
+    from claude_almanac.documents.scoring import DOC_PROFILE
+    dbp = paths.project_memory_dir() / "content-index.db"
+    if not dbp.exists():
+        print("no content-index.db — run `claude-almanac codeindex init`")
+        return 1
+    cfg = config.load()
+    # Config override if user hasn't passed --no-hybrid explicitly
+    if hybrid:
+        hybrid = getattr(
+            getattr(cfg.retrieval, "code", None), "hybrid_enabled", True,
+        )
+    embedder = make_embedder(cfg.embedder.provider, cfg.embedder.model)
+    query = " ".join(positional)
+    [vec] = embedder.embed([query])
+    out = _ci_search.search_and_format(
+        str(dbp), query_vec=vec, sym_k=0, arch_k=0, doc_k=5,
+        kind="doc", query=query, hybrid=hybrid,
+        scoring={"doc": DOC_PROFILE},
     )
     print(out or "(no matches)")
     return 0
@@ -658,6 +707,8 @@ def run(argv: list[str]) -> None:
         _search_memories(" ".join(rest), all_projects=True)
     elif cmd == "code":
         _cmd_code(rest)
+    elif cmd == "docs":
+        _cmd_docs(rest)
     elif cmd == "list":
         _list(rest[0] if rest else None)
     elif cmd == "show":
