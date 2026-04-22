@@ -9,13 +9,14 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
+from claude_almanac.cli.setup import CONTENTINDEX_UNIT_NAME
 from claude_almanac.core import config, paths
 from claude_almanac.platform.base import get_scheduler
 
 _UNIT_NAMES = (
     "com.claude-almanac.digest",
     "com.claude-almanac.server",
-    "com.claude-almanac.codeindex-refresh",
+    CONTENTINDEX_UNIT_NAME,
 )
 
 

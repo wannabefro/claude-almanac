@@ -113,6 +113,29 @@ def test_install_registers_codeindex_refresh_when_enabled(tmp_path, monkeypatch)
     assert codeindex_call.args[1][-3:] == ["content", "refresh", "--all"]
 
 
+def test_install_cleans_up_legacy_codeindex_unit(tmp_path, monkeypatch):
+    """Upgrading from v0.3.x must remove the orphan launchd/systemd unit that
+    pointed at the (now-invalid) `codeindex refresh --all` command. Task 7
+    renamed the unit to com.claude-almanac.contentindex-refresh; the legacy
+    uninstall runs on every `_do_install` via `_reinstall_units_under_new_names`.
+    """
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr("claude_almanac.cli.setup._probe_embedder", lambda: True)
+    fake_scheduler = MagicMock()
+    monkeypatch.setattr(
+        "claude_almanac.cli.setup.get_scheduler", lambda: fake_scheduler,
+    )
+    cli_setup.run(uninstall=False, purge_data=False)
+    uninstall_calls = [
+        c.args[0] if c.args else c.kwargs.get("unit_name")
+        for c in fake_scheduler.uninstall.call_args_list
+    ]
+    assert "com.claude-almanac.codeindex-refresh" in uninstall_calls, (
+        f"expected legacy unit cleanup, got uninstall calls: {uninstall_calls}"
+    )
+
+
 def test_install_uninstalls_codeindex_when_flag_off(tmp_path, monkeypatch):
     monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("CLAUDE_ALMANAC_CONFIG_DIR", str(tmp_path / "cfg"))
