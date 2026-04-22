@@ -1,11 +1,13 @@
-"""Markdown extractor: ATX-heading-primary chunking with sliding-window
-fallback for oversized sections (v0.4).
+"""Markdown extractor: CommonMark-heading-primary chunking with
+sliding-window fallback for oversized sections (v0.4).
 
 Design:
-- Splits at ATX headings levels 1-3 (``#``, ``##``, ``###``). Level 4+
-  stays as body within the level-3 parent so the chunk granularity
-  matches what users typically think of as "a section" without
-  over-chunking deeply nested subheadings.
+- Splits at CommonMark headings levels 1-3 (``#``, ``##``, ``###``).
+  Level 4+ stays as body within the level-3 parent so the chunk
+  granularity matches what users typically think of as "a section"
+  without over-chunking deeply nested subheadings.
+- Uses ``markdown-it-py`` (a real CommonMark parser) so ``#`` lines
+  inside fenced code blocks don't produce false heading splits.
 - If a section body exceeds ``chunk_max_chars``, subdivides with a
   sliding window (``chunk_overlap_chars`` overlap). Sub-chunk names
   get ``(part N)`` suffix so the unique-key semantics in
@@ -15,28 +17,42 @@ Design:
 from __future__ import annotations
 
 import posixpath
-import re
 from pathlib import Path
+
+from markdown_it import MarkdownIt
 
 from claude_almanac.documents.extractors.base import DocChunk
 
-_HEADING_RE = re.compile(r"^(#{1,3})\s+(.+?)\s*$")
-# Explicitly limit to levels 1-3. Level 4+ matches {4,} and is ignored for
-# chunk boundaries.
+_PARSER = MarkdownIt("commonmark")
+
 _DEFAULT_MAX_CHARS = 2000
 _DEFAULT_OVERLAP = 200
 
 
-def _parse_headings(lines: list[str]) -> list[tuple[int, int, str]]:
-    """Return list of (line_index_1_based, level, text) for ATX
-    headings levels 1-3. Level 4+ is ignored."""
+def _parse_headings(raw: str) -> list[tuple[int, int, str]]:
+    """Return list of (line_index_1_based, level, text) for CommonMark
+    headings levels 1-3. Levels 4+ are ignored so chunk granularity
+    matches typical 'section' mental model. Uses a real CommonMark
+    parser so fenced code blocks don't produce false heading splits.
+    """
+    tokens = _PARSER.parse(raw)
     out: list[tuple[int, int, str]] = []
-    for i, line in enumerate(lines, start=1):
-        m = _HEADING_RE.match(line)
-        if m:
-            level = len(m.group(1))
-            if level <= 3:
-                out.append((i, level, m.group(2).strip()))
+    for i, tok in enumerate(tokens):
+        if tok.type != "heading_open":
+            continue
+        level = int(tok.tag[1:])  # 'h1' -> 1, 'h2' -> 2, 'h3' -> 3
+        if level > 3:
+            continue
+        # The next token is always 'inline' with content=heading text
+        inline = tokens[i + 1]
+        text = (inline.content or "").strip()
+        if not text:
+            continue
+        # tok.map is [start_line_0_based, end_line_0_based_exclusive]
+        line_1based = tok.map[0] + 1 if tok.map else 0
+        if line_1based <= 0:
+            continue
+        out.append((line_1based, level, text))
     return out
 
 
@@ -91,7 +107,7 @@ def extract(
     lines = raw.splitlines()
     rel_for_header = file_rel if file_rel is not None else p.name
 
-    headings = _parse_headings(lines)
+    headings = _parse_headings(raw)
 
     if not headings:
         # Whole-doc fallback. May still slide-window if oversized.

@@ -110,3 +110,25 @@ def test_mdx_suffix_parsed_identically(tmp_path):
     chunks = extract(str(mdx))
     assert len(chunks) == 1
     assert chunks[0].symbol_name == "Heading"
+
+
+def test_hash_lines_inside_fenced_code_block_do_not_split(tmp_path):
+    """ATX-regex approach would have split here; CommonMark parser does not."""
+    md = tmp_path / "fenced.md"
+    md.write_text(
+        "# Real Heading\n"
+        "\n"
+        "```python\n"
+        "# This is a comment, not a heading\n"
+        "## Neither is this\n"
+        "x = 1\n"
+        "```\n"
+        "\n"
+        "Real body continues.\n"
+    )
+    chunks = extract(str(md))
+    names = [c.symbol_name for c in chunks]
+    assert names == ["Real Heading"]
+    assert "comment" not in " ".join(names)
+    # The fenced block content stays inside the Real Heading chunk
+    assert "# This is a comment" in chunks[0].text
