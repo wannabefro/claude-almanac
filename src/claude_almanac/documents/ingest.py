@@ -8,7 +8,9 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from claude_almanac.codeindex.config import DEFAULT_EXCLUDES, _excluded
+from claude_almanac.codeindex.log import emit
 from claude_almanac.contentindex import db as _db
+from claude_almanac.core import paths
 from claude_almanac.documents.extractors.markdown import extract
 
 _DOC_EXTS = {".md", ".mdx"}
@@ -66,6 +68,7 @@ def index_repo(
         assert patterns is not None, "patterns required when only_files is None"
         rel_paths = _discover(repo_root, patterns, excludes or [])
 
+    log_path = paths.logs_dir() / "code-index.log"
     total = 0
     for rel in rel_paths:
         abs_path = str(Path(repo_root) / rel)
@@ -80,10 +83,19 @@ def index_repo(
         texts = [c.text for c in chunks]
         try:
             vecs = embedder.embed(texts)
-        except Exception:
+        except Exception as e:
             # Embedder-level failures shouldn't kill the whole ingest;
-            # skip the file and proceed. Callers aggregating errors can
-            # wire structured logging later.
+            # log structured event and skip the file. Mirrors
+            # codeindex/sym.py::extract_file's error handling so Task 8's
+            # dogfood run is debuggable if Ollama is down.
+            emit(
+                log_path,
+                component="documents",
+                level="error",
+                event="doc.embed_fail",
+                file=rel,
+                err=str(e),
+            )
             continue
         module = posixpath.dirname(rel)
         for c, vec in zip(chunks, vecs, strict=True):

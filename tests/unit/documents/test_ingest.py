@@ -87,6 +87,56 @@ def test_ingest_skips_excluded(fixture_repo, tmp_path):
     assert "docs/architecture.md" in paths
 
 
+def test_ingest_logs_but_does_not_raise_on_embed_failure(
+    fixture_repo, tmp_path, monkeypatch,
+):
+    """Embedder failures must not bubble out of index_repo — they must
+    be logged (component=documents, event=doc.embed_fail) and the ingest
+    must continue. Mirrors codeindex/sym.py's behavior so Task 8's
+    dogfood run is debuggable if Ollama is down."""
+
+    class _FailingEmbedder:
+        name = "fake"
+        model = "fake"
+        dim = 4
+        distance = "l2"
+
+        def embed(self, texts: list[str]) -> list[list[float]]:
+            raise RuntimeError("boom: ollama down")
+
+    # Route log_path (paths.logs_dir() -> data_dir()/logs) into tmp_path.
+    monkeypatch.setenv("CLAUDE_ALMANAC_DATA_DIR", str(tmp_path / "almanac"))
+
+    dbp = str(tmp_path / "content.db")
+    cdb.init(dbp, dim=4)
+    # Should NOT raise — failure for every file is swallowed per-file.
+    count = ingest.index_repo(
+        repo_root=str(fixture_repo),
+        db_path=dbp,
+        embedder=_FailingEmbedder(),
+        patterns=["docs/**"],
+        excludes=[],
+        chunk_max_chars=2000,
+        chunk_overlap_chars=200,
+        commit_sha="s",
+    )
+    assert count == 0  # every file failed
+
+    # Zero rows inserted.
+    conn = sqlite3.connect(dbp)
+    rows = conn.execute("SELECT 1 FROM entries WHERE kind='doc'").fetchall()
+    assert rows == []
+
+    # Structured log captured the failure — at least one entry per failing file.
+    log_file = tmp_path / "almanac" / "logs" / "code-index.log"
+    assert log_file.exists(), "emit() should have created the log file"
+    log_text = log_file.read_text()
+    assert "event=doc.embed_fail" in log_text
+    assert "component=documents" in log_text
+    assert "docs/architecture.md" in log_text
+    assert "boom: ollama down" in log_text
+
+
 def test_module_field_is_posix_dirname(fixture_repo, tmp_path):
     dbp = str(tmp_path / "content.db")
     cdb.init(dbp, dim=4)
