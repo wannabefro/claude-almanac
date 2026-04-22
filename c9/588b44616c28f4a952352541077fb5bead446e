@@ -1,0 +1,38 @@
+tests/unit/documents/test_ingest.py
+  e916cb09d91489ff 90-139
+src/claude_almanac/documents/ingest.py
+  e916cb09d91489ff 11,13,71,86,88-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.1",
+  "base_commit_sha": "c9588b44616c28f4a952352541077fb5bead446e",
+  "prompts": {
+    "1c20f8991cf371a5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "746a6f1b-01bf-4f62-9df5-6ff0fb1cd4c4",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 3,
+      "overriden_lines": 0
+    },
+    "e916cb09d91489ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "778ee5c9-4f99-4017-9f25-a725b893877a",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Sam McTaggart",
+      "messages": [],
+      "total_additions": 65,
+      "total_deletions": 3,
+      "accepted_lines": 66,
+      "overriden_lines": 0
+    }
+  }
+}
