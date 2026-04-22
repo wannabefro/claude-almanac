@@ -6,6 +6,88 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 0.4.0 — 2026-04-21 — Documents subsystem + content-index engine refactor
+
+### Added
+
+- **Documents subsystem** — per-repo markdown indexing (`*.md`, `*.mdx`) with
+  ATX heading-primary chunking (via `markdown-it-py`) and sliding-window
+  fallback for oversized sections. Unified three-section retrieval:
+  memories + code + docs share the same autoinject gate as code. New CLI:
+  `claude-almanac recall docs <query>`; `recall search` now includes a
+  Docs section.
+
+### Changed
+
+- **Content-index engine refactor** — retrieval plumbing (sqlite-vec ops,
+  RRF fusion, hybrid channel, low-confidence filter, vector demotion)
+  extracted from `codeindex/` into a new shared `contentindex/` package.
+  Code and documents are now peer subsystems on the same engine. Per-kind
+  `ScoringProfile` dataclass pulls code-specific rules (structural-symbol
+  penalty, single-line-var penalty, vector demotion) out of the shared
+  engine; `CODE_PROFILE` preserves v0.3.14 behavior, `DOC_PROFILE` starts
+  as a no-op.
+
+- **DB rename** — `code-index.db` → `content-index.db` per repo; new
+  `idx_entries_doc_key` unique index on `(file_path, line_start)` for
+  `kind='doc'` (partial index also guards against NULL `file_path` /
+  `line_start` at the schema level as defense-in-depth).
+
+- **Config rename** — global `code_index:` → `content_index:`; adds
+  `docs_autoinject: true` flag. Repo-local config filename is unchanged
+  (still `.claude/code-index.yaml`); that file gains an optional `docs:`
+  section with defaults (patterns: `docs/**`, `README.md`, `CHANGELOG.md`,
+  `*.md`). `DocsCfg` dataclass loads the section.
+
+- **CLI rename** — `claude-almanac codeindex ...` → `claude-almanac
+  content ...`. No alias; author renames. The launchd/systemd daemon unit
+  also rebrands from `com.claude-almanac.codeindex-refresh` to
+  `com.claude-almanac.contentindex-refresh`; `claude-almanac setup` detects
+  and removes the legacy unit on re-install.
+
+### Fixed
+
+- Markdown extractor's early regex-based heading parser mis-split on `#`
+  comments inside fenced code blocks. Swapped to `markdown-it-py`; ATX-only
+  (setext headings explicitly ignored so YAML frontmatter closing `---`
+  doesn't false-split).
+
+- `contentindex.db.upsert` now guards each `kind`'s key fields against
+  NULL: `kind='sym'` requires `symbol_name + file_path`, `kind='doc'`
+  requires `file_path + line_start`, `kind='arch'` requires `module`.
+  Prevents silent duplicate accumulation under the partial unique
+  indexes.
+
+- Sliding-window doc chunks now use a `seen` set to force distinct
+  `line_start` per part, closing a case where short-line-range sections
+  with long character bodies produced colliding keys.
+
+- `documents/ingest.py` logs structured `doc.embed_fail` events instead
+  of silently swallowing embedder exceptions (parity with
+  `codeindex/sym.py`).
+
+### New dependency
+
+- `markdown-it-py>=3.0` (CommonMark parser used by the documents subsystem).
+
+### Breaking (manual migration — single-user project)
+
+1. Rename per-repo DB: `mv <project-dir>/code-index.db
+   <project-dir>/content-index.db` — or just re-run
+   `claude-almanac content init` after upgrading.
+2. In `~/.config/claude-almanac/config.yaml`, rename the `code_index:`
+   key to `content_index:`. Add `docs_autoinject: true` if you want doc
+   hits auto-injected (default is True when the section exists).
+3. Re-run `claude-almanac setup` to reinstall the daemon unit under the
+   new name. The installer detects and removes the legacy
+   `com.claude-almanac.codeindex-refresh` unit automatically.
+
+### Out of scope (v0.4.1)
+
+Plugin API surface, `document-drift` analyzer, doc-specific autoinject
+signal detection, YAML frontmatter extraction, setext-heading support.
+All deferred pending two-subsystem dogfood.
+
 ## 0.3.14 — 2026-04-21 — Retrieval quality fixes from the 13-query dogfood probe
 
 ### Fixed
