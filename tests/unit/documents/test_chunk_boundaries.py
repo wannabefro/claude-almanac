@@ -27,7 +27,7 @@ def test_exactly_one_char_over_max_triggers_split(tmp_path):
                for i in range(1, len(chunks)))  # distinct line_starts
 
 
-def test_empty_file_produces_no_chunks(tmp_path):
+def test_empty_file_produces_one_whole_doc_chunk(tmp_path):
     md = tmp_path / "empty.md"
     md.write_text("")
     chunks = extract(str(md))

@@ -13,6 +13,16 @@ Design:
   get ``(part N)`` suffix so the unique-key semantics in
   ``contentindex.db`` hold (each sub-chunk has a distinct line_start).
 - Heading-less files fall back to one whole-doc chunk named by basename.
+
+Known limitations (v0.4):
+- Setext headings (``Title\\n====`` / ``Title\\n----``) are ignored by
+  design — chunking is ATX-only. This also prevents YAML frontmatter's
+  closing ``---`` from false-splitting the preceding key as a setext H2.
+- YAML frontmatter is not extracted as its own chunk; it falls into the
+  pre-heading body (which is only emitted when no ATX heading exists).
+- MDX component syntax passes through as body text (no component-level
+  chunking).
+- Link reference definitions (``[id]: url``) are not extracted as chunks.
 """
 from __future__ import annotations
 
@@ -39,6 +49,11 @@ def _parse_headings(raw: str) -> list[tuple[int, int, str]]:
     out: list[tuple[int, int, str]] = []
     for i, tok in enumerate(tokens):
         if tok.type != "heading_open":
+            continue
+        # ATX-only per v0.4 spec. Setext headings (markup='=' or '-') are
+        # ignored so YAML frontmatter's closing '---' doesn't false-split
+        # the preceding key as a setext H2.
+        if not (tok.markup or "").startswith("#"):
             continue
         level = int(tok.tag[1:])  # 'h1' -> 1, 'h2' -> 2, 'h3' -> 3
         if level > 3:
@@ -175,12 +190,18 @@ def _emit_section(
     # For uniqueness on (file_path, line_start) we just need distinct
     # starting lines, so we add a step-size increment per part.
     step_lines = max((line_end - line_start + 1) // len(sub_bodies), 1)
+    # Track all prior line_starts (not just the immediately previous one)
+    # so that a short line range with many sub-chunks doesn't collide on
+    # the partial unique index in contentindex.db. Bump until unique.
+    # Note: part_line_start can exceed line_end after bumping — that's
+    # intentional. The unique index only constrains (file_path,
+    # line_start); line_end is informational and unconstrained.
+    seen: set[int] = set()
     for i, sub in enumerate(sub_bodies, start=1):
-        part_line_start = line_start + (i - 1) * step_lines
-        # Cap at line_end so part_line_start never exceeds the section.
-        part_line_start = min(part_line_start, line_end)
-        if i > 1 and part_line_start == out[-1].line_start:
-            part_line_start += 1  # forced distinct for unique index
+        part_line_start = min(line_start + (i - 1) * step_lines, line_end)
+        while part_line_start in seen:
+            part_line_start += 1
+        seen.add(part_line_start)
         text = f"// {rel_for_header} [doc] {breadcrumb} (part {i})\n{sub}"
         out.append(DocChunk(
             symbol_name=f"{symbol_root} (part {i})",

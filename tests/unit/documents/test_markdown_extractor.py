@@ -132,3 +132,65 @@ def test_hash_lines_inside_fenced_code_block_do_not_split(tmp_path):
     assert "comment" not in " ".join(names)
     # The fenced block content stays inside the Real Heading chunk
     assert "# This is a comment" in chunks[0].text
+
+
+def test_sliding_window_line_starts_unique_on_short_line_range(tmp_path):
+    """When a heading's line span is shorter than the number of sub-chunks,
+    each sub-chunk must still get a unique line_start so the doc unique
+    index in contentindex.db holds."""
+    md = tmp_path / "collapsed.md"
+    # Single-line heading + single-line 6000-char body → 1-line line range but
+    # 4 sliding-window parts at chunk_max=2000, overlap=200.
+    blob = "x" * 6000
+    md.write_text(f"# Collapsed\n{blob}\n")
+    chunks = extract(str(md), chunk_max_chars=2000, chunk_overlap_chars=200)
+    line_starts = [c.line_start for c in chunks]
+    assert len(line_starts) == len(set(line_starts)), (
+        f"duplicate line_starts: {line_starts}"
+    )
+    assert len(chunks) >= 4
+
+
+def test_yaml_frontmatter_closing_dashes_do_not_split(tmp_path):
+    """YAML frontmatter ends with '---' which markdown-it reads as a setext
+    H2 underline. We filter to ATX-only so these don't false-split."""
+    md = tmp_path / "with_frontmatter.md"
+    md.write_text(
+        "---\n"
+        "title: My Doc\n"
+        "author: Someone\n"
+        "---\n"
+        "\n"
+        "# Real Heading\n"
+        "\n"
+        "Body.\n"
+    )
+    chunks = extract(str(md))
+    names = [c.symbol_name for c in chunks]
+    # Only the ATX heading should produce a chunk
+    assert names == ["Real Heading"]
+
+
+def test_setext_h1_ignored(tmp_path):
+    """Standalone setext H1 (Title\\n=====) is not indexed; chunking is
+    ATX-only by design per the v0.4 spec."""
+    md = tmp_path / "setext.md"
+    md.write_text(
+        "Title Goes Here\n"
+        "===============\n"
+        "\n"
+        "Body of the section.\n"
+        "\n"
+        "# ATX After\n"
+        "\n"
+        "More body.\n"
+    )
+    chunks = extract(str(md))
+    names = [c.symbol_name for c in chunks]
+    # Setext heading ignored → text before the first ATX heading falls into
+    # the whole-doc fallback ONLY if there are no ATX headings. Here there
+    # is one ATX heading, so the setext-H1's pre-body gets orphaned (no
+    # chunk for it). That's acceptable for v0.4; setext is explicitly
+    # out of scope.
+    assert "ATX After" in names
+    assert "Title Goes Here" not in names
