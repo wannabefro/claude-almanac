@@ -20,6 +20,8 @@ from typing import Any
 from claude_almanac.contentindex import db as _db
 from claude_almanac.documents.ingest import _discover, index_repo
 
+__all__ = ["refresh_repo"]
+
 
 def _indexed_files(db_path: str) -> set[str]:
     conn = sqlite3.connect(db_path)
@@ -50,25 +52,6 @@ def _file_latest_created_at(db_path: str, file_path: str) -> float | None:
     return datetime.fromisoformat(row[0]).timestamp()
 
 
-def _purge_file_rows(conn: sqlite3.Connection, file_path: str) -> None:
-    """Delete the entries + entries_vec rows for ``file_path`` (kind='doc').
-
-    Requires ``conn`` to have been opened through
-    :func:`claude_almanac.contentindex.db._open` (so the ``vec0`` extension
-    is loaded). The caller is responsible for ``BEGIN``/``COMMIT``.
-    """
-    ids = [r[0] for r in conn.execute(
-        "SELECT id FROM entries WHERE kind='doc' AND file_path=?",
-        (file_path,),
-    ).fetchall()]
-    for eid in ids:
-        conn.execute("DELETE FROM entries_vec WHERE rowid=?", (eid,))
-    conn.execute(
-        "DELETE FROM entries WHERE kind='doc' AND file_path=?",
-        (file_path,),
-    )
-
-
 def refresh_repo(
     *,
     repo_root: str,
@@ -87,17 +70,7 @@ def refresh_repo(
     # Delete rows for files no longer on disk.
     gone = indexed - current
     if gone:
-        conn = _db._open(db_path)
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            for fp in gone:
-                _purge_file_rows(conn, fp)
-            conn.execute("COMMIT")
-        except Exception:
-            conn.execute("ROLLBACK")
-            raise
-        finally:
-            conn.close()
+        _db.delete_by_file_kind(db_path, kind="doc", file_paths=gone)
 
     # Identify changed files.
     to_reingest: list[str] = []
@@ -116,17 +89,7 @@ def refresh_repo(
 
     # Delete existing rows for to_reingest files (so chunk removal works
     # cleanly when a doc section was removed).
-    conn = _db._open(db_path)
-    conn.execute("BEGIN IMMEDIATE")
-    try:
-        for fp in to_reingest:
-            _purge_file_rows(conn, fp)
-        conn.execute("COMMIT")
-    except Exception:
-        conn.execute("ROLLBACK")
-        raise
-    finally:
-        conn.close()
+    _db.delete_by_file_kind(db_path, kind="doc", file_paths=to_reingest)
 
     # Re-ingest only the changed files.
     return index_repo(

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sqlite3
 import struct
+from collections.abc import Iterable
 from datetime import UTC, datetime
 
 import sqlite_vec  # type: ignore[import-untyped]
@@ -157,6 +158,45 @@ def upsert(
     finally:
         conn.close()
     return new_id
+
+
+def delete_by_file_kind(
+    db_path: str, *, kind: str, file_paths: Iterable[str],
+) -> int:
+    """Purge all entries + entries_vec rows for (kind, file_path) pairs.
+
+    Used by refresh paths to atomically remove stale rows before re-ingest.
+    Requires the vec0 extension — uses the same connection setup as
+    other writes, so callers don't need to know about the extension.
+
+    Returns number of entries rows deleted.
+    """
+    paths = list(file_paths)
+    if not paths:
+        return 0
+    conn = _open(db_path)
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        total = 0
+        for fp in paths:
+            ids = [r[0] for r in conn.execute(
+                "SELECT id FROM entries WHERE kind=? AND file_path=?",
+                (kind, fp),
+            ).fetchall()]
+            for eid in ids:
+                conn.execute("DELETE FROM entries_vec WHERE rowid=?", (eid,))
+            cur = conn.execute(
+                "DELETE FROM entries WHERE kind=? AND file_path=?",
+                (kind, fp),
+            )
+            total += cur.rowcount
+        conn.execute("COMMIT")
+        return total
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.close()
 
 
 def delete_by_file(db_path: str, file_path: str) -> int:

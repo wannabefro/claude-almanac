@@ -118,6 +118,39 @@ def test_upsert_doc_rejects_null_line_start(tmp_path):
         )
 
 
+def test_delete_by_file_kind_purges_entries_and_vec(tmp_path):
+    dbp = str(tmp_path / "content.db")
+    cdb.init(dbp, dim=4)
+    cdb.upsert(dbp, kind="doc", text="a", file_path="docs/a.md",
+               symbol_name="A", module="docs",
+               line_start=1, line_end=2, commit_sha="s", embedding=[0.1]*4)
+    cdb.upsert(dbp, kind="doc", text="b", file_path="docs/b.md",
+               symbol_name="B", module="docs",
+               line_start=1, line_end=2, commit_sha="s", embedding=[0.2]*4)
+    # Sym row with same file_path as a doc — kind filter should spare it.
+    cdb.upsert(dbp, kind="sym", text="def a(): ...", file_path="docs/a.md",
+               symbol_name="a", module="docs",
+               line_start=3, line_end=5, commit_sha="s", embedding=[0.3]*4)
+    deleted = cdb.delete_by_file_kind(
+        dbp, kind="doc", file_paths=["docs/a.md"]
+    )
+    assert deleted == 1
+    import sqlite3
+    conn = sqlite3.connect(dbp)
+    # docs/a.md doc row gone
+    assert conn.execute(
+        "SELECT COUNT(*) FROM entries WHERE kind='doc' AND file_path='docs/a.md'"
+    ).fetchone()[0] == 0
+    # docs/b.md doc row still there
+    assert conn.execute(
+        "SELECT COUNT(*) FROM entries WHERE kind='doc' AND file_path='docs/b.md'"
+    ).fetchone()[0] == 1
+    # sym row on docs/a.md spared (kind filter)
+    assert conn.execute(
+        "SELECT COUNT(*) FROM entries WHERE kind='sym' AND file_path='docs/a.md'"
+    ).fetchone()[0] == 1
+
+
 def test_upsert_arch_rejects_null_module(tmp_path):
     dbp = str(tmp_path / "content.db")
     cdb.init(dbp, dim=4)
