@@ -1,7 +1,7 @@
 """Isolate codeindex unit tests from the real XDG data dir.
 
 Several functions under ``claude_almanac.codeindex`` (arch, sym, init, refresh)
-open ``paths.logs_dir() / "code-index.log"`` unconditionally. Without a
+open ``paths.logs_dir() / "content-index.log"`` unconditionally. Without a
 per-test override of ``CLAUDE_ALMANAC_DATA_DIR`` the logger writes to the
 user's real ~/Library/Application Support/claude-almanac/logs/ directory,
 polluting the production log with synthetic test values (module=m,

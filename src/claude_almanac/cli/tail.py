@@ -5,15 +5,47 @@ import re
 import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from claude_almanac.core import paths
 
 _SOURCES = {
     "curator": "curator.log",
-    "code-index": "code-index.log",
+    # v0.4: file renamed to content-index.log. Subcommand name stays
+    # `code-index` for muscle memory; reading prefers the new path and
+    # falls back to the legacy `code-index.log` so upgraded users whose
+    # old log still holds pre-upgrade entries don't see an empty feed.
+    "code-index": "content-index.log",
     "digest": "com.claude-almanac.digest.log",
     "server": "com.claude-almanac.server.log",
 }
+
+# `--source content-index` resolves to the same source key as `code-index`.
+# Keeps both aliases supported without duplicating in the default source set
+# (which would double-print every content-index log line).
+_SOURCE_ALIASES: dict[str, str] = {
+    "content-index": "code-index",
+}
+
+# Legacy filenames to try if the primary file doesn't yet exist. Keeps
+# `claude-almanac tail` useful during the v0.3.x → v0.4 upgrade window.
+_LEGACY_FALLBACKS: dict[str, str] = {
+    "content-index.log": "code-index.log",
+}
+
+
+def _resolve_log_path(logs_dir_: Path, filename: str) -> Path | None:
+    """Return the existing log path for ``filename``, or fall back to a
+    known legacy name. None if neither exists."""
+    primary = logs_dir_ / filename
+    if primary.exists():
+        return primary
+    legacy = _LEGACY_FALLBACKS.get(filename)
+    if legacy is not None:
+        legacy_path = logs_dir_ / legacy
+        if legacy_path.exists():
+            return legacy_path
+    return None
 
 _TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})")
 
@@ -78,7 +110,8 @@ def _parse_args(argv: list[str]) -> dict[str, object]:
             opts["since"] = argv[i + 1]
             i += 2
         elif a == "--source" and i + 1 < len(argv):
-            explicit_sources.append(argv[i + 1])
+            raw_src = argv[i + 1]
+            explicit_sources.append(_SOURCE_ALIASES.get(raw_src, raw_src))
             i += 2
         else:
             i += 1
@@ -96,8 +129,8 @@ def _backfill(opts: dict[str, object]) -> list[_Line]:
         filename = _SOURCES.get(src)
         if filename is None:
             continue
-        p = logs_dir / filename
-        if not p.exists():
+        p = _resolve_log_path(logs_dir, filename)
+        if p is None:
             continue
         raw = p.read_text(errors="replace")
         all_lines.extend(_parse_lines(src, raw))
@@ -121,8 +154,8 @@ def run(argv: list[str]) -> None:
         filename = _SOURCES.get(src)
         if filename is None:
             continue
-        p = logs_dir / filename
-        offsets[src] = p.stat().st_size if p.exists() else 0
+        p = _resolve_log_path(logs_dir, filename)
+        offsets[src] = p.stat().st_size if p is not None else 0
     try:
         while True:
             new_lines: list[_Line] = []
@@ -130,8 +163,8 @@ def run(argv: list[str]) -> None:
                 filename = _SOURCES.get(src)
                 if filename is None:
                     continue
-                p = logs_dir / filename
-                if not p.exists():
+                p = _resolve_log_path(logs_dir, filename)
+                if p is None:
                     continue
                 size = p.stat().st_size
                 if size <= offsets[src]:

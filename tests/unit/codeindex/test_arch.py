@@ -80,7 +80,7 @@ def test_run_one_returns_false_on_embedder_failure(tmp_path):
             send_code_to_llm=True, global_send_code_to_llm=True,
         )
     assert ok is False
-    log_text = (paths.logs_dir() / "code-index.log").read_text()
+    log_text = (paths.logs_dir() / "content-index.log").read_text()
     assert "arch.embed_fail" in log_text
 
 
@@ -104,7 +104,7 @@ def test_run_one_refuses_when_flags_disabled(tmp_path):
     assert ok is False
     haiku_mock.assert_not_called()
     embedder.embed.assert_not_called()
-    log_text = (paths.logs_dir() / "code-index.log").read_text()
+    log_text = (paths.logs_dir() / "content-index.log").read_text()
     assert "arch.refused" in log_text
 
 

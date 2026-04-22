@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -357,7 +358,12 @@ def _reinstall_units_under_new_names() -> None:
         sched = get_scheduler()
     except Exception:
         return
-    with contextlib.suppress(Exception):
+    # Narrow suppression — we want to silence "unit doesn't exist" /
+    # "not installed" failures from launchd/systemd, not real permission
+    # or OOM / unexpected exceptions. If the legacy uninstall raises
+    # something outside this set, surface it so the upgrade path is
+    # debuggable instead of silently half-done.
+    with contextlib.suppress(FileNotFoundError, OSError, subprocess.SubprocessError):
         sched.uninstall(LEGACY_CODEINDEX_UNIT_NAME)
 
 

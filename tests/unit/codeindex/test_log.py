@@ -2,7 +2,7 @@ from claude_almanac.codeindex import log
 
 
 def test_emit_writes_quoted_values(tmp_path):
-    target = tmp_path / "code-index.log"
+    target = tmp_path / "content-index.log"
     log.emit(target, component="code-index", level="info", event="test.evt",
              repo="foo bar", count=3, ok=True)
     contents = target.read_text().splitlines()
@@ -15,6 +15,6 @@ def test_emit_writes_quoted_values(tmp_path):
 
 
 def test_emit_skips_none_values(tmp_path):
-    target = tmp_path / "code-index.log"
+    target = tmp_path / "content-index.log"
     log.emit(target, component="code-index", level="info", event="x", maybe=None)
     assert "maybe=" not in target.read_text()

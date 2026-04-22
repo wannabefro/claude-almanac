@@ -104,7 +104,7 @@ def run_one(*, db_path: str, repo_root: str, module_name: str,
             files_: list[str], language_mix: dict[str, int], commit_sha: str,
             embedder: object,
             send_code_to_llm: bool, global_send_code_to_llm: bool) -> bool:
-    log_path = paths.logs_dir() / "code-index.log"
+    log_path = paths.logs_dir() / "content-index.log"
     # Trust-boundary gate: refuse here so any direct caller (CLI, future
     # wiring) hits the same check that main() enforces. Both repo-local and
     # global must opt in.

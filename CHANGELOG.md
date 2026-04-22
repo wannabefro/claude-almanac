@@ -82,6 +82,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
    new name. The installer detects and removes the legacy
    `com.claude-almanac.codeindex-refresh` unit automatically.
 
+### Polish (bundled pre-release)
+
+- `recall docs` now uses a `## Relevant docs` top-level header in
+  doc-only output (instead of `## Relevant code > ### Docs`);
+  `format_doc_hit` drops trailing sentinels when crumb/body are empty.
+- Empty `patterns:` list in `.claude/code-index.yaml`'s `docs:` section
+  now raises a clear error instead of silently disabling ingest.
+- `documents/refresh.py` replaced per-file `ORDER BY created_at` lookups
+  with a single `GROUP BY MAX` query.
+- Log file `code-index.log` renamed to `content-index.log`;
+  `claude-almanac tail code-index` still works and falls back to the
+  legacy path if no new-path entries exist yet.
+- `cli/setup.py` narrows the legacy-unit uninstall `contextlib.suppress`
+  from `Exception` to `(FileNotFoundError, OSError, SubprocessError)`
+  so real failures surface.
+
 ### Out of scope (v0.4.1)
 
 Plugin API surface, `document-drift` analyzer, doc-specific autoinject

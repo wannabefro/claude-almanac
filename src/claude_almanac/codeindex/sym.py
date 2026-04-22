@@ -61,7 +61,7 @@ def compose_text(
 def extract_file(*, db_path: str, repo_root: str, module: str, file_abs: str,
                  commit_sha: str, embedder: Any) -> int:
     """Extract public symbols from one file; upsert each. Returns count written."""
-    log_path = paths.logs_dir() / "code-index.log"
+    log_path = paths.logs_dir() / "content-index.log"
     ext = Path(file_abs).suffix.lstrip(".").lower()
     if ext not in _CODE_EXTS:
         return 0

@@ -128,7 +128,7 @@ def test_ingest_logs_but_does_not_raise_on_embed_failure(
     assert rows == []
 
     # Structured log captured the failure — at least one entry per failing file.
-    log_file = tmp_path / "almanac" / "logs" / "code-index.log"
+    log_file = tmp_path / "almanac" / "logs" / "content-index.log"
     assert log_file.exists(), "emit() should have created the log file"
     log_text = log_file.read_text()
     assert "event=doc.embed_fail" in log_text

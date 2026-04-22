@@ -72,7 +72,7 @@ def index_repo(
         assert patterns is not None, "patterns required when only_files is None"
         rel_paths = _discover(repo_root, patterns, excludes or [])
 
-    log_path = paths.logs_dir() / "code-index.log"
+    log_path = paths.logs_dir() / "content-index.log"
     total = 0
     for rel in rel_paths:
         abs_path = str(Path(repo_root) / rel)

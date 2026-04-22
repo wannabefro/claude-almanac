@@ -40,7 +40,7 @@ def _ci_db_path() -> pathlib.Path:
 
 
 def main(repo_root: str) -> int:
-    log_path = paths.logs_dir() / "code-index.log"
+    log_path = paths.logs_dir() / "content-index.log"
     repo_root = str(pathlib.Path(repo_root).resolve())
     c = _cfg.load(repo_root)
     mods = _cfg.discover_modules(c)
